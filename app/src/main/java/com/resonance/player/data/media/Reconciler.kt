@@ -27,6 +27,16 @@ data class ReconcilePlan(
  */
 object Reconciler {
 
+    /** Stitch "ignore files under 30s" threshold (ringtones/memos filter). */
+    const val MIN_DURATION_MS = 30_000L
+
+    /**
+     * Duration gate for discovery. Unknown durations (<= 0) always pass —
+     * an unreadable length must never silently drop a file.
+     */
+    fun passesDurationFilter(durationMs: Long, ignoreShort: Boolean): Boolean =
+        !ignoreShort || durationMs <= 0L || durationMs >= MIN_DURATION_MS
+
     fun plan(
         stored: List<StoredFingerprint>,
         seen: Map<Pair<Long, String>, MediaItemCandidate>

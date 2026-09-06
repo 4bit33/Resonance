@@ -26,6 +26,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -118,12 +119,22 @@ class MediaStoreLibraryScanner(
 
             val seen = LinkedHashMap<Pair<Long, String>, MediaItemCandidate>(total.coerceAtLeast(16))
             var skipped = 0
+            val ignoreShort = try {
+                prefs.ignoreShortFiles.first()
+            } catch (t: Exception) {
+                false
+            }
             try {
                 dataSource.streamCandidates().collect { row ->
                     when (row) {
                         is ScanRow.Row -> {
                             val c = row.candidate
-                            seen[c.mediaStoreId to c.volumeName] = c
+                            // Stitch "ignore files under 30s": excluded here so
+                            // later enabling the filter also prunes them via
+                            // the normal vanished-file reconciliation.
+                            if (Reconciler.passesDurationFilter(c.durationMs, ignoreShort)) {
+                                seen[c.mediaStoreId to c.volumeName] = c
+                            }
                         }
                         is ScanRow.Skipped -> skipped++
                     }

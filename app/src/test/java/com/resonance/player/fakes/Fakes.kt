@@ -47,6 +47,21 @@ class FakeMusicRepository(songs: List<Song> = listOf(testSong(1L), testSong(2L))
     override fun searchSongs(query: String): Flow<List<Song>> =
         flowOf(backing.filter { it.title.contains(query, ignoreCase = true) })
 
+    override fun searchAlbums(query: String): Flow<List<com.resonance.player.core.model.Album>> =
+        flowOf(emptyList())
+
+    override fun searchArtists(query: String): Flow<List<com.resonance.player.core.model.Artist>> =
+        flowOf(emptyList())
+
+    override fun searchGenres(query: String): Flow<List<com.resonance.player.core.model.Genre>> =
+        flowOf(emptyList())
+
+    override suspend fun getArtistSongs(artistName: String): Result<List<Song>> =
+        Result.Success(backing.filter { it.artistName == artistName })
+
+    override suspend fun getGenreSongs(genreName: String): Result<List<Song>> =
+        Result.Success(backing.filter { it.genreName == genreName })
+
     override suspend fun recordPlay(songId: Long, completed: Boolean): Result<Unit> {
         recordedPlays.add(songId)
         return Result.Success(Unit)
@@ -91,6 +106,25 @@ class FakeMusicRepository(songs: List<Song> = listOf(testSong(1L), testSong(2L))
     override fun observeLastScanEpochSec(): kotlinx.coroutines.flow.Flow<Long?> =
         kotlinx.coroutines.flow.flowOf(null)
 
+    override fun observeRecentlyPlayed(limit: Int): Flow<List<Song>> =
+        flowOf(backing.take(limit))
+
+    override fun observeMostPlayed(limit: Int): Flow<List<Song>> =
+        flowOf(backing.take(limit))
+
+    override fun observeRecentlyAdded(limit: Int): Flow<List<Song>> =
+        flowOf(backing.take(limit))
+
+    override fun observeStorageOverview(): kotlinx.coroutines.flow.Flow<com.resonance.player.core.model.StorageOverview> =
+        kotlinx.coroutines.flow.flowOf(
+            com.resonance.player.core.model.StorageOverview(
+                trackCount = backing.size,
+                libraryBytes = backing.sumOf { it.fileSizeBytes },
+                deviceUsedBytes = 0L,
+                deviceTotalBytes = 0L
+            )
+        )
+
     fun emitScanState(state: com.resonance.player.core.media.ScanState) {
         scanStateFlow.value = state
     }
@@ -100,6 +134,22 @@ class FakePlaybackController : PlaybackController {
     private val mutable = MutableStateFlow(PlaybackSnapshot.Idle)
     override val snapshot = mutable.asStateFlow()
     val calls = mutableListOf<String>()
+
+    /** Seeds a non-empty queue snapshot for queue-behavior tests. */
+    fun seedQueue(songs: List<Song>, index: Int = 0) {
+        mutable.value = PlaybackSnapshot(
+            song = songs.getOrNull(index),
+            queue = songs.mapIndexed { i, song ->
+                com.resonance.player.core.model.QueueItem(
+                    queueId = i.toLong(),
+                    song = song,
+                    position = i
+                )
+            },
+            queueIndex = index
+        )
+    }
+
 
     override suspend fun play(queue: List<Song>, startIndex: Int): Result<Unit> {
         calls.add("play")
@@ -159,18 +209,62 @@ class FakePlaybackController : PlaybackController {
     }
 }
 
-class FakePlaylistRepository : PlaylistRepository {
+class FakePlaylistRepository(
+    private val songs: List<Song> = listOf(testSong(1L), testSong(2L))
+) : PlaylistRepository {
     private val playlists = mutableListOf<Playlist>()
+    private val items = mutableMapOf<Long, MutableList<Long>>()
+    var nextId = 2L
+
     override fun observePlaylists(): Flow<List<Playlist>> = flowOf(playlists)
     override fun observeItems(playlistId: Long): Flow<List<PlaylistItem>> = flowOf(emptyList())
+
+    override fun searchPlaylists(query: String): Flow<List<Playlist>> =
+        flowOf(playlists.filter { it.name.contains(query, ignoreCase = true) })
     override suspend fun create(name: String): Result<Playlist> {
-        val playlist = Playlist(1L, name, 0L, 0L)
+        val playlist = Playlist(nextId++, name, 0L, 0L)
         playlists.add(playlist)
         return Result.Success(playlist)
     }
 
-    override suspend fun delete(playlistId: Long): Result<Unit> = Result.Success(Unit)
-    override suspend fun addSong(playlistId: Long, songId: Long): Result<Unit> = Result.Success(Unit)
-    override suspend fun removeSong(playlistId: Long, songId: Long): Result<Unit> =
-        Result.Success(Unit)
+    override suspend fun delete(playlistId: Long): Result<Unit> {
+        playlists.removeAll { it.id == playlistId }
+        items.remove(playlistId)
+        return Result.Success(Unit)
+    }
+
+    override suspend fun addSong(playlistId: Long, songId: Long): Result<Unit> {
+        val list = items.getOrPut(playlistId) { mutableListOf() }
+        if (!list.contains(songId)) list.add(songId)
+        return Result.Success(Unit)
+    }
+
+    override suspend fun removeSong(playlistId: Long, songId: Long): Result<Unit> {
+        items[playlistId]?.remove(songId)
+        return Result.Success(Unit)
+    }
+
+    override suspend fun rename(playlistId: Long, name: String): Result<Unit> {
+        val index = playlists.indexOfFirst { it.id == playlistId }
+        if (index < 0) return Result.Failure(AppError.Unknown("Playlist not found"))
+        playlists[index] = playlists[index].copy(name = name)
+        return Result.Success(Unit)
+    }
+
+    override suspend fun moveItem(playlistId: Long, fromPosition: Int, toPosition: Int): Result<Unit> {
+        val list = items[playlistId] ?: return Result.Failure(AppError.Unknown("Playlist not found"))
+        if (fromPosition !in list.indices || toPosition !in list.indices) {
+            return Result.Failure(AppError.Unknown("Invalid playlist position"))
+        }
+        val moved = list.removeAt(fromPosition)
+        list.add(toPosition, moved)
+        return Result.Success(Unit)
+    }
+
+    override suspend fun getPlaylistSongs(playlistId: Long): Result<List<Song>> {
+        val ids = items[playlistId] ?: return Result.Failure(AppError.EmptyLibrary)
+        val found = ids.mapNotNull { id -> songs.firstOrNull { it.id == id } }
+        if (found.isEmpty()) return Result.Failure(AppError.EmptyLibrary)
+        return Result.Success(found)
+    }
 }

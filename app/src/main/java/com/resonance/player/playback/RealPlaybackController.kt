@@ -70,16 +70,30 @@ class RealPlaybackController(
 
     private val playerListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val previousId = bookkeeper.currentSong()?.id
             bookkeeper.setIndexByMediaId(mediaItem?.mediaId)
             if (mediaItem?.mediaId != errorMediaId) {
                 lastError = null
                 errorMediaId = null
             }
+            // History bookkeeping: the track we are leaving counts as heard
+            // through only on natural auto-transition (see transitionCompleted).
+            // Skipped when the "transition" resolves to the same song.
+            val leavingId = previousId
+            if (leavingId != null && bookkeeper.currentSong()?.id != leavingId) {
+                recordPlayAsync(leavingId, transitionCompleted(reason))
+            }
             persistNow()
             refreshSnapshot()
         }
 
-        override fun onPlaybackStateChanged(playbackState: Int) = refreshSnapshot()
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            // Queue end (repeat OFF): the last track completed.
+            if (playbackState == Player.STATE_ENDED) {
+                bookkeeper.currentSong()?.let { recordPlayAsync(it.id, completed = true) }
+            }
+            refreshSnapshot()
+        }
         override fun onIsPlayingChanged(isPlaying: Boolean) = refreshSnapshot()
         override fun onRepeatModeChanged(repeatMode: Int) = refreshSnapshot()
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) = refreshSnapshot()
@@ -512,6 +526,21 @@ class RealPlaybackController(
 
     private fun persistNow() {
         scope.launch { persist(mutable.value) }
+    }
+
+    /**
+     * Best-effort history write on the app scope (repository confines to
+     * IO). Failures only log — playback must never break over bookkeeping.
+     */
+    private fun recordPlayAsync(songId: Long, completed: Boolean) {
+        scope.launch {
+            try {
+                musicRepository.recordPlay(songId, completed)
+            } catch (t: Exception) {
+                if (t is CancellationException) throw t
+                Log.w(TAG, "recordPlay failed for song $songId", t)
+            }
+        }
     }
 
     private suspend fun persist(snapshot: PlaybackSnapshot) {

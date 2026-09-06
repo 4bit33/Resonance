@@ -1,6 +1,7 @@
 package com.resonance.player.playback
 
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import com.resonance.player.core.common.AppError
 import com.resonance.player.core.common.Result
 import com.resonance.player.core.model.RepeatMode
@@ -254,5 +255,17 @@ class RestoredPlaybackCodecTest {
         assertEquals(0L, decoded?.positionMs)
         assertEquals(ShuffleMode.OFF, decoded?.shuffle)
         assertEquals(RepeatMode.OFF, decoded?.repeat)
+    }
+}
+
+class PlaybackCompletionTest {
+
+    @Test
+    fun onlyAutoTransitionCountsAsCompleted() {
+        assertTrue(transitionCompleted(Player.DISCONTINUITY_REASON_AUTO_TRANSITION))
+        assertTrue(!transitionCompleted(Player.DISCONTINUITY_REASON_SKIP))
+        assertTrue(!transitionCompleted(Player.DISCONTINUITY_REASON_SEEK))
+        assertTrue(!transitionCompleted(Player.DISCONTINUITY_REASON_REMOVE))
+        assertTrue(!transitionCompleted(Player.DISCONTINUITY_REASON_INTERNAL))
     }
 }

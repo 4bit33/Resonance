@@ -22,6 +22,9 @@ class LibraryPreferences(private val context: Context) {
     val permissionAsked: Flow<Boolean> = context.libraryPrefsStore.data
         .map { it[Keys.PERMISSION_ASKED] ?: false }
 
+    val ignoreShortFiles: Flow<Boolean> = context.libraryPrefsStore.data
+        .map { it[Keys.IGNORE_SHORT] ?: false }
+
     suspend fun setLastScan(epochSec: Long) {
         context.libraryPrefsStore.edit { it[Keys.LAST_SCAN] = epochSec }
     }
@@ -30,8 +33,13 @@ class LibraryPreferences(private val context: Context) {
         context.libraryPrefsStore.edit { it[Keys.PERMISSION_ASKED] = true }
     }
 
+    suspend fun setIgnoreShortFiles(ignore: Boolean) {
+        context.libraryPrefsStore.edit { it[Keys.IGNORE_SHORT] = ignore }
+    }
+
     private object Keys {
         val LAST_SCAN = longPreferencesKey("last_scan_epoch_sec")
         val PERMISSION_ASKED = booleanPreferencesKey("permission_asked")
+        val IGNORE_SHORT = booleanPreferencesKey("ignore_short_files")
     }
 }

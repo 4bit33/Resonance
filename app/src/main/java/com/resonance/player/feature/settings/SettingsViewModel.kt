@@ -6,6 +6,7 @@ import com.resonance.player.core.media.ScanState
 import com.resonance.player.core.model.LibraryStats
 import com.resonance.player.core.permissions.AudioPermissionManager
 import com.resonance.player.core.permissions.AudioPermissionStatus
+import com.resonance.player.data.local.LibraryPreferences
 import com.resonance.player.domain.library.GetLibraryStatsUseCase
 import com.resonance.player.domain.library.ObserveLastScanUseCase
 import com.resonance.player.domain.library.ObserveScanStateUseCase
@@ -26,7 +27,8 @@ class SettingsViewModel(
     observeScanState: ObserveScanStateUseCase,
     private val rescanLibrary: RescanLibraryUseCase,
     private val getLibraryStats: GetLibraryStatsUseCase,
-    observeLastScan: ObserveLastScanUseCase
+    observeLastScan: ObserveLastScanUseCase,
+    private val libraryPreferences: LibraryPreferences
 ) : ViewModel() {
     val themeMode: StateFlow<ThemeMode> = repository.themeMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM)
@@ -39,6 +41,9 @@ class SettingsViewModel(
 
     val permissionStatus: StateFlow<AudioPermissionStatus> = permissionManager.status
 
+    val ignoreShortFiles: StateFlow<Boolean> = libraryPreferences.ignoreShortFiles
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     private val statsMutable = MutableStateFlow<LibraryStats?>(null)
     val stats: StateFlow<LibraryStats?> = statsMutable.asStateFlow()
 
@@ -48,6 +53,16 @@ class SettingsViewModel(
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { repository.setThemeMode(mode) }
+    }
+
+    fun setIgnoreShortFiles(ignore: Boolean) {
+        viewModelScope.launch {
+            try {
+                libraryPreferences.setIgnoreShortFiles(ignore)
+            } catch (t: Exception) {
+                // Best-effort pref; the switch re-reads persisted state.
+            }
+        }
     }
 
     fun rescan() {

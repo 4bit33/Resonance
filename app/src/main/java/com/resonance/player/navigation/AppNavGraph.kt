@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -45,12 +46,18 @@ import com.resonance.player.core.ui.components.NavDockDestination
 import com.resonance.player.core.ui.components.ResonanceMiniPlayer
 import com.resonance.player.core.ui.components.ResonanceNavDock
 import com.resonance.player.core.ui.components.shouldShowMiniPlayer
+import com.resonance.player.feature.favorites.FavoritesScreen
+import com.resonance.player.feature.favorites.FavoritesViewModel
 import com.resonance.player.feature.home.HomeScreen
+import com.resonance.player.feature.home.HomeViewModel
 import com.resonance.player.feature.library.LibraryScreen
 import com.resonance.player.feature.library.LibraryViewModel
 import com.resonance.player.feature.player.PlayerScreen
 import com.resonance.player.feature.player.PlayerViewModel
+import com.resonance.player.feature.playlists.PlaylistDetailScreen
+import com.resonance.player.feature.playlists.PlaylistDetailViewModel
 import com.resonance.player.feature.playlists.PlaylistsScreen
+import com.resonance.player.feature.playlists.PlaylistsViewModel
 import com.resonance.player.feature.queue.QueueScreen
 import com.resonance.player.feature.queue.QueueViewModel
 import com.resonance.player.feature.search.SearchScreen
@@ -152,13 +159,41 @@ fun ResonanceAppShell(container: AppContainer) {
             modifier = modifier
         ) {
             composable(AppDestination.Home.route) {
+                val vm: HomeViewModel = viewModel(
+                    factory = factory {
+                        HomeViewModel(
+                            container.observeRecentlyPlayed,
+                            container.observeMostPlayed,
+                            container.observeRecentlyAdded,
+                            container.observeStorageOverview,
+                            container.observeScanState,
+                            container.observeFavoriteIds,
+                            container.playSongs,
+                            container.getAlbumSongs,
+                            container.setShuffleMode,
+                            container.rescanLibrary
+                        )
+                    }
+                )
                 HomeScreen(
-                    onOpenLibrary = { navigate(AppDestination.Library.route) },
+                    vm,
+                    container.permissionManager,
+                    snapshot.song?.id,
+                    onOpenLibrary = { navigate(AppDestination.Library.routeFor(it)) },
                     onOpenSearch = { navigate(AppDestination.Search.route) },
-                    onOpenSettings = { navigate(AppDestination.Settings.route) }
+                    onOpenFavorites = { navigate(AppDestination.Favorites.route) },
+                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) },
+                    onOpenQueue = { navigate(AppDestination.Queue.route) }
                 )
             }
-            composable(AppDestination.Library.route) {
+            composable(
+                route = AppDestination.Library.route,
+                arguments = listOf(navArgument(AppDestination.Library.ARG_TAB) {
+                    type = NavType.IntType
+                    defaultValue = 0
+                })
+            ) { entry ->
+                val initialTab = entry.arguments?.getInt(AppDestination.Library.ARG_TAB) ?: 0
                 val vm: LibraryViewModel = viewModel(
                     factory = factory {
                         LibraryViewModel(
@@ -170,6 +205,12 @@ fun ResonanceAppShell(container: AppContainer) {
                             container.observeGenres,
                             container.observeFolders,
                             container.getAlbumSongs,
+                            container.setShuffleMode,
+                            container.playNext,
+                            container.appendToQueue,
+                            container.observePlaylists,
+                            container.addSongToPlaylist,
+                            container.createPlaylist,
                             container.rescanLibrary
                         )
                     }
@@ -177,15 +218,34 @@ fun ResonanceAppShell(container: AppContainer) {
                 LibraryScreen(
                     vm,
                     container.permissionManager,
+                    initialTab,
+                    snapshot.song?.id,
                     onSongClick = { navigate(AppDestination.Player.routeFor(it)) },
-                    onOpenQueue = { navigate(AppDestination.Queue.route) }
+                    onOpenQueue = { navigate(AppDestination.Queue.route) },
+                    onOpenSearch = { navigate(AppDestination.Search.route) }
                 )
             }
             composable(AppDestination.Search.route) {
                 val vm: SearchViewModel = viewModel(
-                    factory = factory { SearchViewModel(container.searchLibrary) }
+                    factory = factory {
+                        SearchViewModel(
+                            container.searchLibrary,
+                            container.searchAll,
+                            container.playSongs,
+                            container.getAlbumSongs,
+                            container.getArtistSongs,
+                            container.getGenreSongs
+                        )
+                    }
                 )
-                SearchScreen(vm)
+                SearchScreen(
+                    vm,
+                    snapshot.song?.id,
+                    onBack = { navController.popBackStack() },
+                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) },
+                    onOpenQueue = { navigate(AppDestination.Queue.route) },
+                    onOpenPlaylist = { navigate(AppDestination.PlaylistDetail.routeFor(it)) }
+                )
             }
             composable(AppDestination.Settings.route) {
                 val vm: SettingsViewModel = viewModel(
@@ -196,7 +256,8 @@ fun ResonanceAppShell(container: AppContainer) {
                             container.observeScanState,
                             container.rescanLibrary,
                             container.getLibraryStats,
-                            container.observeLastScan
+                            container.observeLastScan,
+                            container.libraryPreferences
                         )
                     }
                 )
@@ -221,19 +282,97 @@ fun ResonanceAppShell(container: AppContainer) {
                             container.skipToNext,
                             container.skipToPrevious,
                             container.setShuffleMode,
-                            container.setRepeatMode
+                            container.setRepeatMode,
+                            container.toggleFavorite,
+                            container.observeFavoriteIds
                         )
                     }
                 )
-                PlayerScreen(vm, onOpenQueue = { navigate(AppDestination.Queue.route) })
+                PlayerScreen(
+                    vm,
+                    onOpenQueue = { navigate(AppDestination.Queue.route) },
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable(AppDestination.Queue.route) {
                 val vm: QueueViewModel = viewModel(
-                    factory = factory { QueueViewModel(container.playbackController) }
+                    factory = factory {
+                        QueueViewModel(
+                            container.playbackController,
+                            container.moveQueueItem,
+                            container.removeQueueItem,
+                            container.clearQueue,
+                            container.skipToQueueItem
+                        )
+                    }
                 )
-                QueueScreen(vm)
+                QueueScreen(vm, onBack = { navController.popBackStack() })
             }
-            composable(AppDestination.Playlists.route) { PlaylistsScreen() }
+            composable(AppDestination.Playlists.route) {
+                val vm: PlaylistsViewModel = viewModel(
+                    factory = factory {
+                        PlaylistsViewModel(
+                            container.observePlaylists,
+                            container.createPlaylist,
+                            container.deletePlaylist,
+                            container.renamePlaylist,
+                            container.observePlaylistSongs,
+                            container.playSongs
+                        )
+                    }
+                )
+                PlaylistsScreen(
+                    vm,
+                    onOpenDetail = { navigate(AppDestination.PlaylistDetail.routeFor(it)) },
+                    onOpenQueue = { navigate(AppDestination.Queue.route) }
+                )
+            }
+            composable(
+                route = AppDestination.PlaylistDetail.route,
+                arguments = listOf(navArgument(AppDestination.PlaylistDetail.ARG_PLAYLIST_ID) {
+                    type = NavType.LongType
+                })
+            ) { entry ->
+                val playlistId =
+                    entry.arguments?.getLong(AppDestination.PlaylistDetail.ARG_PLAYLIST_ID) ?: -1L
+                val vm: PlaylistDetailViewModel = viewModel(
+                    key = "playlist-$playlistId",
+                    factory = factory {
+                        PlaylistDetailViewModel(
+                            playlistId,
+                            container.observePlaylistSongs,
+                            container.playSongs,
+                            container.setShuffleMode,
+                            container.renamePlaylist,
+                            container.deletePlaylist,
+                            container.removeSongFromPlaylist,
+                            container.movePlaylistItem
+                        )
+                    }
+                )
+                val playlistsFlow = remember { container.observePlaylists() }
+                val playlists by playlistsFlow.collectAsState(initial = emptyList())
+                PlaylistDetailScreen(
+                    vm,
+                    playlists.firstOrNull { it.id == playlistId },
+                    onBack = { navController.popBackStack() },
+                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) },
+                    onDeleted = { navController.popBackStack() }
+                )
+            }
+            composable(AppDestination.Favorites.route) {
+                val vm: FavoritesViewModel = viewModel(
+                    factory = factory {
+                        FavoritesViewModel(container.observeFavoriteSongs, container.playSongs)
+                    }
+                )
+                FavoritesScreen(
+                    vm,
+                    snapshot.song?.id,
+                    onBack = { navController.popBackStack() },
+                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) }
+                )
+            }
         }
     }
 

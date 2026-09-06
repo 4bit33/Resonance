@@ -21,6 +21,11 @@ interface MusicRepository {
     fun observeSongs(sort: SongSort = SongSort.TITLE): Flow<List<Song>>
     suspend fun getSong(id: Long): Result<Song>
     fun searchSongs(query: String): Flow<List<Song>>
+    fun searchAlbums(query: String): Flow<List<Album>>
+    fun searchArtists(query: String): Flow<List<Artist>>
+    fun searchGenres(query: String): Flow<List<Genre>>
+    suspend fun getArtistSongs(artistName: String): Result<List<Song>>
+    suspend fun getGenreSongs(genreName: String): Result<List<Song>>
     suspend fun recordPlay(songId: Long, completed: Boolean): Result<Unit>
     suspend fun scanAndImport(): Result<ScanReport>
     fun observeScanState(): Flow<ScanState>
@@ -29,6 +34,10 @@ interface MusicRepository {
     fun observeGenres(): Flow<List<Genre>>
     fun observeFolders(): Flow<List<MusicFolder>>
     suspend fun getAlbumSongs(albumName: String, albumArtist: String?): Result<List<Song>>
+    fun observeRecentlyPlayed(limit: Int): Flow<List<Song>>
+    fun observeMostPlayed(limit: Int): Flow<List<Song>>
+    fun observeRecentlyAdded(limit: Int): Flow<List<Song>>
+    fun observeStorageOverview(): Flow<com.resonance.player.core.model.StorageOverview>
     suspend fun getLibraryStats(): LibraryStats
     fun observeLastScanEpochSec(): Flow<Long?>
 }

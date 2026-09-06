@@ -6,9 +6,16 @@ import com.resonance.player.core.model.MixPreset
 import com.resonance.player.core.playback.UnimplementedPlaybackController
 import com.resonance.player.domain.library.ObserveSongsUseCase
 import com.resonance.player.domain.library.RecordPlayUseCase
+import com.resonance.player.domain.library.GetAlbumSongsUseCase
 import com.resonance.player.domain.playback.PlaySongsUseCase
 import com.resonance.player.domain.playback.TogglePlayPauseUseCase
+import com.resonance.player.domain.playlists.AddSongToPlaylistUseCase
 import com.resonance.player.domain.playlists.CreatePlaylistUseCase
+import com.resonance.player.domain.playlists.DeletePlaylistUseCase
+import com.resonance.player.domain.playlists.MovePlaylistItemUseCase
+import com.resonance.player.domain.playlists.ObservePlaylistSongsUseCase
+import com.resonance.player.domain.playlists.RemoveSongFromPlaylistUseCase
+import com.resonance.player.domain.playlists.RenamePlaylistUseCase
 import com.resonance.player.fakes.FakeMusicRepository
 import com.resonance.player.fakes.FakePlaybackController
 import com.resonance.player.fakes.FakePlaylistRepository
@@ -60,6 +67,29 @@ class UseCaseTest {
         assertTrue(useCase("   ") is Result.Failure)
         val ok = useCase("  Road Trip  ")
         assertTrue(ok is Result.Success && (ok as Result.Success).value.name == "Road Trip")
+    }
+
+    @Test
+    fun playlistCrud_roundTrip() = runTest {
+        val repo = FakePlaylistRepository()
+        val created = CreatePlaylistUseCase(repo)("Mix") as Result.Success
+        val id = created.value.id
+        assertTrue(AddSongToPlaylistUseCase(repo)(id, 1L) is Result.Success)
+        assertTrue(AddSongToPlaylistUseCase(repo)(id, 1L) is Result.Success)
+        assertTrue(AddSongToPlaylistUseCase(repo)(id, 2L) is Result.Success)
+        val songs = ObservePlaylistSongsUseCase(repo)(id)
+        assertTrue(songs is Result.Success && (songs as Result.Success).value.map { it.id } == listOf(1L, 2L))
+        assertTrue(MovePlaylistItemUseCase(repo)(id, 0, 1) is Result.Success)
+        val moved = ObservePlaylistSongsUseCase(repo)(id) as Result.Success
+        assertEquals(listOf(2L, 1L), moved.value.map { it.id })
+        assertTrue(RenamePlaylistUseCase(repo)(id, "  New  ") is Result.Success)
+        assertTrue(RenamePlaylistUseCase(repo)(id, "  ") is Result.Failure)
+        assertTrue(RenamePlaylistUseCase(repo)(-99L, "X") is Result.Failure)
+        assertTrue(RemoveSongFromPlaylistUseCase(repo)(id, 2L) is Result.Success)
+        val afterRemove = ObservePlaylistSongsUseCase(repo)(id) as Result.Success
+        assertEquals(listOf(1L), afterRemove.value.map { it.id })
+        assertTrue(DeletePlaylistUseCase(repo)(id) is Result.Success)
+        assertTrue(ObservePlaylistSongsUseCase(repo)(id) is Result.Failure)
     }
 
     @Test

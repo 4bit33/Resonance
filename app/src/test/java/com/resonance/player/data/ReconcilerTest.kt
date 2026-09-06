@@ -4,6 +4,7 @@ import com.resonance.player.core.media.MediaItemCandidate
 import com.resonance.player.data.media.Reconciler
 import com.resonance.player.data.media.StoredFingerprint
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -92,5 +93,14 @@ class ReconcilerTest {
         )
         assertEquals(1, plan.toImport.size)
         assertEquals(listOf(1L), plan.toDelete)
+    }
+
+    @Test
+    fun durationFilter_skipsShortKeepsUnknown() {
+        assertTrue(Reconciler.passesDurationFilter(0L, ignoreShort = true))
+        assertTrue(Reconciler.passesDurationFilter(-5L, ignoreShort = true))
+        assertFalse(Reconciler.passesDurationFilter(29_999L, ignoreShort = true))
+        assertTrue(Reconciler.passesDurationFilter(30_000L, ignoreShort = true))
+        assertTrue(Reconciler.passesDurationFilter(1_000L, ignoreShort = false))
     }
 }

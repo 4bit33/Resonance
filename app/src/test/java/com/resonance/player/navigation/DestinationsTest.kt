@@ -10,7 +10,7 @@ class DestinationsTest {
     fun tabs_coverStitchDestinations() {
         assertEquals(
             listOf("home", "library", "playlists", "settings"),
-            AppDestination.tabs.map { it.route }
+            AppDestination.tabs.map { it.route.substringBefore("?") }
         )
     }
 
@@ -18,12 +18,18 @@ class DestinationsTest {
     fun tabForRoute_mapsTabsAndGlobals() {
         assertEquals(AppDestination.Home, AppDestination.tabForRoute("home"))
         assertEquals(AppDestination.Library, AppDestination.tabForRoute("library"))
+        assertEquals(AppDestination.Library, AppDestination.tabForRoute("library?tab=2"))
         assertEquals(AppDestination.Playlists, AppDestination.tabForRoute("playlists"))
         assertEquals(AppDestination.Settings, AppDestination.tabForRoute("settings"))
         assertNull(AppDestination.tabForRoute("search"))
         assertNull(AppDestination.tabForRoute("player/42"))
         assertNull(AppDestination.tabForRoute("queue"))
         assertNull(AppDestination.tabForRoute(null))
+    }
+
+    @Test
+    fun libraryRoute_buildsWithTab() {
+        assertEquals("library?tab=3", AppDestination.Library.routeFor(3))
     }
 
     @Test

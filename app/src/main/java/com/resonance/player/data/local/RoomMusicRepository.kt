@@ -4,6 +4,8 @@ import com.resonance.player.core.common.AppError
 import com.resonance.player.core.common.AppDispatchers
 import com.resonance.player.core.common.Result
 import com.resonance.player.core.database.ResonanceDatabase
+import com.resonance.player.core.database.entity.SongEntity
+import com.resonance.player.core.model.StorageOverview
 import com.resonance.player.core.database.entity.HistoryEntryEntity
 import com.resonance.player.core.database.toDomain
 import com.resonance.player.core.media.AudioScanner
@@ -20,6 +22,7 @@ import com.resonance.player.domain.library.SongSort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -35,6 +38,7 @@ class RoomMusicRepository(
     private val database: ResonanceDatabase,
     private val scanner: AudioScanner,
     private val prefs: LibraryPreferences,
+    private val storageStats: StorageStatsProvider,
     private val dispatchers: AppDispatchers,
     private val clock: () -> Long = { System.currentTimeMillis() / 1000L }
 ) : MusicRepository {
@@ -66,7 +70,7 @@ class RoomMusicRepository(
     }
 
     override fun searchSongs(query: String): Flow<List<Song>> {
-        val like = "%" + query.trim().replace("%", "\\%").replace("_", "\\_") + "%"
+        val like = likePattern(query)
         return combine(
             database.songDao().search(like),
             database.favoriteDao().observeFavoriteIds()
@@ -75,6 +79,46 @@ class RoomMusicRepository(
             entities.map { it.toDomain(isFavorite = favoriteSet.contains(it.id)) }
         }
     }
+
+    override fun searchAlbums(query: String): Flow<List<Album>> =
+        database.songDao().searchAlbumGroups(likePattern(query), SEARCH_LIMIT)
+            .map { rows -> rows.map { it.toDomain() } }
+
+    override fun searchArtists(query: String): Flow<List<Artist>> =
+        database.songDao().searchArtistGroups(likePattern(query), SEARCH_LIMIT)
+            .map { rows -> rows.map { it.toDomain() } }
+
+    override fun searchGenres(query: String): Flow<List<Genre>> =
+        database.songDao().searchGenreGroups(likePattern(query), SEARCH_LIMIT)
+            .map { rows -> rows.map { it.toDomain() } }
+
+    override suspend fun getArtistSongs(artistName: String): Result<List<Song>> =
+        withContext(dispatchers.io) {
+            try {
+                val entities = database.songDao().getSongsOfArtist(artistName)
+                if (entities.isEmpty()) {
+                    return@withContext Result.Failure(AppError.EmptyLibrary)
+                }
+                val favorites = database.favoriteDao().getFavoriteIds().toSet()
+                Result.Success(entities.map { it.toDomain(isFavorite = favorites.contains(it.id)) })
+            } catch (t: Exception) {
+                Result.Failure(AppError.DatabaseError(t.message))
+            }
+        }
+
+    override suspend fun getGenreSongs(genreName: String): Result<List<Song>> =
+        withContext(dispatchers.io) {
+            try {
+                val entities = database.songDao().getSongsOfGenre(genreName)
+                if (entities.isEmpty()) {
+                    return@withContext Result.Failure(AppError.EmptyLibrary)
+                }
+                val favorites = database.favoriteDao().getFavoriteIds().toSet()
+                Result.Success(entities.map { it.toDomain(isFavorite = favorites.contains(it.id)) })
+            } catch (t: Exception) {
+                Result.Failure(AppError.DatabaseError(t.message))
+            }
+        }
 
     override suspend fun recordPlay(songId: Long, completed: Boolean): Result<Unit> =
         withContext(dispatchers.io) {
@@ -137,4 +181,45 @@ class RoomMusicRepository(
     }
 
     override fun observeLastScanEpochSec(): Flow<Long?> = prefs.lastScanEpochSec
+
+    private fun likePattern(query: String): String =
+        "%" + query.trim().replace("%", "\\%").replace("_", "\\_") + "%"
+
+    private companion object {
+        const val SEARCH_LIMIT = 8
+    }
+
+    private fun withFavorites(
+        songs: Flow<List<SongEntity>>
+    ): Flow<List<Song>> = combine(
+        songs,
+        database.favoriteDao().observeFavoriteIds()
+    ) { entities, favorites ->
+        val favoriteSet = favorites.toSet()
+        entities.map { it.toDomain(isFavorite = favoriteSet.contains(it.id)) }
+    }
+
+    override fun observeRecentlyPlayed(limit: Int): Flow<List<Song>> =
+        withFavorites(database.songDao().observeRecentlyPlayedLimited(limit))
+
+    override fun observeMostPlayed(limit: Int): Flow<List<Song>> =
+        withFavorites(database.songDao().observeMostPlayedLimited(limit))
+
+    override fun observeRecentlyAdded(limit: Int): Flow<List<Song>> =
+        withFavorites(database.songDao().observeRecentlyAddedLimited(limit))
+
+    override fun observeStorageOverview(): Flow<StorageOverview> =
+        database.songDao().observeStorageTotals().map { totals ->
+            val device = try {
+                storageStats.read()
+            } catch (t: Exception) {
+                DeviceStorage(usedBytes = 0L, totalBytes = 0L)
+            }
+            StorageOverview(
+                trackCount = totals.trackCount,
+                libraryBytes = totals.totalBytes,
+                deviceUsedBytes = device.usedBytes,
+                deviceTotalBytes = device.totalBytes
+            )
+        }.flowOn(dispatchers.io)
 }

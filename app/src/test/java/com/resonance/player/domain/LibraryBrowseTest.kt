@@ -13,9 +13,15 @@ import com.resonance.player.domain.library.ObserveLastScanUseCase
 import com.resonance.player.domain.library.ObserveScanStateUseCase
 import com.resonance.player.domain.library.RescanLibraryUseCase
 import com.resonance.player.fakes.FakeMusicRepository
+import com.resonance.player.fakes.FakePlaylistRepository
+import com.resonance.player.fakes.testSong
 import com.resonance.player.feature.settings.formatScanTime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import com.resonance.player.domain.library.recentAlbumsFromSongs
+import com.resonance.player.domain.search.SearchAllUseCase
+import com.resonance.player.domain.search.SearchResults
+import com.resonance.player.feature.library.alphabetIndex
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -73,5 +79,34 @@ class LibraryBrowseTest {
         assertEquals("n/a", formatScanTime(0L, "n/a"))
         assertEquals("n/a", formatScanTime(-5L, "n/a"))
         assertTrue(formatScanTime(1_700_000_000L, "n/a").isNotBlank())
+    }
+
+    @Test
+    fun alphabetIndex_groupsFirstLetters() {
+        val index = alphabetIndex(listOf("apple", "Apricot", "banana", "123 GO", "", "  cherry"))
+        assertEquals(
+            listOf("A" to 0, "B" to 2, "#" to 3, "C" to 5),
+            index
+        )
+    }
+
+    @Test
+    fun alphabetIndex_emptyInput() {
+        assertEquals(emptyList<Pair<String, Int>>(), alphabetIndex(emptyList()))
+    }
+
+    @Test
+    fun searchAll_blankShortCircuits() = runTest {
+        val results = SearchAllUseCase(FakeMusicRepository(), FakePlaylistRepository())("   ").first()
+        assertTrue(results.isEmpty())
+    }
+
+    @Test
+    fun searchAll_combinesCategories() = runTest {
+        val results = SearchAllUseCase(FakeMusicRepository(), FakePlaylistRepository())("Song").first()
+        assertEquals(2, results.songs.size)
+        assertTrue(results.albums.isEmpty())
+        assertTrue(results.playlists.isEmpty())
+        assertTrue(!SearchResults(songs = listOf(testSong(1L))).isEmpty())
     }
 }

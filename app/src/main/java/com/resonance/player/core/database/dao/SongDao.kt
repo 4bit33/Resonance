@@ -48,6 +48,12 @@ data class FolderRow(
     val songCount: Int
 )
 
+/** Cheap aggregate for the Home storage card (COUNT + SUM only). */
+data class StorageTotals(
+    val trackCount: Int,
+    val totalBytes: Long
+)
+
 /**
  * Paged-style access only: every read is a Flow or a suspend lookup.
  * Nothing here ever loads the whole collection into memory at once;
@@ -74,6 +80,21 @@ interface SongDao {
     fun observeMostPlayed(): Flow<List<SongEntity>>
 
     @Query(
+        "SELECT * FROM songs WHERE lastPlayedEpochSec IS NOT NULL AND lastPlayedEpochSec > 0 " +
+            "ORDER BY lastPlayedEpochSec DESC LIMIT :limit"
+    )
+    fun observeRecentlyPlayedLimited(limit: Int): Flow<List<SongEntity>>
+
+    @Query("SELECT * FROM songs ORDER BY playCount DESC LIMIT :limit")
+    fun observeMostPlayedLimited(limit: Int): Flow<List<SongEntity>>
+
+    @Query("SELECT * FROM songs ORDER BY dateAddedEpochSec DESC LIMIT :limit")
+    fun observeRecentlyAddedLimited(limit: Int): Flow<List<SongEntity>>
+
+    @Query("SELECT COUNT(*) AS trackCount, COALESCE(SUM(fileSizeBytes), 0) AS totalBytes FROM songs")
+    fun observeStorageTotals(): Flow<StorageTotals>
+
+    @Query(
         "SELECT * FROM songs WHERE title LIKE :q ESCAPE '\\' OR artistName LIKE :q ESCAPE '\\' " +
             "OR albumName LIKE :q ESCAPE '\\' OR albumArtist LIKE :q ESCAPE '\\' " +
             "OR genreName LIKE :q ESCAPE '\\' " +
@@ -83,6 +104,9 @@ interface SongDao {
 
     @Query("SELECT * FROM songs WHERE id = :id")
     suspend fun getById(id: Long): SongEntity?
+
+    @Query("SELECT * FROM songs WHERE id IN (:ids)")
+    suspend fun getByIds(ids: List<Long>): List<SongEntity>
 
     @Query("SELECT * FROM songs WHERE mediaStoreId = :mediaStoreId AND volumeName = :volumeName")
     suspend fun getByMediaKey(mediaStoreId: Long, volumeName: String): SongEntity?
@@ -131,6 +155,38 @@ interface SongDao {
             "GROUP BY relativePath ORDER BY relativePath ASC"
     )
     fun observeFolderGroups(): Flow<List<FolderRow>>
+
+    @Query(
+        "SELECT albumName, albumArtist, COUNT(*) AS songCount, " +
+            "SUM(durationMs) AS totalDurationMs, MAX(year) AS year, " +
+            "COUNT(DISTINCT artistName) AS distinctArtists, " +
+            "MIN(artistName) AS sampleArtist, MAX(artworkUri) AS sampleArtworkUri " +
+            "FROM songs WHERE albumName LIKE :q ESCAPE '\\' " +
+            "GROUP BY albumName COLLATE NOCASE, albumArtist COLLATE NOCASE " +
+            "ORDER BY albumName COLLATE NOCASE ASC LIMIT :limit"
+    )
+    fun searchAlbumGroups(q: String, limit: Int): Flow<List<AlbumRow>>
+
+    @Query(
+        "SELECT artistName, COUNT(*) AS songCount, " +
+            "COUNT(DISTINCT albumName) AS albumCount FROM songs " +
+            "WHERE artistName LIKE :q ESCAPE '\\' " +
+            "GROUP BY artistName COLLATE NOCASE ORDER BY artistName COLLATE NOCASE ASC LIMIT :limit"
+    )
+    fun searchArtistGroups(q: String, limit: Int): Flow<List<ArtistRow>>
+
+    @Query(
+        "SELECT genreName, COUNT(*) AS songCount FROM songs " +
+            "WHERE genreName LIKE :q ESCAPE '\\' " +
+            "GROUP BY genreName COLLATE NOCASE ORDER BY genreName COLLATE NOCASE ASC LIMIT :limit"
+    )
+    fun searchGenreGroups(q: String, limit: Int): Flow<List<GenreRow>>
+
+    @Query("SELECT * FROM songs WHERE artistName = :artistName ORDER BY title COLLATE NOCASE ASC")
+    suspend fun getSongsOfArtist(artistName: String): List<SongEntity>
+
+    @Query("SELECT * FROM songs WHERE genreName = :genreName ORDER BY title COLLATE NOCASE ASC")
+    suspend fun getSongsOfGenre(genreName: String): List<SongEntity>
 
     @Query(
         "SELECT * FROM songs WHERE albumName = :albumName " +

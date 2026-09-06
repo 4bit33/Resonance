@@ -34,6 +34,16 @@ class GetAlbumSongsUseCase(private val repository: MusicRepository) {
         repository.getAlbumSongs(albumName, albumArtist)
 }
 
+class GetArtistSongsUseCase(private val repository: MusicRepository) {
+    suspend operator fun invoke(artistName: String): Result<List<Song>> =
+        repository.getArtistSongs(artistName)
+}
+
+class GetGenreSongsUseCase(private val repository: MusicRepository) {
+    suspend operator fun invoke(genreName: String): Result<List<Song>> =
+        repository.getGenreSongs(genreName)
+}
+
 /** Scanner state for progress banners and Settings. */
 class ObserveScanStateUseCase(private val repository: MusicRepository) {
     operator fun invoke(): Flow<ScanState> = repository.observeScanState()

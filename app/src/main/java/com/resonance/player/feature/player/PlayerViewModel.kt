@@ -9,6 +9,8 @@ import com.resonance.player.core.model.RepeatMode
 import com.resonance.player.core.model.ShuffleMode
 import com.resonance.player.core.model.Song
 import com.resonance.player.core.playback.PlaybackController
+import com.resonance.player.domain.favorites.ObserveFavoriteIdsUseCase
+import com.resonance.player.domain.favorites.ToggleFavoriteUseCase
 import com.resonance.player.domain.library.GetSongUseCase
 import com.resonance.player.domain.playback.SeekToUseCase
 import com.resonance.player.domain.playback.SetRepeatModeUseCase
@@ -16,9 +18,14 @@ import com.resonance.player.domain.playback.SetShuffleModeUseCase
 import com.resonance.player.domain.playback.SkipToNextUseCase
 import com.resonance.player.domain.playback.SkipToPreviousUseCase
 import com.resonance.player.domain.playback.TogglePlayPauseUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 
 /**
@@ -35,10 +42,24 @@ class PlayerViewModel(
     private val skipToNext: SkipToNextUseCase,
     private val skipToPrevious: SkipToPreviousUseCase,
     private val setShuffleMode: SetShuffleModeUseCase,
-    private val setRepeatMode: SetRepeatModeUseCase
+    private val setRepeatMode: SetRepeatModeUseCase,
+    private val toggleFavorite: ToggleFavoriteUseCase,
+    observeFavoriteIds: ObserveFavoriteIdsUseCase
 ) : ViewModel() {
 
     val snapshot: StateFlow<PlaybackSnapshot> = playback.snapshot
+
+    /**
+     * Favorite state derived live from the snapshot song + favorite ids, so
+     * toggles reflect instantly even mid-playback (snapshot songs are
+     * immutable copies from queue time).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val isFavorite: StateFlow<Boolean> = combine(
+        snapshot.map { it.song?.id },
+        observeFavoriteIds()
+    ) { id, ids -> id != null && ids.contains(id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val detailsMutable = MutableStateFlow<Song?>(null)
     val details: StateFlow<Song?> = detailsMutable.asStateFlow()
@@ -56,6 +77,17 @@ class PlayerViewModel(
     fun onSeek(positionMs: Long) = runCommand { seekTo(positionMs) }
     fun onNext() = runCommand { skipToNext() }
     fun onPrevious() = runCommand { skipToPrevious() }
+
+    fun onToggleFavorite() {
+        val id = snapshot.value.song?.id ?: detailsMutable.value?.id ?: return
+        viewModelScope.launch {
+            when (val result = toggleFavorite(id)) {
+                is Result.Success -> Unit
+                is Result.Failure -> commandErrorMutable.value = result.error
+                is Result.Loading -> Unit
+            }
+        }
+    }
 
     fun onToggleShuffle(current: ShuffleMode) = runCommand {
         val next = if (current == ShuffleMode.ON) ShuffleMode.OFF else ShuffleMode.ON
