@@ -15,11 +15,16 @@ import org.junit.Test
 class SongMapperTest {
 
     private fun entity() = SongEntity(
-        id = 7L, mediaStoreId = 7L, title = "T", artistName = "A", albumName = "Al",
-        albumId = null, artistId = null, genreName = null, trackNumber = 1, discNumber = null,
-        year = 2020, durationMs = 180_000L, path = "/m/t.mp3", contentUri = "content://m/7",
+        id = 7L, mediaStoreId = 7L, volumeName = "external", title = "T",
+        artistName = "A", albumName = "Al", albumArtist = "AA",
+        albumId = null, artistId = null, genreName = null,
+        trackNumber = 1, totalTracks = 10, discNumber = null, totalDiscs = null,
+        year = 2020, durationMs = 180_000L, path = "Music/t.mp3",
+        contentUri = "content://m/7", relativePath = "Music/",
         mimeType = "audio/mpeg", bitrate = 320_000, sampleRate = 44_100,
-        dateAddedEpochSec = 1L, dateModifiedEpochSec = 2L
+        fileSizeBytes = 4_000_000L,
+        dateAddedEpochSec = 1L, dateModifiedEpochSec = 2L, lastScannedAtSec = 3L,
+        artworkKey = "abc", artworkUri = "file:///a/abc.bin"
     )
 
     @Test

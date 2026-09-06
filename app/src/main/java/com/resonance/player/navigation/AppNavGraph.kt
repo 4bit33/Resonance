@@ -37,6 +37,7 @@ import com.resonance.player.feature.player.PlayerScreen
 import com.resonance.player.feature.player.PlayerViewModel
 import com.resonance.player.feature.playlists.PlaylistsScreen
 import com.resonance.player.feature.queue.QueueScreen
+import com.resonance.player.feature.queue.QueueViewModel
 import com.resonance.player.feature.search.SearchScreen
 import com.resonance.player.feature.search.SearchViewModel
 import com.resonance.player.feature.settings.SettingsScreen
@@ -102,9 +103,26 @@ fun ResonanceAppShell(container: AppContainer) {
                 }
                 composable(AppDestination.Library.route) {
                     val vm: LibraryViewModel = viewModel(
-                        factory = factory { LibraryViewModel(container.observeSongs) }
+                        factory = factory {
+                            LibraryViewModel(
+                                container.observeSongs,
+                                container.playSongs,
+                                container.observeScanState,
+                                container.observeAlbums,
+                                container.observeArtists,
+                                container.observeGenres,
+                                container.observeFolders,
+                                container.getAlbumSongs,
+                                container.rescanLibrary
+                            )
+                        }
                     )
-                    LibraryScreen(vm, onSongClick = { navigate(AppDestination.Player.routeFor(it)) })
+                    LibraryScreen(
+                        vm,
+                        container.permissionManager,
+                        onSongClick = { navigate(AppDestination.Player.routeFor(it)) },
+                        onOpenQueue = { navigate(AppDestination.Queue.route) }
+                    )
                 }
                 composable(AppDestination.Search.route) {
                     val vm: SearchViewModel = viewModel(
@@ -114,7 +132,16 @@ fun ResonanceAppShell(container: AppContainer) {
                 }
                 composable(AppDestination.Settings.route) {
                     val vm: SettingsViewModel = viewModel(
-                        factory = factory { SettingsViewModel(container.settingsRepository) }
+                        factory = factory {
+                            SettingsViewModel(
+                                container.settingsRepository,
+                                container.permissionManager,
+                                container.observeScanState,
+                                container.rescanLibrary,
+                                container.getLibraryStats,
+                                container.observeLastScan
+                            )
+                        }
                     )
                     SettingsScreen(vm)
                 }
@@ -127,11 +154,28 @@ fun ResonanceAppShell(container: AppContainer) {
                     val songId = entry.arguments?.getLong(AppDestination.Player.ARG_SONG_ID) ?: -1L
                     val vm: PlayerViewModel = viewModel(
                         key = "player-$songId",
-                        factory = factory { PlayerViewModel(songId, container.getSong) }
+                        factory = factory {
+                            PlayerViewModel(
+                                songId,
+                                container.getSong,
+                                container.playbackController,
+                                container.togglePlayPause,
+                                container.seekTo,
+                                container.skipToNext,
+                                container.skipToPrevious,
+                                container.setShuffleMode,
+                                container.setRepeatMode
+                            )
+                        }
                     )
-                    PlayerScreen(vm)
+                    PlayerScreen(vm, onOpenQueue = { navigate(AppDestination.Queue.route) })
                 }
-                composable(AppDestination.Queue.route) { QueueScreen() }
+                composable(AppDestination.Queue.route) {
+                    val vm: QueueViewModel = viewModel(
+                        factory = factory { QueueViewModel(container.playbackController) }
+                    )
+                    QueueScreen(vm)
+                }
                 composable(AppDestination.Playlists.route) { PlaylistsScreen() }
             }
             if (widthSize != WindowWidthSize.EXPANDED) {

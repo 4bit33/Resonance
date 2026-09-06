@@ -11,10 +11,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Phase 1 honest stand-in. Exposes the idle snapshot and reports
+ * Honest stand-in kept for tests and as documentation of the pre-Phase-2
+ * behavior. Production now uses the Media3 implementation; this class reports
  * FeatureUnavailable for every transport call INSTEAD of faking playback
  * (no timers, no fake progress — see implementation rules).
- * Replaced by the Media3 implementation in Phase 2 without touching callers.
  */
 class UnimplementedPlaybackController : PlaybackController {
     private val idle = MutableStateFlow(PlaybackSnapshot.Idle)
@@ -33,4 +33,9 @@ class UnimplementedPlaybackController : PlaybackController {
     override suspend fun setShuffle(mode: ShuffleMode): Result<Unit> = unavailable()
     override suspend fun setRepeat(mode: RepeatMode): Result<Unit> = unavailable()
     override suspend fun moveQueueItem(fromIndex: Int, toIndex: Int): Result<Unit> = unavailable()
+    override suspend fun appendToQueue(songs: List<Song>): Result<Unit> = unavailable()
+    override suspend fun insertIntoQueue(index: Int, songs: List<Song>): Result<Unit> = unavailable()
+    override suspend fun removeQueueItem(index: Int): Result<Unit> = unavailable()
+    override suspend fun clearQueue(): Result<Unit> = unavailable()
+    override suspend fun skipToQueueItem(index: Int): Result<Unit> = unavailable()
 }

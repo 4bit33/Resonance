@@ -36,6 +36,9 @@ interface FavoriteDao {
     @Query("SELECT songId FROM favorites")
     fun observeFavoriteIds(): Flow<List<Long>>
 
+    @Query("SELECT songId FROM favorites")
+    suspend fun getFavoriteIds(): List<Long>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun add(favorite: FavoriteEntity)
 

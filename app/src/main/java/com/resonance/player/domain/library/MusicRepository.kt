@@ -2,6 +2,12 @@ package com.resonance.player.domain.library
 
 import com.resonance.player.core.common.Result
 import com.resonance.player.core.media.ScanReport
+import com.resonance.player.core.media.ScanState
+import com.resonance.player.core.model.Album
+import com.resonance.player.core.model.Artist
+import com.resonance.player.core.model.Genre
+import com.resonance.player.core.model.LibraryStats
+import com.resonance.player.core.model.MusicFolder
 import com.resonance.player.core.model.Song
 import kotlinx.coroutines.flow.Flow
 
@@ -17,6 +23,14 @@ interface MusicRepository {
     fun searchSongs(query: String): Flow<List<Song>>
     suspend fun recordPlay(songId: Long, completed: Boolean): Result<Unit>
     suspend fun scanAndImport(): Result<ScanReport>
+    fun observeScanState(): Flow<ScanState>
+    fun observeAlbums(): Flow<List<Album>>
+    fun observeArtists(): Flow<List<Artist>>
+    fun observeGenres(): Flow<List<Genre>>
+    fun observeFolders(): Flow<List<MusicFolder>>
+    suspend fun getAlbumSongs(albumName: String, albumArtist: String?): Result<List<Song>>
+    suspend fun getLibraryStats(): LibraryStats
+    fun observeLastScanEpochSec(): Flow<Long?>
 }
 
 /** Reactive song list for Library/Home screens. */

@@ -13,9 +13,10 @@ import com.resonance.player.core.database.entity.PlaylistItemEntity
 import com.resonance.player.core.database.entity.SongEntity
 
 /**
- * Single Room database for the app (ADR-005). Version 1 — foundation schema.
- * Albums / artists / genres are derived from songs in this phase; dedicated
- * cache tables may be added later behind a migration, never by wiping.
+ * Single Room database for the app (ADR-005). Version 2 — Phase 3 library
+ * pipeline columns (volume/size/album-artist/path/totals/scan/artwork).
+ * Upgrade from v1 is a purely additive [MIGRATION_1_2]; user data
+ * (playlists, favorites, history, play counts) is preserved.
  */
 @Database(
     entities = [
@@ -25,7 +26,7 @@ import com.resonance.player.core.database.entity.SongEntity
         FavoriteEntity::class,
         HistoryEntryEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class ResonanceDatabase : RoomDatabase() {

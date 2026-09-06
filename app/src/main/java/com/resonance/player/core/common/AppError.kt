@@ -30,6 +30,12 @@ sealed interface AppError {
     /** Library query succeeded but contains zero songs. */
     data object EmptyLibrary : AppError
 
+    /** MediaStore query failed entirely (provider error, security, I/O). */
+    data class MediaStoreUnavailable(val reason: String?) : AppError
+
+    /** A scan run failed after starting (state is Failed, partial data kept). */
+    data class ScanFailed(val reason: String?) : AppError
+
     /**
      * Honest stand-in for functionality scheduled for a later phase
      * (e.g. playback engine in Phase 2). Production stubs must return this
@@ -53,6 +59,9 @@ fun AppError.userMessage(): String = when (this) {
     is AppError.InvalidMetadata -> "Some tags could not be read; the file can still play."
     AppError.CorruptedArtwork -> "The embedded artwork could not be decoded."
     AppError.EmptyLibrary -> "Your library is empty."
+    is AppError.MediaStoreUnavailable -> "Your music could not be read right now."
+    is AppError.ScanFailed ->
+        if (reason.isNullOrBlank()) "Scanning your music failed." else "Scanning failed: $reason"
     is AppError.FeatureUnavailable -> "$feature is not available yet."
     is AppError.Unknown ->
         if (reason.isNullOrBlank()) "Something went wrong." else reason

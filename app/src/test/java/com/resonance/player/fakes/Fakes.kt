@@ -19,16 +19,22 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 
 fun testSong(id: Long, title: String = "Song $id") = Song(
-    id = id, mediaStoreId = id, title = title, artistName = "Artist",
-    albumName = "Album", albumId = null, artistId = null, genreName = null,
-    trackNumber = null, discNumber = null, year = null, durationMs = 180_000L,
-    path = "/music/$id.mp3", contentUri = "content://media/$id",
-    mimeType = "audio/mpeg", bitrate = null, sampleRate = null,
-    dateAddedEpochSec = id, dateModifiedEpochSec = id
+    id = id, mediaStoreId = id, volumeName = "external", title = title,
+    artistName = "Artist", albumName = "Album", albumArtist = null,
+    albumId = null, artistId = null, genreName = null,
+    trackNumber = null, totalTracks = null, discNumber = null, totalDiscs = null,
+    year = null, durationMs = 180_000L,
+    path = "Music/$id.mp3", contentUri = "content://media/external/audio/media/$id",
+    relativePath = "Music/", mimeType = "audio/mpeg", bitrate = null, sampleRate = null,
+    fileSizeBytes = 1_000_000L + id,
+    dateAddedEpochSec = id, dateModifiedEpochSec = id, lastScannedAtSec = id,
+    artworkKey = null, artworkUri = null
 )
 
 class FakeMusicRepository(songs: List<Song> = listOf(testSong(1L), testSong(2L))) : MusicRepository {
     private val backing = songs
+    var scans = 0
+        private set
     var recordedPlays = mutableListOf<Long>()
         private set
 
@@ -46,8 +52,48 @@ class FakeMusicRepository(songs: List<Song> = listOf(testSong(1L), testSong(2L))
         return Result.Success(Unit)
     }
 
-    override suspend fun scanAndImport(): Result<ScanReport> =
-        Result.Failure(AppError.FeatureUnavailable("Media scanner (Phase 2)"))
+    override suspend fun scanAndImport(): Result<ScanReport> {
+        scans++
+        return Result.Failure(AppError.FeatureUnavailable("Media scanner (Phase 2)"))
+    }
+
+    private val scanStateFlow =
+        MutableStateFlow<com.resonance.player.core.media.ScanState>(
+            com.resonance.player.core.media.ScanState.Idle
+        )
+
+    override fun observeScanState(): kotlinx.coroutines.flow.Flow<com.resonance.player.core.media.ScanState> =
+        scanStateFlow
+
+    override fun observeAlbums(): kotlinx.coroutines.flow.Flow<List<com.resonance.player.core.model.Album>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
+
+    override fun observeArtists(): kotlinx.coroutines.flow.Flow<List<com.resonance.player.core.model.Artist>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
+
+    override fun observeGenres(): kotlinx.coroutines.flow.Flow<List<com.resonance.player.core.model.Genre>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
+
+    override fun observeFolders(): kotlinx.coroutines.flow.Flow<List<com.resonance.player.core.model.MusicFolder>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
+
+    override suspend fun getAlbumSongs(
+        albumName: String,
+        albumArtist: String?
+    ): Result<List<Song>> = Result.Success(backing)
+
+    override suspend fun getLibraryStats(): com.resonance.player.core.model.LibraryStats =
+        com.resonance.player.core.model.LibraryStats(
+            songCount = backing.size, albumCount = 1, artistCount = 1,
+            genreCount = 0, lastScanEpochSec = null
+        )
+
+    override fun observeLastScanEpochSec(): kotlinx.coroutines.flow.Flow<Long?> =
+        kotlinx.coroutines.flow.flowOf(null)
+
+    fun emitScanState(state: com.resonance.player.core.media.ScanState) {
+        scanStateFlow.value = state
+    }
 }
 
 class FakePlaybackController : PlaybackController {
@@ -82,8 +128,35 @@ class FakePlaybackController : PlaybackController {
     override suspend fun skipToPrevious(): Result<Unit> = Result.Success(Unit)
     override suspend fun setShuffle(mode: ShuffleMode): Result<Unit> = Result.Success(Unit)
     override suspend fun setRepeat(mode: RepeatMode): Result<Unit> = Result.Success(Unit)
-    override suspend fun moveQueueItem(fromIndex: Int, toIndex: Int): Result<Unit> =
-        Result.Success(Unit)
+    override suspend fun moveQueueItem(fromIndex: Int, toIndex: Int): Result<Unit> {
+        calls.add("move")
+        return Result.Success(Unit)
+    }
+
+    override suspend fun appendToQueue(songs: List<Song>): Result<Unit> {
+        calls.add("append")
+        return Result.Success(Unit)
+    }
+
+    override suspend fun insertIntoQueue(index: Int, songs: List<Song>): Result<Unit> {
+        calls.add("insert")
+        return Result.Success(Unit)
+    }
+
+    override suspend fun removeQueueItem(index: Int): Result<Unit> {
+        calls.add("remove")
+        return Result.Success(Unit)
+    }
+
+    override suspend fun clearQueue(): Result<Unit> {
+        calls.add("clear")
+        return Result.Success(Unit)
+    }
+
+    override suspend fun skipToQueueItem(index: Int): Result<Unit> {
+        calls.add("skipTo")
+        return Result.Success(Unit)
+    }
 }
 
 class FakePlaylistRepository : PlaylistRepository {

@@ -2,19 +2,68 @@ package com.resonance.player.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.resonance.player.core.media.ScanState
+import com.resonance.player.core.model.LibraryStats
+import com.resonance.player.core.permissions.AudioPermissionManager
+import com.resonance.player.core.permissions.AudioPermissionStatus
+import com.resonance.player.domain.library.GetLibraryStatsUseCase
+import com.resonance.player.domain.library.ObserveLastScanUseCase
+import com.resonance.player.domain.library.ObserveScanStateUseCase
+import com.resonance.player.domain.library.RescanLibraryUseCase
 import com.resonance.player.domain.settings.ThemeMode
 import com.resonance.player.domain.settings.UserPreferencesRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** Fully working in Phase 1: theme choice persists via DataStore. */
-class SettingsViewModel(private val repository: UserPreferencesRepository) : ViewModel() {
+/** Settings: theme (DataStore) + library section (stats, scan, rescan). */
+class SettingsViewModel(
+    private val repository: UserPreferencesRepository,
+    val permissionManager: AudioPermissionManager,
+    observeScanState: ObserveScanStateUseCase,
+    private val rescanLibrary: RescanLibraryUseCase,
+    private val getLibraryStats: GetLibraryStatsUseCase,
+    observeLastScan: ObserveLastScanUseCase
+) : ViewModel() {
     val themeMode: StateFlow<ThemeMode> = repository.themeMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM)
 
+    val scanState: StateFlow<ScanState> = observeScanState()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScanState.Idle)
+
+    val lastScan: StateFlow<Long?> = observeLastScan()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val permissionStatus: StateFlow<AudioPermissionStatus> = permissionManager.status
+
+    private val statsMutable = MutableStateFlow<LibraryStats?>(null)
+    val stats: StateFlow<LibraryStats?> = statsMutable.asStateFlow()
+
+    init {
+        refreshStats()
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { repository.setThemeMode(mode) }
+    }
+
+    fun rescan() {
+        viewModelScope.launch {
+            rescanLibrary()
+            refreshStats()
+        }
+    }
+
+    fun refreshStats() {
+        viewModelScope.launch {
+            statsMutable.value = try {
+                getLibraryStats()
+            } catch (t: Exception) {
+                null
+            }
+        }
     }
 }
