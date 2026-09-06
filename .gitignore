@@ -11,3 +11,4 @@ local.properties
 .DS_Store
 Thumbs.db
 build.log
+opencode.json

@@ -1,4 +1,4 @@
-﻿# Resonance — Architecture (Phase 3: library ingestion pipeline)
+# Resonance — Architecture (Phase 3: library ingestion pipeline)
 
 Local-first, offline-first music player. No INTERNET permission by design
 (verified in the merged manifest).
@@ -95,7 +95,46 @@ Gradle test workers fail when GRADLE_USER_HOME contains non-ASCII characters.
 Fix applied on this machine: user env `GRADLE_USER_HOME=F:\Gradle\home`
 (ASCII path). Restart shells/Android Studio to pick it up.
 
+## UI design system (Phase 3.5, Stitch foundation)
+
+Visual source of truth: `stitch_form_design_generator/` (DESIGN.md + six
+screens). Translated to native Compose — never copied HTML/CSS.
+
+- Tokens: `core.ui.theme` — Stitch dark palette (`ResonanceColors`,
+  M3-mapped + custom roles), full type scale (`ResonanceTypography`,
+  system sans at Stitch metrics until Inter is bundled), 4px spacing
+  scale + semantic paddings (`ResonanceSpacing`), functional radii
+  8/16/24-top/full (`ResonanceRadii`), fixed metrics — dock 68dp, mini
+  player 64dp, 148dp insets (`ResonanceDimensions`). Access via
+  `ResonanceTheme.colors/typography/spacing/radii/dimensions`.
+- Stitch dark is authoritative; LIGHT maps to a stock-M3 interim scheme
+  (Stitch shipped dark tokens only) and dynamic color is intentionally off
+  so tokens stay authoritative. ThemeMode persistence unchanged.
+- Font decision: Inter NOT bundled (no res/font; runtime fetching would
+  violate offline-first). System sans-serif at Stitch metrics. Adding Inter
+  OFL files later is a drop-in `FontFamily` swap in one file.
+- Icons: material-icons-extended (already a dep) + local vectors
+  (EQ state animation, etched-waveform/note artwork fallbacks). EQ motion
+  reflects `isPlaying` only — never claimed as analysis.
+- Components: `core.ui.components` — top bar, section header, search
+  field, chips, segmented, switch, settings rows, primary button, song
+  rows (normal/playing/selected/disabled/missing/loading via pure
+  `songRowState`), compact rows, album/playlist cards, mini player,
+  queue peek, batch bar, sheets, dialogs, empty states, snackbar voice,
+  format badges, tabular metrics, 68dp nav dock.
+- Navigation: tabs Home/Library/Playlists/Settings; Search/Player/Queue
+  are global routes (`tabForRoute`). Mini player lives in the shell above
+  the dock (rail on expanded widths), driven by the ONE playback snapshot;
+  status/system bars handled at shell level. `tabs` is lazy by design
+  (eager outer static-init reading nested objects is a JLS 12.4.2 null
+  hazard — caught by unit test).
+- Deliberately NOT built (product conflicts): SAF folder management, tag
+  edit/file delete, DSP/EQ engine/ReplayGain/crossfade/sleep timer/bit-
+  perfect claims, account avatar, GPL badge, selectable radii/accents,
+  missing-file Locate rows (auto-prune stays), Smart Mix UI.
+
 ## Next
 
-Now Playing UI polish, playlist management UI, Smart Mix engine feeding
-generated queues, release minification (strips unused icons), backup/export.
+Screen-by-screen Stitch reskin on these components, playlist management
+UI, Smart Mix engine feeding generated queues, release minification
+(strips unused icons), backup/export.
