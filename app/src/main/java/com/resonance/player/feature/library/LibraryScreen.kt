@@ -30,7 +30,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +42,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.resonance.player.R
 import com.resonance.player.core.common.formatDurationMs
 import com.resonance.player.core.model.Song
@@ -99,7 +99,7 @@ private fun LibraryTabs(
     onOpenSearch: () -> Unit
 ) {
     var tab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 4)) }
-    val scanState by viewModel.scanState.collectAsState()
+    val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize()) {
         ResonanceTopBar(
             title = stringResource(R.string.nav_library),
@@ -112,9 +112,9 @@ private fun LibraryTabs(
         when (tab) {
             0 -> SongsTab(viewModel, currentSongId, onSongClick)
             1 -> AlbumsTab(viewModel, onOpenQueue)
-            2 -> ArtistsTab(viewModel)
-            3 -> GenresTab(viewModel)
-            4 -> FoldersTab(viewModel)
+            2 -> ArtistsTab(viewModel, onOpenQueue)
+            3 -> GenresTab(viewModel, onOpenQueue)
+            4 -> FoldersTab(viewModel, onOpenQueue)
         }
     }
 }
@@ -126,12 +126,12 @@ private fun CategoryChips(
     onSelect: (Int) -> Unit
 ) {
     val spacing = ResonanceTheme.spacing
-    val songs by viewModel.uiState.collectAsState()
+    val songs by viewModel.uiState.collectAsStateWithLifecycle()
     val songCount = (songs as? LibraryUiState.Content)?.songs?.size ?: 0
-    val albums by viewModel.albums.collectAsState()
-    val artists by viewModel.artists.collectAsState()
-    val genres by viewModel.genres.collectAsState()
-    val folders by viewModel.folders.collectAsState()
+    val albums by viewModel.albums.collectAsStateWithLifecycle()
+    val artists by viewModel.artists.collectAsStateWithLifecycle()
+    val genres by viewModel.genres.collectAsStateWithLifecycle()
+    val folders by viewModel.folders.collectAsStateWithLifecycle()
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -198,7 +198,7 @@ private fun SortToolbar(viewModel: LibraryViewModel) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
-    val sort by viewModel.sort.collectAsState()
+    val sort by viewModel.sort.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -268,7 +268,7 @@ private fun SongsTab(
     currentSongId: Long?,
     onSongClick: (Long) -> Unit
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     when (val s = state) {
         LibraryUiState.Loading -> LoadingView()
         LibraryUiState.Empty -> EmptyLibraryView()
@@ -327,8 +327,8 @@ private fun SongsTab(
             }
             overflowSong?.let { song ->
                 var showPicker by remember { mutableStateOf(false) }
-                val playlists by viewModel.playlists.collectAsState()
-                val playlistError by viewModel.playlistError.collectAsState()
+                val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+                val playlistError by viewModel.playlistError.collectAsStateWithLifecycle()
                 if (showPicker) {
                     PlaylistPickerSheet(
                         songTitle = song.title,
@@ -451,7 +451,7 @@ private fun pickLetter(
 
 @Composable
 private fun AlbumsTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
-    val albums by viewModel.albums.collectAsState()
+    val albums by viewModel.albums.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
@@ -502,8 +502,8 @@ private fun AlbumsTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
 }
 
 @Composable
-private fun ArtistsTab(viewModel: LibraryViewModel) {
-    val artists by viewModel.artists.collectAsState()
+private fun ArtistsTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
+    val artists by viewModel.artists.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
@@ -516,6 +516,10 @@ private fun ArtistsTab(viewModel: LibraryViewModel) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable {
+                        viewModel.playArtist(artist.name)
+                        onOpenQueue()
+                    }
                     .padding(horizontal = spacing.lg, vertical = spacing.md)
             ) {
                 Text(
@@ -539,8 +543,8 @@ private fun ArtistsTab(viewModel: LibraryViewModel) {
 }
 
 @Composable
-private fun GenresTab(viewModel: LibraryViewModel) {
-    val genres by viewModel.genres.collectAsState()
+private fun GenresTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
+    val genres by viewModel.genres.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
@@ -554,6 +558,10 @@ private fun GenresTab(viewModel: LibraryViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable {
+                        viewModel.playGenre(genre.name)
+                        onOpenQueue()
+                    }
                     .padding(horizontal = spacing.lg, vertical = spacing.md)
             ) {
                 Text(
@@ -576,8 +584,8 @@ private fun GenresTab(viewModel: LibraryViewModel) {
 }
 
 @Composable
-private fun FoldersTab(viewModel: LibraryViewModel) {
-    val folders by viewModel.folders.collectAsState()
+private fun FoldersTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
+    val folders by viewModel.folders.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
@@ -591,6 +599,10 @@ private fun FoldersTab(viewModel: LibraryViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable {
+                        viewModel.playFolder(folder.path)
+                        onOpenQueue()
+                    }
                     .padding(horizontal = spacing.lg, vertical = spacing.md)
             ) {
                 Column(Modifier.weight(1f)) {

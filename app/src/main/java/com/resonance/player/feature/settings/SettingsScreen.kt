@@ -20,8 +20,8 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -49,12 +49,12 @@ import java.time.format.FormatStyle
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
-    val theme by viewModel.themeMode.collectAsState()
-    val scanState by viewModel.scanState.collectAsState()
-    val lastScan by viewModel.lastScan.collectAsState()
-    val stats by viewModel.stats.collectAsState()
-    val permission by viewModel.permissionStatus.collectAsState()
-    val ignoreShort by viewModel.ignoreShortFiles.collectAsState()
+    val theme by viewModel.themeMode.collectAsStateWithLifecycle()
+    val scanState by viewModel.scanState.collectAsStateWithLifecycle()
+    val lastScan by viewModel.lastScan.collectAsStateWithLifecycle()
+    val stats by viewModel.stats.collectAsStateWithLifecycle()
+    val permission by viewModel.permissionStatus.collectAsStateWithLifecycle()
+    val ignoreShort by viewModel.ignoreShortFiles.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = context as? Activity
     val requestGrant = rememberPermissionGrant(viewModel.permissionManager) {

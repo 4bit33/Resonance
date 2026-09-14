@@ -97,6 +97,9 @@ class FakeMusicRepository(songs: List<Song> = listOf(testSong(1L), testSong(2L))
         albumArtist: String?
     ): Result<List<Song>> = Result.Success(backing)
 
+    override suspend fun getFolderSongs(relativePath: String?): Result<List<Song>> =
+        Result.Success(backing)
+
     override suspend fun getLibraryStats(): com.resonance.player.core.model.LibraryStats =
         com.resonance.player.core.model.LibraryStats(
             songCount = backing.size, albumCount = 1, artistCount = 1,

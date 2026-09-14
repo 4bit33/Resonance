@@ -13,6 +13,9 @@ import com.resonance.player.core.model.Playlist
 import com.resonance.player.core.model.ShuffleMode
 import com.resonance.player.core.model.Song
 import com.resonance.player.domain.library.GetAlbumSongsUseCase
+import com.resonance.player.domain.library.GetArtistSongsUseCase
+import com.resonance.player.domain.library.GetFolderSongsUseCase
+import com.resonance.player.domain.library.GetGenreSongsUseCase
 import com.resonance.player.domain.library.ObserveAlbumsUseCase
 import com.resonance.player.domain.library.ObserveArtistsUseCase
 import com.resonance.player.domain.library.ObserveFoldersUseCase
@@ -60,6 +63,9 @@ class LibraryViewModel(
     observeGenres: ObserveGenresUseCase,
     observeFolders: ObserveFoldersUseCase,
     private val getAlbumSongs: GetAlbumSongsUseCase,
+    private val getArtistSongs: GetArtistSongsUseCase,
+    private val getGenreSongs: GetGenreSongsUseCase,
+    private val getFolderSongs: GetFolderSongsUseCase,
     private val setShuffleMode: SetShuffleModeUseCase,
     private val playNextUseCase: PlayNextUseCase,
     private val appendToQueueUseCase: AppendToQueueUseCase,
@@ -112,6 +118,28 @@ class LibraryViewModel(
     fun playAlbum(albumName: String, albumArtist: String?) {
         viewModelScope.launch {
             val songs = (getAlbumSongs(albumName, albumArtist) as? Result.Success)?.value
+            if (!songs.isNullOrEmpty()) playSongs(songs, 0)
+        }
+    }
+
+    fun playArtist(artistName: String) {
+        viewModelScope.launch {
+            val songs = (getArtistSongs(artistName) as? Result.Success)?.value
+            if (!songs.isNullOrEmpty()) playSongs(songs, 0)
+        }
+    }
+
+    fun playGenre(genreName: String) {
+        viewModelScope.launch {
+            val songs = (getGenreSongs(genreName) as? Result.Success)?.value
+            if (!songs.isNullOrEmpty()) playSongs(songs, 0)
+        }
+    }
+
+    /** [relativePath] mirrors [com.resonance.player.core.model.MusicFolder.path]: "" means the root folder. */
+    fun playFolder(relativePath: String) {
+        viewModelScope.launch {
+            val songs = (getFolderSongs(relativePath.ifBlank { null }) as? Result.Success)?.value
             if (!songs.isNullOrEmpty()) playSongs(songs, 0)
         }
     }

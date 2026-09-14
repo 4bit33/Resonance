@@ -19,6 +19,7 @@ import com.resonance.player.data.media.MediaStoreAudioDataSource
 import com.resonance.player.data.media.MediaStoreLibraryScanner
 import com.resonance.player.data.media.RetrieverArtworkExtractor
 import com.resonance.player.domain.library.GetAlbumSongsUseCase
+import com.resonance.player.domain.library.GetFolderSongsUseCase
 import com.resonance.player.domain.library.GetArtistSongsUseCase
 import com.resonance.player.domain.library.GetGenreSongsUseCase
 import com.resonance.player.domain.library.GetLibraryStatsUseCase
@@ -194,6 +195,7 @@ class AppContainer(context: Context) {
     val observeGenres = ObserveGenresUseCase(musicRepository)
     val observeFolders = ObserveFoldersUseCase(musicRepository)
     val getAlbumSongs = GetAlbumSongsUseCase(musicRepository)
+    val getFolderSongs = GetFolderSongsUseCase(musicRepository)
     val observeScanState = ObserveScanStateUseCase(musicRepository)
     val rescanLibrary = RescanLibraryUseCase(musicRepository)
     val getLibraryStats = GetLibraryStatsUseCase(musicRepository)

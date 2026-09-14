@@ -3,6 +3,7 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.model.Album
+import com.resonance.player.core.model.Playlist
 import com.resonance.player.core.model.ShuffleMode
 import com.resonance.player.core.model.Song
 import com.resonance.player.core.model.StorageOverview
@@ -16,11 +17,19 @@ import com.resonance.player.domain.library.ObserveScanStateUseCase
 import com.resonance.player.domain.library.GetAlbumSongsUseCase
 import com.resonance.player.domain.library.RescanLibraryUseCase
 import com.resonance.player.domain.library.recentAlbumsFromSongs
+import com.resonance.player.domain.playback.AppendToQueueUseCase
+import com.resonance.player.domain.playback.PlayNextUseCase
 import com.resonance.player.domain.playback.PlaySongsUseCase
 import com.resonance.player.domain.playback.SetShuffleModeUseCase
+import com.resonance.player.domain.playlists.AddSongToPlaylistUseCase
+import com.resonance.player.domain.playlists.CreatePlaylistUseCase
+import com.resonance.player.domain.playlists.ObservePlaylistsUseCase
 import com.resonance.player.core.common.Result
+import com.resonance.player.core.common.userMessage
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -40,8 +49,19 @@ class HomeViewModel(
     private val playSongs: PlaySongsUseCase,
     private val getAlbumSongs: GetAlbumSongsUseCase,
     private val setShuffleMode: SetShuffleModeUseCase,
-    private val rescanLibrary: RescanLibraryUseCase
+    private val rescanLibrary: RescanLibraryUseCase,
+    private val playNextUseCase: PlayNextUseCase,
+    private val appendToQueueUseCase: AppendToQueueUseCase,
+    observePlaylists: ObservePlaylistsUseCase,
+    private val addSongToPlaylist: AddSongToPlaylistUseCase,
+    private val createPlaylist: CreatePlaylistUseCase
 ) : ViewModel() {
+
+    val playlists: StateFlow<List<Playlist>> = observePlaylists()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val playlistErrorMutable = MutableStateFlow<String?>(null)
+    val playlistError: StateFlow<String?> = playlistErrorMutable.asStateFlow()
 
     val recentAlbums: StateFlow<List<Album>> = observeRecentlyPlayed(25)
         .map { recentAlbumsFromSongs(it, 10) }
@@ -85,5 +105,44 @@ class HomeViewModel(
 
     fun rescan() {
         viewModelScope.launch { rescanLibrary() }
+    }
+
+    fun playNext(song: Song) {
+        viewModelScope.launch { playNextUseCase(song) }
+    }
+
+    fun addToQueue(song: Song) {
+        viewModelScope.launch { appendToQueueUseCase(listOf(song)) }
+    }
+
+    fun addToPlaylist(playlistId: Long, songId: Long, onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            when (val result = addSongToPlaylist(playlistId, songId)) {
+                is Result.Success -> {
+                    playlistErrorMutable.value = null
+                    onDone()
+                }
+                is Result.Failure -> playlistErrorMutable.value = result.error.userMessage()
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun createPlaylistAndAdd(name: String, songId: Long, onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            when (val result = createPlaylist(name)) {
+                is Result.Success -> {
+                    playlistErrorMutable.value = null
+                    addSongToPlaylist(result.value.id, songId)
+                    onDone()
+                }
+                is Result.Failure -> playlistErrorMutable.value = result.error.userMessage()
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun clearPlaylistError() {
+        playlistErrorMutable.value = null
     }
 }

@@ -196,6 +196,13 @@ interface SongDao {
     )
     suspend fun getSongsOfAlbum(albumName: String, albumArtist: String?): List<SongEntity>
 
+    @Query(
+        "SELECT * FROM songs WHERE " +
+            "((relativePath IS NULL AND :relativePath IS NULL) OR relativePath = :relativePath) " +
+            "ORDER BY title COLLATE NOCASE ASC"
+    )
+    suspend fun getSongsOfFolder(relativePath: String?): List<SongEntity>
+
     @Query("SELECT DISTINCT artworkKey FROM songs WHERE artworkKey IS NOT NULL")
     suspend fun getReferencedArtworkKeys(): List<String>
 
