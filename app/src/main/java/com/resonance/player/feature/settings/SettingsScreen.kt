@@ -1,6 +1,12 @@
 package com.resonance.player.feature.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderSpecial
@@ -17,14 +24,18 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import android.app.Activity
 import com.resonance.player.BuildConfig
 import com.resonance.player.R
@@ -40,7 +51,9 @@ import com.resonance.player.core.ui.components.ResonanceSwitch
 import com.resonance.player.core.ui.components.ResonanceTopBar
 import com.resonance.player.core.ui.components.openAppSettings
 import com.resonance.player.core.ui.components.rememberPermissionGrant
+import com.resonance.player.core.ui.theme.ACCENT_PRESETS
 import com.resonance.player.core.ui.theme.ResonanceTheme
+import com.resonance.player.core.ui.theme.accentPreviewColor
 import com.resonance.player.domain.settings.ThemeMode
 import java.time.Instant
 import java.time.ZoneId
@@ -50,6 +63,7 @@ import java.time.format.FormatStyle
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
     val theme by viewModel.themeMode.collectAsStateWithLifecycle()
+    val accentHue by viewModel.accentHue.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val lastScan by viewModel.lastScan.collectAsStateWithLifecycle()
     val stats by viewModel.stats.collectAsStateWithLifecycle()
@@ -203,6 +217,8 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                     selectedIndex = ThemeMode.entries.indexOf(theme),
                     onSelect = { viewModel.setThemeMode(ThemeMode.entries[it]) }
                 )
+                Spacer(Modifier.height(spacing.md))
+                AccentPicker(hue = accentHue, onSelect = viewModel::setAccentHue)
             }
             Spacer(Modifier.height(spacing.sectionSpacing))
             SettingsGroupLabel(stringResource(R.string.settings_group_about))
@@ -242,6 +258,40 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             Spacer(Modifier.height(spacing.xxl))
         }
     }
+}
+
+/** Accent hue picker: curated swatches (tap) + a full hue slider (drag). */
+@Composable
+private fun AccentPicker(hue: Float, onSelect: (Float) -> Unit) {
+    val colors = ResonanceTheme.colors
+    val spacing = ResonanceTheme.spacing
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+        ACCENT_PRESETS.forEach { (_, presetHue) ->
+            val selected = kotlin.math.abs(presetHue - hue) < 1f
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(accentPreviewColor(presetHue))
+                    .border(
+                        width = if (selected) 2.dp else 0.dp,
+                        color = colors.textPrimary,
+                        shape = CircleShape
+                    )
+                    .clickable { onSelect(presetHue) }
+            )
+        }
+    }
+    Spacer(Modifier.height(spacing.sm))
+    Slider(
+        value = hue,
+        onValueChange = onSelect,
+        valueRange = 0f..360f,
+        colors = SliderDefaults.colors(
+            thumbColor = colors.accent,
+            activeTrackColor = colors.accent
+        )
+    )
 }
 
 @Composable

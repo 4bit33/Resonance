@@ -37,13 +37,14 @@ object ResonanceTheme {
 @Composable
 fun ResonanceTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
+    accentHue: Float = DEFAULT_ACCENT_HUE,
     content: @Composable () -> Unit
 ) {
     val systemDark = isSystemInDarkTheme()
     val colors = when (themeMode) {
         ThemeMode.LIGHT -> interimLightColors()
-        ThemeMode.DARK -> stitchDarkColors()
-        ThemeMode.SYSTEM -> if (systemDark) stitchDarkColors() else interimLightColors()
+        ThemeMode.DARK -> stitchDarkColors(accentHue)
+        ThemeMode.SYSTEM -> if (systemDark) stitchDarkColors(accentHue) else interimLightColors()
     }
     val typography = stitchTypography()
     CompositionLocalProvider(

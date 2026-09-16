@@ -39,13 +39,39 @@ data class ResonanceColors(
     val outlineStrong: Color
 )
 
-/** Authoritative Stitch dark scheme (dark-first per DESIGN.md). */
-fun stitchDarkColors(): ResonanceColors {
+/** Default accent hue (0-360), reproducing the original Stitch copper. */
+const val DEFAULT_ACCENT_HUE = 22f
+
+/** HSV->RGB via the platform converter — same saturation/value as the
+ *  original copper accent, only the hue varies, so contrast stays constant. */
+private fun accentTone(hue: Float, saturation: Float, value: Float): Color =
+    Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value)))
+
+/** The [accent] tone for a hue, for swatch previews in the picker UI. */
+fun accentPreviewColor(hue: Float): Color = accentTone(hue, 0.81f, 1f)
+
+/** Curated accent hues (name to degrees) for the palette picker. */
+val ACCENT_PRESETS = listOf(
+    "Copper" to DEFAULT_ACCENT_HUE,
+    "Green" to 142f,
+    "Blue" to 211f,
+    "Purple" to 262f,
+    "Pink" to 330f,
+    "Teal" to 174f
+)
+
+/** Authoritative Stitch dark scheme (dark-first per DESIGN.md). [accentHue]
+ *  drives the user-selectable primary accent; everything else is fixed. */
+fun stitchDarkColors(accentHue: Float = DEFAULT_ACCENT_HUE): ResonanceColors {
+    val accent = accentTone(accentHue, 0.81f, 1f)
+    val accentGlow = accentTone(accentHue, 0.75f, 1f)
+    val accentDim = accentTone(accentHue, 0.85f, 0.29f)
+    val onAccentContainer = accentTone(accentHue, 0.42f, 1f)
     val scheme = darkColorScheme(
-        primary = StitchCopper,
+        primary = accent,
         onPrimary = StitchOnCopper,
-        primaryContainer = StitchCopperDim,
-        onPrimaryContainer = StitchCopperSoft,
+        primaryContainer = accentDim,
+        onPrimaryContainer = onAccentContainer,
         secondary = StitchCyan,
         onSecondary = StitchOnCyan,
         secondaryContainer = StitchCyanDim,
@@ -63,7 +89,7 @@ fun stitchDarkColors(): ResonanceColors {
         surfaceContainer = StitchSurfaceContainer,
         surfaceContainerHigh = StitchSurfaceHigh,
         surfaceContainerHighest = StitchSurfaceHighest,
-        surfaceTint = StitchCopperSoft,
+        surfaceTint = onAccentContainer,
         outline = StitchOutlineStrong,
         outlineVariant = StitchOutlineSubtle,
         error = StitchError,
@@ -82,9 +108,9 @@ fun stitchDarkColors(): ResonanceColors {
         textPrimary = StitchTextPrimary,
         textSecondary = StitchTextSecondary,
         textMuted = StitchTextMuted,
-        accent = StitchCopper,
-        accentGlow = StitchCopperGlow,
-        accentDim = StitchCopperDim,
+        accent = accent,
+        accentGlow = accentGlow,
+        accentDim = accentDim,
         onAccent = StitchOnCopper,
         accentSecondary = StitchCyan,
         accentSecondaryDim = StitchCyanDim,
