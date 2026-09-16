@@ -69,7 +69,8 @@ fun FavoritesScreen(
                         ),
                         isPlayingAnimation = song.id == currentSongId,
                         badge = { SongFormatBadge(song) },
-                        onOverflowClick = { overflowSong = song }
+                        onOverflowClick = { overflowSong = song },
+                        modifier = Modifier.animateItem()
                     )
                 }
             }

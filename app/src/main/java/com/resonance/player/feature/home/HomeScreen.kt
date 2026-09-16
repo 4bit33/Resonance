@@ -255,6 +255,7 @@ private fun RecentlyPlayedSection(
                     viewModel.playAlbum(album.name, album.albumArtist)
                     onOpenQueue()
                 },
+                modifier = Modifier.animateItem(),
                 playButton = {
                     ResonanceCardPlayButton(
                         onClick = {

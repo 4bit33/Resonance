@@ -117,7 +117,8 @@ fun SearchScreen(
                         ),
                         isPlayingAnimation = isCurrent,
                         badge = { SongFormatBadge(song) },
-                        onOverflowClick = { overflowSong = song }
+                        onOverflowClick = { overflowSong = song },
+                        modifier = Modifier.animateItem()
                     )
                 }
             }
@@ -133,7 +134,8 @@ fun SearchScreen(
                         onClick = {
                             viewModel.playAlbum(album.name, album.albumArtist)
                             onOpenQueue()
-                        }
+                        },
+                        modifier = Modifier.animateItem()
                     )
                 }
             }
@@ -149,7 +151,8 @@ fun SearchScreen(
                         onClick = {
                             viewModel.playArtist(artist.name)
                             onOpenQueue()
-                        }
+                        },
+                        modifier = Modifier.animateItem()
                     )
                 }
             }
@@ -162,7 +165,8 @@ fun SearchScreen(
                         title = playlist.name,
                         subtitle = playlist.itemCount.toString(),
                         artUri = null,
-                        onClick = { onOpenPlaylist(playlist.id) }
+                        onClick = { onOpenPlaylist(playlist.id) },
+                        modifier = Modifier.animateItem()
                     )
                 }
             }
@@ -178,7 +182,8 @@ fun SearchScreen(
                         onClick = {
                             viewModel.playGenre(genre.name)
                             onOpenQueue()
-                        }
+                        },
+                        modifier = Modifier.animateItem()
                     )
                 }
             }
@@ -233,14 +238,15 @@ private fun CategoryRow(
     title: String,
     subtitle: String,
     artUri: String?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(ResonanceTheme.dimensions.songRowHeight)
             .padding(horizontal = spacing.lg)

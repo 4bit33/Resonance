@@ -299,6 +299,7 @@ private fun SongsTab(
                                 if (at >= 0) viewModel.playFrom(s.songs, at)
                                 onSongClick(song.id)
                             },
+                            modifier = Modifier.animateItem(),
                             state = songRowState(
                                 isCurrent = isCurrent,
                                 isSelected = false,
@@ -464,6 +465,7 @@ private fun AlbumsTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
+                    .animateItem()
                     .fillMaxWidth()
                     .height(ResonanceTheme.dimensions.songRowHeight)
                     .padding(horizontal = spacing.lg)
@@ -515,6 +517,7 @@ private fun ArtistsTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
         items(artists, key = { it.id }) { artist ->
             Column(
                 modifier = Modifier
+                    .animateItem()
                     .fillMaxWidth()
                     .clickable {
                         viewModel.playArtist(artist.name)
@@ -557,6 +560,7 @@ private fun GenresTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
+                    .animateItem()
                     .fillMaxWidth()
                     .clickable {
                         viewModel.playGenre(genre.name)
@@ -598,6 +602,7 @@ private fun FoldersTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
+                    .animateItem()
                     .fillMaxWidth()
                     .clickable {
                         viewModel.playFolder(folder.path)

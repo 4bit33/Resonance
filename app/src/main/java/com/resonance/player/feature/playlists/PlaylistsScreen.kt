@@ -85,7 +85,8 @@ fun PlaylistsScreen(
                         PlaylistRow(
                             playlist = playlist,
                             onClick = { onOpenDetail(playlist.id) },
-                            onOverflow = { overflowPlaylist = playlist }
+                            onOverflow = { overflowPlaylist = playlist },
+                            modifier = Modifier.animateItem()
                         )
                     }
                 }
@@ -175,14 +176,15 @@ fun PlaylistsScreen(
 private fun PlaylistRow(
     playlist: Playlist,
     onClick: () -> Unit,
-    onOverflow: () -> Unit
+    onOverflow: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(ResonanceTheme.dimensions.songRowHeight)
             .padding(horizontal = spacing.lg)

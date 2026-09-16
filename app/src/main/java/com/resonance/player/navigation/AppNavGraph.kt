@@ -1,5 +1,11 @@
 package com.resonance.player.navigation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -110,7 +116,9 @@ fun ResonanceAppShell(container: AppContainer) {
     val selectedTab = AppDestination.tabForRoute(currentRoute)?.route
     val scope = rememberCoroutineScope()
     val snapshot by container.playbackController.snapshot.collectAsStateWithLifecycle()
-    val showMiniPlayer = shouldShowMiniPlayer(snapshot)
+    val onPlayerOrQueue = currentRoute == AppDestination.Player.route ||
+        currentRoute == AppDestination.Queue.route
+    val showMiniPlayer = shouldShowMiniPlayer(snapshot) && !onPlayerOrQueue
     val dockDestinations = dockDestinations()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -144,7 +152,9 @@ fun ResonanceAppShell(container: AppContainer) {
 
     @Composable
     fun MiniPlayerSlot(modifier: Modifier = Modifier) {
-        if (!showMiniPlayer) return
+        // Visibility/route gating lives in the AnimatedVisibility wrapper below
+        // (so it can still render the last-known song while animating out);
+        // this guard only protects against a genuinely absent song.
         val song = snapshot.song ?: return
         val progress = if (snapshot.durationMs > 0L) {
             snapshot.positionMs.toFloat() / snapshot.durationMs.toFloat()
@@ -177,7 +187,11 @@ fun ResonanceAppShell(container: AppContainer) {
         NavHost(
             navController = navController,
             startDestination = AppDestination.Home.route,
-            modifier = modifier
+            modifier = modifier,
+            enterTransition = { fadeIn(tween(180)) },
+            exitTransition = { fadeOut(tween(120)) },
+            popEnterTransition = { fadeIn(tween(180)) },
+            popExitTransition = { fadeOut(tween(120)) }
         ) {
             composable(AppDestination.Home.route) {
                 val vm: HomeViewModel = viewModel(
@@ -436,7 +450,11 @@ fun ResonanceAppShell(container: AppContainer) {
             }
             Column(modifier = Modifier.weight(1f)) {
                 AppGraph(modifier = Modifier.weight(1f))
-                if (showMiniPlayer) {
+                AnimatedVisibility(
+                    visible = showMiniPlayer,
+                    enter = fadeIn() + slideInVertically { it },
+                    exit = fadeOut() + slideOutVertically { it }
+                ) {
                     Box(modifier = Modifier.padding(horizontal = 8.dp)) {
                         MiniPlayerSlot()
                     }

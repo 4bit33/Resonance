@@ -1,8 +1,11 @@
 package com.resonance.player.core.ui.components
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -198,25 +202,31 @@ fun ResonanceNavDock(
                         .size(spacing.touchMin)
                         .clickable(onClick = { onSelect(destination.route) })
                 ) {
+                    val iconTint by animateColorAsState(
+                        if (selected) colors.accent else colors.textSecondary,
+                        label = "nav-icon-tint"
+                    )
                     Icon(
                         destination.icon,
                         contentDescription = destination.label,
-                        tint = if (selected) colors.accent else colors.textSecondary,
+                        tint = iconTint,
                         modifier = Modifier.size(ResonanceTheme.dimensions.navIcon)
                     )
                     Spacer(Modifier.height(2.dp))
-                    if (selected) {
-                        androidx.compose.foundation.layout.Box(
-                            modifier = Modifier
-                                .size(4.dp)
-                                .background(colors.accent, ResonanceTheme.radii.full)
-                        )
-                    } else {
-                        Text(
-                            destination.label,
-                            style = typography.labelSm,
-                            color = colors.textSecondary
-                        )
+                    Crossfade(targetState = selected, label = "nav-indicator") { isSelected ->
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .size(4.dp)
+                                    .background(colors.accent, ResonanceTheme.radii.full)
+                            )
+                        } else {
+                            Text(
+                                destination.label,
+                                style = typography.labelSm,
+                                color = colors.textSecondary
+                            )
+                        }
                     }
                 }
             }
