@@ -1,4 +1,4 @@
-# Resonance — Architecture (Phase 3: library ingestion pipeline)
+# Crate — Architecture (Phase 3: library ingestion pipeline)
 
 Local-first, offline-first music player. No INTERNET permission by design
 (verified in the merged manifest).

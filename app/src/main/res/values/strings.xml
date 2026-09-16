@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Resonance</string>
+    <string name="app_name">Crate</string>
     <string name="tagline">My music. My device. My player.</string>
     <string name="nav_home">Home</string>
     <string name="nav_library">Library</string>
@@ -31,7 +31,7 @@
     <string name="queue_drag">Reorder</string>
     <string name="queue_empty">The queue is empty. Play something from your library.</string>
     <string name="now_playing_from_queue">Playing from queue</string>
-    <string name="perm_rationale">Resonance needs access to audio files on this device to build your local music library. Your files never leave this device.</string>
+    <string name="perm_rationale">Crate needs access to audio files on this device to build your local music library. Your files never leave this device.</string>
     <string name="perm_grant">Grant access</string>
     <string name="perm_permanently_denied">Audio access was denied. You can enable it anytime in the app settings.</string>
     <string name="perm_open_settings">Open settings</string>

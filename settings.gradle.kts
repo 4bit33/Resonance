@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "resonance"
+rootProject.name = "crate"
 include(":app")
