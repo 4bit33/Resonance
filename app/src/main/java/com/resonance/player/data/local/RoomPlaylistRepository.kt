@@ -150,13 +150,14 @@ class RoomPlaylistRepository(
             try {
                 val items = database.playlistDao().getItemsOnce(playlistId)
                     .sortedBy { it.position }
-                if (items.isEmpty()) return@withContext Result.Failure(AppError.EmptyLibrary)
+                // An empty playlist is a valid state, not a "library is empty" error.
+                if (items.isEmpty()) return@withContext Result.Success(emptyList())
                 val byId = database.songDao().getByIds(items.map { it.songId })
                     .associateBy { it.id }
                 val favorites = database.favoriteDao().getFavoriteIds().toSet()
-                val songs = items.mapNotNull { byId[it.songId]?.toDomain(isFavorite = favorites.contains(it.songId)) }
-                if (songs.isEmpty()) return@withContext Result.Failure(AppError.EmptyLibrary)
-                Result.Success(songs)
+                Result.Success(
+                    items.mapNotNull { byId[it.songId]?.toDomain(isFavorite = favorites.contains(it.songId)) }
+                )
             } catch (t: Exception) {
                 Result.Failure(AppError.DatabaseError(t.message))
             }

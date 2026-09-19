@@ -265,9 +265,7 @@ class FakePlaylistRepository(
     }
 
     override suspend fun getPlaylistSongs(playlistId: Long): Result<List<Song>> {
-        val ids = items[playlistId] ?: return Result.Failure(AppError.EmptyLibrary)
-        val found = ids.mapNotNull { id -> songs.firstOrNull { it.id == id } }
-        if (found.isEmpty()) return Result.Failure(AppError.EmptyLibrary)
-        return Result.Success(found)
+        val ids = items[playlistId] ?: return Result.Failure(AppError.Unknown("Playlist not found"))
+        return Result.Success(ids.mapNotNull { id -> songs.firstOrNull { it.id == id } })
     }
 }

@@ -264,7 +264,14 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
 @Composable
 private fun AccentPicker(hue: Float, onSelect: (Float) -> Unit) {
     val colors = ResonanceTheme.colors
+    val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
+    Text(
+        stringResource(R.string.settings_accent),
+        style = typography.labelLg,
+        color = colors.textSecondary
+    )
+    Spacer(Modifier.height(spacing.sm))
     Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
         ACCENT_PRESETS.forEach { (_, presetHue) ->
             val selected = kotlin.math.abs(presetHue - hue) < 1f
@@ -289,7 +296,8 @@ private fun AccentPicker(hue: Float, onSelect: (Float) -> Unit) {
         valueRange = 0f..360f,
         colors = SliderDefaults.colors(
             thumbColor = colors.accent,
-            activeTrackColor = colors.accent
+            activeTrackColor = colors.accent,
+            inactiveTrackColor = colors.surfaceHighest
         )
     )
 }

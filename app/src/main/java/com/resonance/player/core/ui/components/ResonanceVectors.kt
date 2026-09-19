@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,15 +25,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.resonance.player.core.ui.theme.ResonanceTheme
 
-/** Compact note-glyph fallback for missing artwork (dense rows and grids alike). */
+/** Note-glyph fallback for missing artwork: fills its slot, glyph scales with it. */
 @Composable
-fun NoteFallback(
-    modifier: Modifier = Modifier,
-    iconSize: Dp = 24.dp
-) {
+fun NoteFallback(modifier: Modifier = Modifier) {
     val colors = ResonanceTheme.colors
     Box(
         modifier = modifier
+            .fillMaxSize()
             .clip(ResonanceTheme.radii.control)
             .background(colors.surfaceContainer),
         contentAlignment = Alignment.Center
@@ -41,7 +40,7 @@ fun NoteFallback(
             Icons.Filled.MusicNote,
             contentDescription = null,
             tint = colors.textMuted,
-            modifier = Modifier.size(iconSize)
+            modifier = Modifier.fillMaxSize(0.4f)
         )
     }
 }

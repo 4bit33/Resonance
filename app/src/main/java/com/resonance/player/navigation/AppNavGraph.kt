@@ -483,6 +483,7 @@ fun ResonanceAppShell(container: AppContainer) {
             snackbar = { data -> ResonanceSnackbar(data) },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = snackbarBottomInset)
         )
     }

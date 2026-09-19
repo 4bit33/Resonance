@@ -7,8 +7,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 
 /**
@@ -21,12 +19,11 @@ import coil3.compose.AsyncImage
 fun ArtworkImage(
     artworkUri: String?,
     contentDescription: String?,
-    modifier: Modifier = Modifier,
-    fallbackSize: Dp = 24.dp
+    modifier: Modifier = Modifier
 ) {
     var failed by remember(artworkUri) { mutableStateOf(false) }
     if (artworkUri.isNullOrBlank() || failed) {
-        NoteFallback(modifier, fallbackSize)
+        NoteFallback(modifier)
     } else {
         AsyncImage(
             model = artworkUri,
