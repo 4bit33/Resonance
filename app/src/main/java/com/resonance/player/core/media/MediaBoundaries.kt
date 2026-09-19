@@ -6,7 +6,7 @@ import com.resonance.player.core.model.Song
 /**
  * Report for one incremental library scan. [failed] counts items that could
  * not be imported (corrupt/unreadable) without aborting the scan; [total] is
- * the number of MediaStore candidates seen.
+ * the number of audio files found in the added sources.
  */
 data class ScanReport(
     val added: Int,
@@ -19,7 +19,6 @@ data class ScanReport(
 /** Authoritative scanner state observed by Library/Settings UI. */
 sealed interface ScanState {
     data object Idle : ScanState
-    data object CheckingPermission : ScanState
     data class Scanning(
         val processed: Int,
         val total: Int,
@@ -27,15 +26,14 @@ sealed interface ScanState {
         val updated: Int
     ) : ScanState
     data class Completed(val report: ScanReport) : ScanState
-    data object PermissionRequired : ScanState
     data class Failed(val error: com.resonance.player.core.common.AppError) : ScanState
     data object Cancelled : ScanState
 }
 
 /**
- * Boundary for the MediaStore scanner implementation. Must:
+ * Boundary for the library scanner: lists the audio of the user-added sources
+ * (folders / single songs). Must:
  * - run off the main thread (Dispatchers.IO),
- * - stream the MediaStore query (never hold full result sets in memory),
  * - extract metadata only for new/changed items (incremental),
  * - upsert into Room in batches and prune rows whose files vanished,
  * - be single-flight (one authoritative scan at a time) and cancellable.

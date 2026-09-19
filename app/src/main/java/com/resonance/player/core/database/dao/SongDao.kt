@@ -1,8 +1,6 @@
 package com.resonance.player.core.database.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Upsert
 import com.resonance.player.core.database.entity.SongEntity
@@ -11,10 +9,11 @@ import kotlinx.coroutines.flow.Flow
 /** Lightweight row for incremental diffing (never full entities). */
 data class ScanFingerprint(
     val id: Long,
-    val mediaStoreId: Long,
-    val volumeName: String,
+    val sourceId: Long,
     val dateModifiedEpochSec: Long,
     val fileSizeBytes: Long,
+    val durationMs: Long,
+    val dateAddedEpochSec: Long,
     val playCount: Long,
     val lastPlayedEpochSec: Long?,
     val artworkKey: String?
@@ -108,10 +107,10 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE id IN (:ids)")
     suspend fun getByIds(ids: List<Long>): List<SongEntity>
 
-    @Query("SELECT * FROM songs WHERE mediaStoreId = :mediaStoreId AND volumeName = :volumeName")
-    suspend fun getByMediaKey(mediaStoreId: Long, volumeName: String): SongEntity?
-
-    @Query("SELECT id, mediaStoreId, volumeName, dateModifiedEpochSec, fileSizeBytes, playCount, lastPlayedEpochSec, artworkKey FROM songs")
+    @Query(
+        "SELECT id, sourceId, dateModifiedEpochSec, fileSizeBytes, durationMs, dateAddedEpochSec, " +
+            "playCount, lastPlayedEpochSec, artworkKey FROM songs"
+    )
     suspend fun getFingerprints(): List<ScanFingerprint>
 
     @Query("SELECT COUNT(*) FROM songs")
@@ -206,22 +205,12 @@ interface SongDao {
     @Query("SELECT DISTINCT artworkKey FROM songs WHERE artworkKey IS NOT NULL")
     suspend fun getReferencedArtworkKeys(): List<String>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertAll(songs: List<SongEntity>)
-
     @Upsert
     suspend fun upsertBatch(songs: List<SongEntity>)
-
 
     @Query("UPDATE songs SET playCount = playCount + 1, lastPlayedEpochSec = :nowSec WHERE id = :id")
     suspend fun incrementPlayCount(id: Long, nowSec: Long)
 
     @Query("DELETE FROM songs WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<Long>)
-
-    @Query("DELETE FROM songs WHERE id NOT IN (:keepIds)")
-    suspend fun pruneMissing(keepIds: List<Long>)
-
-    @Query("DELETE FROM songs")
-    suspend fun clearAll()
 }

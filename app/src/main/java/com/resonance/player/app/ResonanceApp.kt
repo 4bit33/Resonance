@@ -10,8 +10,5 @@ class ResonanceApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        // Cached library renders first; the incremental scan reconciles
-        // in the background on the application scope (never blocking UI).
-        container.onAppStarted()
     }
 }

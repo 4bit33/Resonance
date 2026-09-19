@@ -46,9 +46,7 @@ import com.resonance.player.core.common.formatBytes
 import com.resonance.player.core.common.formatDurationMs
 import com.resonance.player.core.media.ScanState
 import com.resonance.player.core.model.Song
-import com.resonance.player.core.permissions.AudioPermissionManager
 import com.resonance.player.core.ui.components.ArtworkImage
-import com.resonance.player.core.ui.components.AudioPermissionGate
 import com.resonance.player.core.ui.components.EmptyLibraryView
 import com.resonance.player.core.ui.components.PlaylistPickerSheet
 import com.resonance.player.core.ui.components.ResonanceAlbumCard
@@ -66,29 +64,10 @@ import com.resonance.player.core.ui.theme.ResonanceTheme
 /**
  * Stitch Home: storage health card, Recently Played album carousel,
  * Jump-Back-In tiles, Recently Added rows. Everything is real repository
- * data; empty library shows the permission/scan flow, never demo content.
+ * data; an empty library offers to add music, never demo content.
  */
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel,
-    permissionManager: AudioPermissionManager,
-    currentSongId: Long?,
-    onOpenLibrary: (Int) -> Unit,
-    onOpenSearch: () -> Unit,
-    onOpenFavorites: () -> Unit,
-    onSongClick: (Long) -> Unit,
-    onOpenQueue: () -> Unit
-) {
-    AudioPermissionGate(
-        manager = permissionManager,
-        onPermissionGranted = viewModel::rescan
-    ) {
-        HomeContent(viewModel, currentSongId, onOpenLibrary, onOpenSearch, onOpenFavorites, onSongClick, onOpenQueue)
-    }
-}
-
-@Composable
-private fun HomeContent(
     viewModel: HomeViewModel,
     currentSongId: Long?,
     onOpenLibrary: (Int) -> Unit,
@@ -103,7 +82,8 @@ private fun HomeContent(
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
     val trackCount = storage?.trackCount ?: 0
-    val isEmpty = trackCount == 0 && scanState !is ScanState.Scanning
+    // storage is null until Room's first emission: not "empty" yet, so no CTA flash on cold start.
+    val isEmpty = storage != null && trackCount == 0 && scanState !is ScanState.Scanning
 
     Column(Modifier.fillMaxSize()) {
         ResonanceTopBar(

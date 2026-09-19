@@ -4,24 +4,26 @@ import android.content.Context
 import androidx.room.Room
 import com.resonance.player.core.common.DefaultAppDispatchers
 import com.resonance.player.core.database.MIGRATION_1_2
+import com.resonance.player.core.database.MIGRATION_2_3
 import com.resonance.player.core.database.ResonanceDatabase
 import com.resonance.player.core.playback.PlaybackController
-import com.resonance.player.data.local.AppAudioPermissionManager
 import com.resonance.player.data.local.DataStoreSettingsRepository
 import com.resonance.player.data.local.LibraryPreferences
 import com.resonance.player.data.local.RoomFavoritesRepository
 import com.resonance.player.data.local.RoomMusicRepository
 import com.resonance.player.data.local.RoomPlaylistRepository
+import com.resonance.player.data.local.RoomSourceRepository
 import com.resonance.player.data.local.StorageStatsProvider
 import com.resonance.player.data.media.AndroidMetadataExtractor
 import com.resonance.player.data.media.ArtworkStore
-import com.resonance.player.data.media.MediaStoreAudioDataSource
-import com.resonance.player.data.media.MediaStoreLibraryScanner
 import com.resonance.player.data.media.RetrieverArtworkExtractor
+import com.resonance.player.data.media.SafAudioDataSource
+import com.resonance.player.data.media.SafLibraryScanner
 import com.resonance.player.domain.library.GetAlbumSongsUseCase
 import com.resonance.player.domain.library.GetFolderSongsUseCase
 import com.resonance.player.domain.library.GetArtistSongsUseCase
 import com.resonance.player.domain.library.GetGenreSongsUseCase
+import com.resonance.player.domain.library.AddSourcesUseCase
 import com.resonance.player.domain.library.GetLibraryStatsUseCase
 import com.resonance.player.domain.library.GetSongUseCase
 import com.resonance.player.domain.library.ObserveAlbumsUseCase
@@ -38,7 +40,9 @@ import com.resonance.player.domain.library.ObserveRecentlyPlayedUseCase
 import com.resonance.player.domain.library.ObserveStorageOverviewUseCase
 import com.resonance.player.domain.library.ObserveScanStateUseCase
 import com.resonance.player.domain.library.ObserveSongsUseCase
+import com.resonance.player.domain.library.ObserveSourcesUseCase
 import com.resonance.player.domain.library.RecordPlayUseCase
+import com.resonance.player.domain.library.RemoveSourcesUseCase
 import com.resonance.player.domain.library.RescanLibraryUseCase
 import com.resonance.player.domain.playback.AppendToQueueUseCase
 import com.resonance.player.domain.playback.ClearQueueUseCase
@@ -69,7 +73,6 @@ import com.resonance.player.playback.PlaybackStateStore
 import com.resonance.player.playback.RealPlaybackController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -81,7 +84,8 @@ import java.io.File
  * Playback: UI -> ViewModel -> UseCase -> PlaybackController -> Media3
  * service. Nothing outside the playback package knows about ExoPlayer.
  * Scanning: UI -> ViewModel -> UseCase -> Repository -> LibraryScanner ->
- * MediaStore / Room. Composables never touch ContentResolver or cursors.
+ * Storage Access Framework / Room. Composables never touch ContentResolver or
+ * cursors.
  */
 class AppContainer(context: Context) {
 
@@ -98,7 +102,7 @@ class AppContainer(context: Context) {
 
     val database: ResonanceDatabase by lazy {
         Room.databaseBuilder(appContext, ResonanceDatabase::class.java, "resonance.db")
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
             .build()
     }
@@ -107,12 +111,8 @@ class AppContainer(context: Context) {
         LibraryPreferences(appContext)
     }
 
-    val permissionManager: AppAudioPermissionManager by lazy {
-        AppAudioPermissionManager(appContext, libraryPreferences)
-    }
-
-    private val mediaStoreDataSource: MediaStoreAudioDataSource by lazy {
-        MediaStoreAudioDataSource(appContext)
+    private val safDataSource: SafAudioDataSource by lazy {
+        SafAudioDataSource(appContext.contentResolver)
     }
 
     private val metadataExtractor: AndroidMetadataExtractor by lazy {
@@ -127,17 +127,26 @@ class AppContainer(context: Context) {
         RetrieverArtworkExtractor(appContext)
     }
 
-    val libraryScanner: MediaStoreLibraryScanner by lazy {
-        MediaStoreLibraryScanner(
-            appContext,
+    val libraryScanner: SafLibraryScanner by lazy {
+        SafLibraryScanner(
             dispatchers,
             applicationScope,
             database,
-            mediaStoreDataSource,
+            safDataSource,
             metadataExtractor,
             artworkExtractor,
             artworkStore,
             libraryPreferences
+        )
+    }
+
+    val sourceRepository: RoomSourceRepository by lazy {
+        RoomSourceRepository(
+            appContext.contentResolver,
+            database,
+            libraryScanner,
+            safDataSource,
+            dispatchers
         )
     }
 
@@ -198,6 +207,9 @@ class AppContainer(context: Context) {
     val getFolderSongs = GetFolderSongsUseCase(musicRepository)
     val observeScanState = ObserveScanStateUseCase(musicRepository)
     val rescanLibrary = RescanLibraryUseCase(musicRepository)
+    val observeSources = ObserveSourcesUseCase(sourceRepository)
+    val addSources = AddSourcesUseCase(sourceRepository, musicRepository)
+    val removeSources = RemoveSourcesUseCase(sourceRepository, musicRepository)
     val getLibraryStats = GetLibraryStatsUseCase(musicRepository)
     val observeLastScan = ObserveLastScanUseCase(musicRepository)
     val observeRecentlyPlayed = ObserveRecentlyPlayedUseCase(musicRepository)
@@ -229,21 +241,4 @@ class AppContainer(context: Context) {
     val skipToQueueItem = SkipToQueueItemUseCase(playbackController)
     val appendToQueue = AppendToQueueUseCase(playbackController)
     val insertIntoQueue = InsertIntoQueueUseCase(playbackController)
-
-    /**
-     * Cold-start sync: the cached Room library renders immediately; the
-     * incremental scan reconciles in the background (no-op without
-     * permission — the scanner reports PermissionRequired, never a loop).
-     */
-    fun onAppStarted() {
-        applicationScope.launch { musicRepository.scanAndImport() }
-    }
-
-    /**
-     * Foreground re-check (permission may have changed while away). The
-     * scanner is single-flight: concurrent calls observe the running scan.
-     */
-    fun onForegrounded() {
-        applicationScope.launch { musicRepository.scanAndImport() }
-    }
 }

@@ -9,7 +9,7 @@ sealed interface AppError {
     /** File indexed in the database no longer exists on storage. */
     data class MissingFile(val path: String) : AppError
 
-    /** Audio / storage / notification permission was denied or revoked. */
+    /** Access to a file's folder (or a notification permission) was denied or lost. */
     data object PermissionDenied : AppError
 
     /** Container or codec the device cannot decode. */
@@ -30,9 +30,6 @@ sealed interface AppError {
     /** Library query succeeded but contains zero songs. */
     data object EmptyLibrary : AppError
 
-    /** MediaStore query failed entirely (provider error, security, I/O). */
-    data class MediaStoreUnavailable(val reason: String?) : AppError
-
     /** A scan run failed after starting (state is Failed, partial data kept). */
     data class ScanFailed(val reason: String?) : AppError
 
@@ -49,7 +46,7 @@ sealed interface AppError {
 /** Stable, localizable-later human message. Pure function, unit-tested. */
 fun AppError.userMessage(): String = when (this) {
     is AppError.MissingFile -> "This file is no longer on your device."
-    AppError.PermissionDenied -> "Audio access was denied. Grant access in Settings to scan your music."
+    AppError.PermissionDenied -> "Lost access to this file's folder. Re-add it in Settings > Music sources."
     is AppError.UnsupportedFormat ->
         if (mimeType.isNullOrBlank()) "This audio format is not supported."
         else "This audio format is not supported ($mimeType)."
@@ -59,7 +56,6 @@ fun AppError.userMessage(): String = when (this) {
     is AppError.InvalidMetadata -> "Some tags could not be read; the file can still play."
     AppError.CorruptedArtwork -> "The embedded artwork could not be decoded."
     AppError.EmptyLibrary -> "Your library is empty."
-    is AppError.MediaStoreUnavailable -> "Your music could not be read right now."
     is AppError.ScanFailed ->
         if (reason.isNullOrBlank()) "Scanning your music failed." else "Scanning failed: $reason"
     is AppError.FeatureUnavailable -> "$feature is not available yet."
