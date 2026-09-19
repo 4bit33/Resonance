@@ -7,7 +7,6 @@ import com.resonance.player.core.database.MIGRATION_1_2
 import com.resonance.player.core.database.MIGRATION_2_3
 import com.resonance.player.core.database.ResonanceDatabase
 import com.resonance.player.core.playback.PlaybackController
-import com.resonance.player.data.local.AppAudioPermissionManager
 import com.resonance.player.data.local.DataStoreSettingsRepository
 import com.resonance.player.data.local.LibraryPreferences
 import com.resonance.player.data.local.RoomFavoritesRepository
@@ -110,10 +109,6 @@ class AppContainer(context: Context) {
 
     val libraryPreferences: LibraryPreferences by lazy {
         LibraryPreferences(appContext)
-    }
-
-    val permissionManager: AppAudioPermissionManager by lazy {
-        AppAudioPermissionManager(appContext, libraryPreferences)
     }
 
     private val safDataSource: SafAudioDataSource by lazy {

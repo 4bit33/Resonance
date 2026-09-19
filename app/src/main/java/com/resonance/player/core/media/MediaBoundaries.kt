@@ -19,7 +19,6 @@ data class ScanReport(
 /** Authoritative scanner state observed by Library/Settings UI. */
 sealed interface ScanState {
     data object Idle : ScanState
-    data object CheckingPermission : ScanState
     data class Scanning(
         val processed: Int,
         val total: Int,
@@ -27,7 +26,6 @@ sealed interface ScanState {
         val updated: Int
     ) : ScanState
     data class Completed(val report: ScanReport) : ScanState
-    data object PermissionRequired : ScanState
     data class Failed(val error: com.resonance.player.core.common.AppError) : ScanState
     data object Cancelled : ScanState
 }

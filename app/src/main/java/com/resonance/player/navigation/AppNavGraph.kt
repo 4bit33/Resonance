@@ -239,7 +239,6 @@ fun ResonanceAppShell(container: AppContainer) {
                 )
                 HomeScreen(
                     vm,
-                    container.permissionManager,
                     snapshot.song?.id,
                     onOpenLibrary = { navigate(AppDestination.Library.routeFor(it)) },
                     onOpenSearch = { navigate(AppDestination.Search.route) },
@@ -282,7 +281,6 @@ fun ResonanceAppShell(container: AppContainer) {
                 )
                 LibraryScreen(
                     vm,
-                    container.permissionManager,
                     initialTab,
                     snapshot.song?.id,
                     onSongClick = { navigate(AppDestination.Player.routeFor(it)) },

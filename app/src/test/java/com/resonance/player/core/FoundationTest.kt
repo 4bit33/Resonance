@@ -2,7 +2,6 @@ package com.resonance.player.core
 
 import com.resonance.player.core.database.entity.SongEntity
 import com.resonance.player.core.database.toDomain
-import com.resonance.player.core.permissions.MusicPermissions
 import com.resonance.player.core.ui.adaptive.WindowWidthSize
 import com.resonance.player.core.ui.adaptive.windowWidthSizeFor
 import androidx.compose.ui.unit.dp
@@ -41,33 +40,6 @@ class SongMapperTest {
     @Test
     fun default_notFavorite() {
         assertFalse(entity().toDomain().isFavorite)
-    }
-}
-
-class MusicPermissionsTest {
-
-    @Test
-    fun selectsPermissionBySdk() {
-        assertEquals(
-            MusicPermissions.READ_MEDIA_AUDIO,
-            MusicPermissions.audioPermissionForSdk(33)
-        )
-        assertEquals(
-            MusicPermissions.READ_EXTERNAL_STORAGE,
-            MusicPermissions.audioPermissionForSdk(32)
-        )
-        assertEquals(
-            MusicPermissions.READ_EXTERNAL_STORAGE,
-            MusicPermissions.audioPermissionForSdk(26)
-        )
-    }
-
-    @Test
-    fun branches_matchMinSdkContract() {
-        assertTrue(MusicPermissions.needsNotificationPermission(33))
-        assertFalse(MusicPermissions.needsNotificationPermission(32))
-        assertTrue(MusicPermissions.supportsMediaPlaybackServiceType(29))
-        assertFalse(MusicPermissions.supportsMediaPlaybackServiceType(26))
     }
 }
 

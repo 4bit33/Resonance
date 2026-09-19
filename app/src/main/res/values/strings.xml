@@ -47,10 +47,6 @@
     <string name="queue_drag">Reorder</string>
     <string name="queue_empty">The queue is empty. Play something from your library.</string>
     <string name="now_playing_from_queue">Playing from queue</string>
-    <string name="perm_rationale">Crate needs access to audio files on this device to build your local music library. Your files never leave this device.</string>
-    <string name="perm_grant">Grant access</string>
-    <string name="perm_permanently_denied">Audio access was denied. You can enable it anytime in the app settings.</string>
-    <string name="perm_open_settings">Open settings</string>
     <string name="tab_songs">Songs</string>
     <string name="tab_albums">Albums</string>
     <string name="tab_artists">Artists</string>
@@ -65,7 +61,6 @@
     <string name="settings_scanning">Scanning…</string>
     <string name="settings_songs">songs</string>
     <string name="settings_albums">albums</string>
-    <string name="settings_permission">Audio access</string>
     <string name="settings_artists">artists</string>
     <string name="settings_genres">genres</string>
     <string name="settings_group_sources">Music sources</string>
@@ -81,7 +76,6 @@
     <string name="settings_privacy_title">Private by design</string>
     <string name="settings_privacy_body">No account. No ads. No tracking. No network.</string>
     <string name="settings_about_body">Local music player</string>
-    <string name="perm_granted">Granted</string>
     <string name="search_hint">Search songs, albums, artists…</string>
     <string name="search_empty_title">Search your library</string>
     <string name="search_empty_body">Find songs, albums, artists, playlists and genres on this device.</string>

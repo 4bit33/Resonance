@@ -14,13 +14,10 @@ private val Context.libraryPrefsStore: DataStore<Preferences> by preferencesData
     name = "library_prefs"
 )
 
-/** Tiny library prefs: last scan stamp + whether audio permission was asked. */
+/** Tiny library prefs: last scan stamp + the ignore-short-files switch. */
 class LibraryPreferences(private val context: Context) {
 
     val lastScanEpochSec: Flow<Long?> = context.libraryPrefsStore.data.map { it[Keys.LAST_SCAN] }
-
-    val permissionAsked: Flow<Boolean> = context.libraryPrefsStore.data
-        .map { it[Keys.PERMISSION_ASKED] ?: false }
 
     val ignoreShortFiles: Flow<Boolean> = context.libraryPrefsStore.data
         .map { it[Keys.IGNORE_SHORT] ?: false }
@@ -29,17 +26,12 @@ class LibraryPreferences(private val context: Context) {
         context.libraryPrefsStore.edit { it[Keys.LAST_SCAN] = epochSec }
     }
 
-    suspend fun setPermissionAsked() {
-        context.libraryPrefsStore.edit { it[Keys.PERMISSION_ASKED] = true }
-    }
-
     suspend fun setIgnoreShortFiles(ignore: Boolean) {
         context.libraryPrefsStore.edit { it[Keys.IGNORE_SHORT] = ignore }
     }
 
     private object Keys {
         val LAST_SCAN = longPreferencesKey("last_scan_epoch_sec")
-        val PERMISSION_ASKED = booleanPreferencesKey("permission_asked")
         val IGNORE_SHORT = booleanPreferencesKey("ignore_short_files")
     }
 }
