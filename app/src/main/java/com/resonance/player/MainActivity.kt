@@ -22,8 +22,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // Permission may have changed while away (Settings toggle): refresh
-        // the centralized status, then let the single-flight scanner
-        // reconcile incrementally (never duplicated, never a loop).
+        // the centralized status. No scan here: the library only changes when
+        // the user adds/removes a source or presses Refresh.
         val container = (application as ResonanceApp).container
         lifecycleScope.launch {
             container.permissionManager.refresh(
@@ -32,7 +32,6 @@ class MainActivity : ComponentActivity() {
                     MusicPermissions.audioPermissionForSdk(Build.VERSION.SDK_INT)
                 )
             )
-            container.onForegrounded()
         }
     }
 

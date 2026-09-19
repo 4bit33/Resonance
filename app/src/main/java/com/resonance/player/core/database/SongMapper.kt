@@ -18,14 +18,10 @@ import com.resonance.player.core.database.dao.GenreRow
  */
 fun SongEntity.toDomain(isFavorite: Boolean = false): Song = Song(
     id = id,
-    mediaStoreId = mediaStoreId,
-    volumeName = volumeName,
     title = title,
     artistName = artistName,
     albumName = albumName,
     albumArtist = albumArtist,
-    albumId = albumId,
-    artistId = artistId,
     genreName = genreName,
     trackNumber = trackNumber,
     totalTracks = totalTracks,
@@ -51,51 +47,6 @@ fun SongEntity.toDomain(isFavorite: Boolean = false): Song = Song(
     bpm = bpm,
     musicalKey = musicalKey
 )
-
-fun Song.toEntity(): SongEntity = SongEntity(
-    id = id,
-    mediaStoreId = mediaStoreId,
-    volumeName = volumeName,
-    title = title,
-    artistName = artistName,
-    albumName = albumName,
-    albumArtist = albumArtist,
-    albumId = albumId,
-    artistId = artistId,
-    genreName = genreName,
-    trackNumber = trackNumber,
-    totalTracks = totalTracks,
-    discNumber = discNumber,
-    totalDiscs = totalDiscs,
-    year = year,
-    durationMs = durationMs,
-    path = path,
-    contentUri = contentUri,
-    relativePath = relativePath,
-    mimeType = mimeType,
-    bitrate = bitrate,
-    sampleRate = sampleRate,
-    fileSizeBytes = fileSizeBytes,
-    dateAddedEpochSec = dateAddedEpochSec,
-    dateModifiedEpochSec = dateModifiedEpochSec,
-    lastScannedAtSec = lastScannedAtSec,
-    artworkKey = artworkKey,
-    artworkUri = artworkUri,
-    playCount = playCount,
-    lastPlayedEpochSec = lastPlayedEpochSec,
-    bpm = bpm,
-    musicalKey = musicalKey
-)
-
-/**
- * Merges a freshly scanned entity over the stored one, PRESERVING playback
- * statistics. The scanner owns library fields; playCount/lastPlayed belong
- * to the playback subsystem and must survive rescans.
- */
-fun SongEntity.withPreservedStats(existing: SongEntity?): SongEntity {
-    if (existing == null) return this
-    return copy(playCount = existing.playCount, lastPlayedEpochSec = existing.lastPlayedEpochSec)
-}
 
 /** Stable display id for an album group (non-persistent, UI keys only). */
 fun albumGroupId(albumName: String, albumArtist: String?): Long {
@@ -131,6 +82,6 @@ fun GenreRow.toDomain(): Genre = Genre(name = genreName, songCount = songCount)
 fun FolderRow.toDomain(): MusicFolder {
     val path = relativePath ?: ""
     val name = path.trimEnd('/').substringAfterLast('/')
-        .takeIf { it.isNotEmpty() } ?: "Device storage"
+        .takeIf { it.isNotEmpty() } ?: "Added songs"
     return MusicFolder(path = path, name = name, songCount = songCount)
 }

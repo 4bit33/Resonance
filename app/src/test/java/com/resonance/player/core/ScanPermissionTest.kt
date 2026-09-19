@@ -36,8 +36,6 @@ class ScanErrorsTest {
 
     @Test
     fun newErrors_haveMessages() {
-        assertTrue(AppError.MediaStoreUnavailable("x").userMessage().isNotBlank())
-        assertTrue(AppError.MediaStoreUnavailable(null).userMessage().isNotBlank())
         assertTrue(AppError.ScanFailed("boom").userMessage().contains("boom"))
         assertTrue(AppError.ScanFailed(null).userMessage().isNotBlank())
     }

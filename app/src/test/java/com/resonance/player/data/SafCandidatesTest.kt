@@ -6,6 +6,7 @@ import com.resonance.player.core.media.StableIds
 import com.resonance.player.core.media.audioCandidateOf
 import com.resonance.player.core.media.isAudioDoc
 import com.resonance.player.core.media.joinRelPath
+import com.resonance.player.core.media.uniqueName
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -60,6 +61,14 @@ class SafCandidatesTest {
         assertEquals("Music/", joinRelPath(null, "Music"))
         assertEquals("Music/Rock/", joinRelPath("Music/", "Rock"))
         assertEquals("Music/Rock/Live/", joinRelPath("Music/Rock/", "/Live/"))
+    }
+
+    @Test
+    fun uniqueName_numbersDuplicates() {
+        assertEquals("Music", uniqueName("Music", emptySet()))
+        assertEquals("Music (2)", uniqueName("Music", setOf("Music")))
+        assertEquals("Music (3)", uniqueName("Music", setOf("Music", "Music (2)")))
+        assertEquals("Rock", uniqueName("Rock", setOf("Music", "Music (2)")))
     }
 
     @Test

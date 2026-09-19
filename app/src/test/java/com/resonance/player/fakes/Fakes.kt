@@ -19,9 +19,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 
 fun testSong(id: Long, title: String = "Song $id") = Song(
-    id = id, mediaStoreId = id, volumeName = "external", title = title,
+    id = id, title = title,
     artistName = "Artist", albumName = "Album", albumArtist = null,
-    albumId = null, artistId = null, genreName = null,
+    genreName = null,
     trackNumber = null, totalTracks = null, discNumber = null, totalDiscs = null,
     year = null, durationMs = 180_000L,
     path = "Music/$id.mp3", contentUri = "content://media/external/audio/media/$id",

@@ -1,6 +1,6 @@
 package com.resonance.player.data.media
 
-import com.resonance.player.core.media.MediaItemCandidate
+import com.resonance.player.core.media.AudioCandidate
 import com.resonance.player.core.media.SongMetadata
 import com.resonance.player.core.media.UnknownMetadata
 
@@ -31,35 +31,26 @@ data class NormalizedTrack(
 object MetadataNormalizer {
 
     /**
-     * Priority: embedded tags (MediaMetadataRetriever) > MediaStore columns >
-     * filename/display fallbacks. A missing tag is normal; only the final
-     * display value must never be blank, "null" or "undefined".
+     * Priority: embedded tags (MediaMetadataRetriever) > filename/display
+     * fallbacks. A missing tag is normal; only the final display value must
+     * never be blank, "null" or "undefined".
      */
-    fun normalize(candidate: MediaItemCandidate, extracted: SongMetadata?): NormalizedTrack {
-        val (track, totalTracks) = parseTrackNumber(
-            extracted?.trackRaw ?: candidate.track?.toString()
-        )
+    fun normalize(candidate: AudioCandidate, extracted: SongMetadata?): NormalizedTrack {
+        val (track, totalTracks) = parseTrackNumber(extracted?.trackRaw)
         val (disc, totalDiscs) = parseTrackNumber(extracted?.discRaw)
         return NormalizedTrack(
             title = clean(extracted?.title)
-                ?: clean(candidate.title)
                 ?: FilenameFallback.titleFromFileName(candidate.displayName),
-            artistName = clean(extracted?.artistName)
-                ?: clean(candidate.artist)
-                ?: UnknownMetadata.ARTIST,
-            albumName = clean(extracted?.albumName)
-                ?: clean(candidate.album)
-                ?: UnknownMetadata.ALBUM,
+            artistName = clean(extracted?.artistName) ?: UnknownMetadata.ARTIST,
+            albumName = clean(extracted?.albumName) ?: UnknownMetadata.ALBUM,
             albumArtist = clean(extracted?.albumArtist),
-            genreName = clean(extracted?.genreName) ?: clean(candidate.genre),
+            genreName = clean(extracted?.genreName),
             trackNumber = track,
             totalTracks = totalTracks,
             discNumber = disc,
             totalDiscs = totalDiscs,
-            year = parseYear(extracted?.yearRaw) ?: candidate.year?.takeIf { it in 1000..2999 },
-            durationMs = candidate.durationMs.takeIf { it > 0L }
-                ?: extracted?.durationMs?.takeIf { it > 0L }
-                ?: 0L,
+            year = parseYear(extracted?.yearRaw),
+            durationMs = extracted?.durationMs?.takeIf { it > 0L } ?: 0L,
             mimeType = extracted?.mimeType?.takeIf { it.isNotBlank() }
                 ?: candidate.mimeType,
             bitrate = extracted?.bitrate,

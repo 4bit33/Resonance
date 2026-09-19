@@ -2,7 +2,6 @@ package com.resonance.player.core
 
 import com.resonance.player.core.database.entity.SongEntity
 import com.resonance.player.core.database.toDomain
-import com.resonance.player.core.database.toEntity
 import com.resonance.player.core.permissions.MusicPermissions
 import com.resonance.player.core.ui.adaptive.WindowWidthSize
 import com.resonance.player.core.ui.adaptive.windowWidthSizeFor
@@ -15,9 +14,9 @@ import org.junit.Test
 class SongMapperTest {
 
     private fun entity() = SongEntity(
-        id = 7L, mediaStoreId = 7L, volumeName = "external", title = "T",
+        id = 7L, sourceId = 1L, title = "T",
         artistName = "A", albumName = "Al", albumArtist = "AA",
-        albumId = null, artistId = null, genreName = null,
+        genreName = null,
         trackNumber = 1, totalTracks = 10, discNumber = null, totalDiscs = null,
         year = 2020, durationMs = 180_000L, path = "Music/t.mp3",
         contentUri = "content://m/7", relativePath = "Music/",
@@ -28,10 +27,15 @@ class SongMapperTest {
     )
 
     @Test
-    fun roundTrip_preservesFields() {
+    fun toDomain_mapsFields() {
         val domain = entity().toDomain(isFavorite = true)
         assertTrue(domain.isFavorite)
-        assertEquals(entity(), domain.toEntity())
+        assertEquals(7L, domain.id)
+        assertEquals("T", domain.title)
+        assertEquals("AA", domain.albumArtist)
+        assertEquals("content://m/7", domain.contentUri)
+        assertEquals("Music/", domain.relativePath)
+        assertEquals("abc", domain.artworkKey)
     }
 
     @Test

@@ -1,26 +1,21 @@
 package com.resonance.player.core.model
 
 /**
- * Stable domain Song. Identity is [id] (MediaStore audio id at import time,
- * Room primary key). [path]/[contentUri] are indexed for lookup but are NEVER
- * the sole identity of a song (ADR-005).
+ * Stable domain Song. Identity is [id] (a hash of provider authority +
+ * document id, Room primary key; ADR-010). [path]/[contentUri] are indexed for
+ * lookup but are NEVER the sole identity of a song.
  *
- * Phase 3 additions: storage volume, file size, album artist, relative path,
- * track/disc totals, artwork references and last-scan stamp. BPM / musicalKey
- * stay reserved for the Smart Mix engine (later phase, still no fake data).
+ * BPM / musicalKey stay reserved for the Smart Mix engine (later phase, still
+ * no fake data).
  *
  * UI layers may only observe this type — never Room entities (ADR-004).
  */
 data class Song(
     val id: Long,
-    val mediaStoreId: Long,
-    val volumeName: String,
     val title: String,
     val artistName: String,
     val albumName: String,
     val albumArtist: String?,
-    val albumId: Long?,
-    val artistId: Long?,
     val genreName: String?,
     val trackNumber: Int?,
     val totalTracks: Int?,

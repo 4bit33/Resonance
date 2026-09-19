@@ -32,9 +32,24 @@ enum class WalkStatus { COMPLETE, INCOMPLETE, UNAVAILABLE }
  */
 class SafAudioDataSource(private val resolver: ContentResolver) {
 
-    /** True while the app still holds a persisted READ grant for [uri]. */
-    fun hasReadGrant(uri: String): Boolean =
-        resolver.persistedUriPermissions.any { it.isReadPermission && it.uri.toString() == uri }
+    /** URIs the app still holds a persisted READ grant for. */
+    fun readGrants(): Set<String> =
+        resolver.persistedUriPermissions.filter { it.isReadPermission }.mapTo(HashSet()) { it.uri.toString() }
+
+    /** Display name of a picked folder ([tree]) or file, or null when it cannot be read. */
+    suspend fun displayNameOf(uriString: String, tree: Boolean): String? {
+        val uri = Uri.parse(uriString)
+        val docUri = try {
+            if (tree) {
+                DocumentsContract.buildDocumentUriUsingTree(uri, DocumentsContract.getTreeDocumentId(uri))
+            } else {
+                uri
+            }
+        } catch (e: IllegalArgumentException) {
+            return null
+        }
+        return query(docUri)?.use { c -> if (c.moveToFirst()) c.getString(1) else null }
+    }
 
     suspend fun walkTree(
         sourceId: Long,

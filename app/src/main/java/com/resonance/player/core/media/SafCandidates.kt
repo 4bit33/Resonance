@@ -58,9 +58,17 @@ fun isAudioDoc(name: String?, mimeType: String?): Boolean {
     return generic && name != null && SupportedFormats.isSupported(name)
 }
 
-/** Root-relative folder path in the same shape MediaStore used: "Music/Rock/". */
+/** Root-relative folder path: "Music/Rock/". */
 fun joinRelPath(parent: String?, dirName: String): String =
     (parent ?: "") + dirName.trim('/') + "/"
+
+/** "Music" -> "Music (2)" -> "Music (3)": two folders with one name stay distinguishable (and get distinct Folders-tab roots). */
+fun uniqueName(base: String, taken: Set<String>): String {
+    if (base !in taken) return base
+    var n = 2
+    while ("$base ($n)" in taken) n++
+    return "$base ($n)"
+}
 
 fun audioCandidateOf(
     row: DocRow,

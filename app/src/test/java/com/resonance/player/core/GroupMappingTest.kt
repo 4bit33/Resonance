@@ -61,6 +61,6 @@ class GroupMappingTest {
         assertEquals("Download", FolderRow("Download/", 29).toDomain().name)
 
         val unknown = FolderRow(null, 1).toDomain()
-        assertEquals("Device storage", unknown.name)
+        assertEquals("Added songs", unknown.name)
     }
 }
