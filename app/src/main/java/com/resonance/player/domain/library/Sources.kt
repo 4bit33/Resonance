@@ -15,8 +15,8 @@ interface SourceRepository {
     /** Idempotent: an already added uri keeps its row and just gets its grant re-taken (the repair path). */
     suspend fun addSources(kind: SourceKind, uris: List<String>)
 
-    /** Drops the source, its songs and its read grant. The file itself is never touched. */
-    suspend fun removeSource(id: Long)
+    /** Drops the sources, their songs and their read grants. The files themselves are never touched. */
+    suspend fun removeSources(ids: List<Long>)
 }
 
 class ObserveSourcesUseCase(private val repository: SourceRepository) {
@@ -35,13 +35,14 @@ class AddSourcesUseCase(
     }
 }
 
-/** Removes a source, then rescans so files it shared with another source come back under that one. */
-class RemoveSourceUseCase(
+/** Removes sources, then rescans so files they shared with another source come back under that one. */
+class RemoveSourcesUseCase(
     private val sources: SourceRepository,
     private val library: MusicRepository
 ) {
-    suspend operator fun invoke(id: Long) {
-        sources.removeSource(id)
+    suspend operator fun invoke(ids: List<Long>) {
+        if (ids.isEmpty()) return
+        sources.removeSources(ids)
         library.scanAndImport()
     }
 }

@@ -43,7 +43,7 @@ import com.resonance.player.domain.library.ObserveScanStateUseCase
 import com.resonance.player.domain.library.ObserveSongsUseCase
 import com.resonance.player.domain.library.ObserveSourcesUseCase
 import com.resonance.player.domain.library.RecordPlayUseCase
-import com.resonance.player.domain.library.RemoveSourceUseCase
+import com.resonance.player.domain.library.RemoveSourcesUseCase
 import com.resonance.player.domain.library.RescanLibraryUseCase
 import com.resonance.player.domain.playback.AppendToQueueUseCase
 import com.resonance.player.domain.playback.ClearQueueUseCase
@@ -214,7 +214,7 @@ class AppContainer(context: Context) {
     val rescanLibrary = RescanLibraryUseCase(musicRepository)
     val observeSources = ObserveSourcesUseCase(sourceRepository)
     val addSources = AddSourcesUseCase(sourceRepository, musicRepository)
-    val removeSource = RemoveSourceUseCase(sourceRepository, musicRepository)
+    val removeSources = RemoveSourcesUseCase(sourceRepository, musicRepository)
     val getLibraryStats = GetLibraryStatsUseCase(musicRepository)
     val observeLastScan = ObserveLastScanUseCase(musicRepository)
     val observeRecentlyPlayed = ObserveRecentlyPlayedUseCase(musicRepository)

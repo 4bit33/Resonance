@@ -1,5 +1,8 @@
 package com.resonance.player.navigation
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -21,6 +24,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.remember
@@ -49,8 +53,11 @@ import com.resonance.player.R
 import com.resonance.player.core.ui.theme.ResonanceTheme
 import com.resonance.player.app.AppContainer
 import com.resonance.player.core.ui.adaptive.WindowWidthSize
+import com.resonance.player.core.model.SourceKind
 import com.resonance.player.core.ui.adaptive.rememberWindowWidthSize
 import com.resonance.player.core.ui.components.ArtworkImage
+import com.resonance.player.core.ui.components.LocalMusicActions
+import com.resonance.player.core.ui.components.MusicActions
 import com.resonance.player.core.ui.components.NavDockDestination
 import com.resonance.player.core.ui.components.ResonanceMiniPlayer
 import com.resonance.player.core.ui.components.ResonanceNavDock
@@ -125,6 +132,21 @@ fun ResonanceAppShell(container: AppContainer) {
     /** Shared feedback channel for actions that otherwise silently no-op (e.g. playing an empty playlist). */
     fun showMessage(message: String) {
         scope.launch { snackbarHostState.showSnackbar(ResonanceSnackbarVisuals(message)) }
+    }
+
+    // The system pickers are created once here; screens trigger them through LocalMusicActions.
+    // The grant is taken and the scan started right after a pick (nothing else scans by itself).
+    val addFolderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) scope.launch { container.addSources(SourceKind.TREE, listOf(uri.toString())) }
+    }
+    val addSongsPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) scope.launch { container.addSources(SourceKind.FILE, uris.map { it.toString() }) }
+    }
+    val musicActions = remember {
+        MusicActions(
+            addFolder = { initialUri -> addFolderPicker.launch(initialUri?.let(Uri::parse)) },
+            addSongs = { addSongsPicker.launch(arrayOf("audio/*")) }
+        )
     }
 
     /** Bottom-nav/rail tab switches only: single-top with saved/restored tab state. */
@@ -300,9 +322,10 @@ fun ResonanceAppShell(container: AppContainer) {
                     factory = factory {
                         SettingsViewModel(
                             container.settingsRepository,
-                            container.permissionManager,
                             container.observeScanState,
                             container.rescanLibrary,
+                            container.observeSources,
+                            container.removeSources,
                             container.getLibraryStats,
                             container.observeLastScan,
                             container.libraryPreferences
@@ -449,7 +472,9 @@ fun ResonanceAppShell(container: AppContainer) {
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
-                AppGraph(modifier = Modifier.weight(1f))
+                CompositionLocalProvider(LocalMusicActions provides musicActions) {
+                    AppGraph(modifier = Modifier.weight(1f))
+                }
                 AnimatedVisibility(
                     visible = showMiniPlayer,
                     enter = fadeIn() + slideInVertically { it },

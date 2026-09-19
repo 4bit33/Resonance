@@ -70,16 +70,18 @@ class RoomSourceRepository(
         }
     }
 
-    override suspend fun removeSource(id: Long) {
+    override suspend fun removeSources(ids: List<Long>) {
         withContext(dispatchers.io) {
             scanner.cancel()
             val dao = database.sourceDao()
-            val source = dao.getById(id) ?: return@withContext
-            dao.delete(id)
-            try {
-                resolver.releasePersistableUriPermission(Uri.parse(source.uri), Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: SecurityException) {
-                // No grant left to release (it was already lost).
+            for (id in ids) {
+                val source = dao.getById(id) ?: continue
+                dao.delete(id)
+                try {
+                    resolver.releasePersistableUriPermission(Uri.parse(source.uri), Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (e: SecurityException) {
+                    // No grant left to release (it was already lost).
+                }
             }
         }
     }

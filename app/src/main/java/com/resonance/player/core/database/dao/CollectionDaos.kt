@@ -18,7 +18,11 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlists WHERE name LIKE :q ESCAPE '\\' ORDER BY name COLLATE NOCASE ASC LIMIT :limit")
     fun searchPlaylists(q: String, limit: Int): Flow<List<PlaylistEntity>>
 
-    @Query("SELECT playlistId, COUNT(*) AS itemCount FROM playlist_items GROUP BY playlistId")
+    // Inner join: an item whose song left the library (source removed) is not shown, so it must not be counted.
+    @Query(
+        "SELECT pi.playlistId AS playlistId, COUNT(*) AS itemCount FROM playlist_items pi " +
+            "INNER JOIN songs s ON s.id = pi.songId GROUP BY pi.playlistId"
+    )
     fun observeItemCounts(): Flow<List<PlaylistCount>>
 
     @Query("SELECT * FROM playlists WHERE id = :id")

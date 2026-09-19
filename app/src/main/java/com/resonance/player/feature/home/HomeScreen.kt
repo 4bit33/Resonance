@@ -103,7 +103,8 @@ private fun HomeContent(
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
     val trackCount = storage?.trackCount ?: 0
-    val isEmpty = trackCount == 0 && scanState !is ScanState.Scanning
+    // storage is null until Room's first emission: not "empty" yet, so no CTA flash on cold start.
+    val isEmpty = storage != null && trackCount == 0 && scanState !is ScanState.Scanning
 
     Column(Modifier.fillMaxSize()) {
         ResonanceTopBar(
