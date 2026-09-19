@@ -103,7 +103,12 @@ class SafAudioDataSource(private val resolver: ContentResolver) {
         return status
     }
 
-    /** A single individually added file. An empty result means the file is gone (COMPLETE, no candidate). */
+    /**
+     * A single individually added file. An empty result means the file is gone
+     * (COMPLETE, no candidate). The user picked it explicitly, so it is trusted
+     * as audio: the name/type filter only guards folder listings (a picked
+     * `.trashed-*` file must not vanish silently).
+     */
     suspend fun walkFile(
         sourceId: Long,
         documentUriString: String,
@@ -114,10 +119,7 @@ class SafAudioDataSource(private val resolver: ContentResolver) {
         val cursor = query(uri) ?: return WalkStatus.UNAVAILABLE
         cursor.use { c ->
             if (c.moveToFirst()) {
-                val row = c.toDocRow()
-                if (isAudioDoc(row.name, row.mimeType)) {
-                    onCandidate(audioCandidateOf(row, authority, sourceId, documentUriString, null))
-                }
+                onCandidate(audioCandidateOf(c.toDocRow(), authority, sourceId, documentUriString, null))
             }
         }
         return WalkStatus.COMPLETE
