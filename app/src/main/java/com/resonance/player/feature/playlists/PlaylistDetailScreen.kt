@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
@@ -21,11 +22,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -39,6 +40,7 @@ import com.resonance.player.core.ui.components.ResonanceDialog
 import com.resonance.player.core.ui.components.ResonanceEmptyState
 import com.resonance.player.core.ui.components.ResonanceIconButton
 import com.resonance.player.core.ui.components.ResonanceTopBar
+import com.resonance.player.core.ui.components.SongPickerSheet
 import com.resonance.player.core.ui.theme.ResonanceTheme
 
 /**
@@ -57,10 +59,11 @@ fun PlaylistDetailScreen(
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
-    val songs by viewModel.songs.collectAsState()
-    val error by viewModel.error.collectAsState()
+    val songs by viewModel.songs.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
+    var showAddSongs by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         ResonanceTopBar(
@@ -91,6 +94,12 @@ fun PlaylistDetailScreen(
                 icon = Icons.Filled.Shuffle,
                 contentDescription = stringResource(R.string.cd_shuffle),
                 enabled = songs.isNotEmpty()
+            )
+            ResonanceIconButton(
+                onClick = { showAddSongs = true },
+                icon = Icons.Filled.Add,
+                contentDescription = stringResource(R.string.playlist_add_songs),
+                enabled = playlist != null
             )
             ResonanceIconButton(
                 onClick = { showRename = true },
@@ -187,6 +196,17 @@ fun PlaylistDetailScreen(
             },
             onDismiss = { showDelete = false },
             dismissLabel = stringResource(R.string.action_dismiss)
+        )
+    }
+    if (showAddSongs && playlist != null) {
+        val allSongs by viewModel.allSongs.collectAsStateWithLifecycle()
+        SongPickerSheet(
+            title = stringResource(R.string.playlist_add_songs_title, playlist.name),
+            songs = allSongs,
+            onConfirm = { ids ->
+                viewModel.addSongs(ids) { showAddSongs = false }
+            },
+            onDismiss = { showAddSongs = false }
         )
     }
 }

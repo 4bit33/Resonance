@@ -30,14 +30,17 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.resonance.player.R
 import com.resonance.player.core.common.formatBytes
 import com.resonance.player.core.common.formatDurationMs
@@ -47,11 +50,13 @@ import com.resonance.player.core.permissions.AudioPermissionManager
 import com.resonance.player.core.ui.components.ArtworkImage
 import com.resonance.player.core.ui.components.AudioPermissionGate
 import com.resonance.player.core.ui.components.EmptyLibraryView
+import com.resonance.player.core.ui.components.PlaylistPickerSheet
 import com.resonance.player.core.ui.components.ResonanceAlbumCard
 import com.resonance.player.core.ui.components.ResonanceCardPlayButton
 import com.resonance.player.core.ui.components.ResonanceMetric
 import com.resonance.player.core.ui.components.ResonanceSectionHeader
 import com.resonance.player.core.ui.components.SongFormatBadge
+import com.resonance.player.core.ui.components.SongOverflowSheet
 import com.resonance.player.core.ui.components.ResonanceSongRow
 import com.resonance.player.core.ui.components.ResonanceTopBar
 import com.resonance.player.core.ui.components.ScanProgressBanner
@@ -95,8 +100,8 @@ private fun HomeContent(
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
-    val scanState by viewModel.scanState.collectAsState()
-    val storage by viewModel.storage.collectAsState()
+    val scanState by viewModel.scanState.collectAsStateWithLifecycle()
+    val storage by viewModel.storage.collectAsStateWithLifecycle()
     val trackCount = storage?.trackCount ?: 0
     val isEmpty = trackCount == 0 && scanState !is ScanState.Scanning
 
@@ -142,7 +147,7 @@ private fun StorageCard(
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
-    val overview by viewModel.storage.collectAsState()
+    val overview by viewModel.storage.collectAsStateWithLifecycle()
     Surface(
         shape = ResonanceTheme.radii.card,
         color = colors.surfaceContainer,
@@ -222,7 +227,7 @@ private fun RecentlyPlayedSection(
     onOpenLibrary: (Int) -> Unit,
     onOpenQueue: () -> Unit
 ) {
-    val albums by viewModel.recentAlbums.collectAsState()
+    val albums by viewModel.recentAlbums.collectAsStateWithLifecycle()
     if (albums.isEmpty()) return
     val spacing = ResonanceTheme.spacing
     ResonanceSectionHeader(
@@ -250,6 +255,7 @@ private fun RecentlyPlayedSection(
                     viewModel.playAlbum(album.name, album.albumArtist)
                     onOpenQueue()
                 },
+                modifier = Modifier.animateItem(),
                 playButton = {
                     ResonanceCardPlayButton(
                         onClick = {
@@ -276,9 +282,9 @@ private fun JumpBackInSection(
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
-    val favCount by viewModel.favoriteCount.collectAsState()
-    val mostPlayed by viewModel.mostPlayed.collectAsState()
-    val recentSongs by viewModel.recentSongs.collectAsState()
+    val favCount by viewModel.favoriteCount.collectAsStateWithLifecycle()
+    val mostPlayed by viewModel.mostPlayed.collectAsStateWithLifecycle()
+    val recentSongs by viewModel.recentSongs.collectAsStateWithLifecycle()
     ResonanceSectionHeader(title = stringResource(R.string.home_jump_back_in))
     Spacer(Modifier.height(spacing.md))
     Column(
@@ -389,14 +395,64 @@ private fun RecentlyAddedSection(
     currentSongId: Long?,
     onSongClick: (Long) -> Unit
 ) {
-    val songs by viewModel.recentSongs.collectAsState()
+    val songs by viewModel.recentSongs.collectAsStateWithLifecycle()
     if (songs.isEmpty()) return
     val spacing = ResonanceTheme.spacing
+    var overflowSong by remember { mutableStateOf<Song?>(null) }
     ResonanceSectionHeader(title = stringResource(R.string.home_recently_added))
     Spacer(Modifier.height(spacing.sm))
     Column {
         songs.forEach { song ->
-            SongHomeRow(song, song.id == currentSongId, viewModel, songs, onSongClick)
+            SongHomeRow(
+                song,
+                song.id == currentSongId,
+                viewModel,
+                songs,
+                onSongClick,
+                onOverflowClick = { overflowSong = song }
+            )
+        }
+    }
+    overflowSong?.let { song ->
+        var showPicker by remember { mutableStateOf(false) }
+        val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+        val playlistError by viewModel.playlistError.collectAsStateWithLifecycle()
+        if (showPicker) {
+            PlaylistPickerSheet(
+                songTitle = song.title,
+                playlists = playlists,
+                error = playlistError,
+                onPick = { playlistId ->
+                    viewModel.addToPlaylist(playlistId, song.id) {
+                        showPicker = false
+                        overflowSong = null
+                    }
+                },
+                onNewPlaylist = { name ->
+                    viewModel.createPlaylistAndAdd(name, song.id) {
+                        showPicker = false
+                        overflowSong = null
+                    }
+                },
+                onDismiss = {
+                    showPicker = false
+                    viewModel.clearPlaylistError()
+                }
+            )
+        } else {
+            SongOverflowSheet(
+                song = song,
+                onDismiss = { overflowSong = null },
+                onPlayNext = {
+                    viewModel.playNext(song)
+                    overflowSong = null
+                },
+                onAddToQueue = {
+                    viewModel.addToQueue(song)
+                    overflowSong = null
+                },
+                onAddToPlaylist = { showPicker = true }
+            )
         }
     }
 }
@@ -407,7 +463,8 @@ private fun SongHomeRow(
     isCurrent: Boolean,
     viewModel: HomeViewModel,
     songs: List<Song>,
-    onSongClick: (Long) -> Unit
+    onSongClick: (Long) -> Unit,
+    onOverflowClick: () -> Unit
 ) {
     ResonanceSongRow(
         title = song.title,
@@ -433,7 +490,8 @@ private fun SongHomeRow(
         isPlayingAnimation = isCurrent,
         badge = {
             SongFormatBadge(song)
-        }
+        },
+        onOverflowClick = onOverflowClick
     )
 }
 

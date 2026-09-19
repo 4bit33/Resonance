@@ -130,7 +130,7 @@ fun GenreRow.toDomain(): Genre = Genre(name = genreName, songCount = songCount)
 
 fun FolderRow.toDomain(): MusicFolder {
     val path = relativePath ?: ""
-    val name = path.trimEnd('/').substringAfterLast('/', missingDelimiterValue = "")
+    val name = path.trimEnd('/').substringAfterLast('/')
         .takeIf { it.isNotEmpty() } ?: "Device storage"
     return MusicFolder(path = path, name = name, songCount = songCount)
 }

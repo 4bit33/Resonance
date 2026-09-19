@@ -1,5 +1,6 @@
 package com.resonance.player.core.ui.components
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -103,11 +104,13 @@ fun ResonanceMiniPlayer(
                 onClick = onToggle,
                 modifier = Modifier.size(spacing.touchMin)
             ) {
-                Icon(
-                    if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) pauseDescription else playDescription,
-                    tint = colors.textPrimary
-                )
+                Crossfade(targetState = isPlaying, label = "mini-playback-icon") { playing ->
+                    Icon(
+                        if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (playing) pauseDescription else playDescription,
+                        tint = colors.textPrimary
+                    )
+                }
             }
             if (onNext != null) {
                 IconButton(

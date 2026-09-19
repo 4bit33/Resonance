@@ -29,7 +29,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,9 +39,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.resonance.player.R
 import com.resonance.player.core.model.Playlist
 import com.resonance.player.core.ui.components.ResonanceBottomSheet
+import com.resonance.player.core.ui.components.ResonanceDialog
 import com.resonance.player.core.ui.components.ResonanceEmptyState
 import com.resonance.player.core.ui.components.ResonanceTopBar
 import com.resonance.player.core.ui.theme.ResonanceTheme
@@ -55,16 +56,18 @@ import com.resonance.player.core.ui.theme.ResonanceTheme
 fun PlaylistsScreen(
     viewModel: PlaylistsViewModel,
     onOpenDetail: (Long) -> Unit,
-    onOpenQueue: () -> Unit
+    onOpenQueue: () -> Unit,
+    onShowMessage: (String) -> Unit = {}
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
-    val playlists by viewModel.playlists.collectAsState()
-    val error by viewModel.error.collectAsState()
+    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
     var showCreate by remember { mutableStateOf(false) }
     var overflowPlaylist by remember { mutableStateOf<Playlist?>(null) }
     var renameTarget by remember { mutableStateOf<Playlist?>(null) }
+    var deleteTarget by remember { mutableStateOf<Playlist?>(null) }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -82,7 +85,8 @@ fun PlaylistsScreen(
                         PlaylistRow(
                             playlist = playlist,
                             onClick = { onOpenDetail(playlist.id) },
-                            onOverflow = { overflowPlaylist = playlist }
+                            onOverflow = { overflowPlaylist = playlist },
+                            modifier = Modifier.animateItem()
                         )
                     }
                 }
@@ -118,12 +122,17 @@ fun PlaylistsScreen(
             onDismiss = { showCreate = false }
         )
     }
+    val emptyPlaylistMessage = stringResource(R.string.playlist_empty_action)
     overflowPlaylist?.let { playlist ->
         PlaylistOverflowSheet(
             playlist = playlist,
             onDismiss = { overflowPlaylist = null },
             onPlay = {
-                viewModel.play(playlist.id) { onOpenQueue() }
+                viewModel.play(
+                    playlist.id,
+                    onPlaying = { onOpenQueue() },
+                    onEmpty = { onShowMessage(emptyPlaylistMessage) }
+                )
                 overflowPlaylist = null
             },
             onRename = {
@@ -131,7 +140,7 @@ fun PlaylistsScreen(
                 overflowPlaylist = null
             },
             onDelete = {
-                viewModel.delete(playlist.id)
+                deleteTarget = playlist
                 overflowPlaylist = null
             }
         )
@@ -148,20 +157,34 @@ fun PlaylistsScreen(
             onDismiss = { renameTarget = null }
         )
     }
+    deleteTarget?.let { playlist ->
+        ResonanceDialog(
+            title = stringResource(R.string.playlist_delete_title),
+            text = stringResource(R.string.playlist_delete_body),
+            confirmLabel = stringResource(R.string.playlist_delete),
+            onConfirm = {
+                viewModel.delete(playlist.id)
+                deleteTarget = null
+            },
+            onDismiss = { deleteTarget = null },
+            dismissLabel = stringResource(R.string.action_dismiss)
+        )
+    }
 }
 
 @Composable
 private fun PlaylistRow(
     playlist: Playlist,
     onClick: () -> Unit,
-    onOverflow: () -> Unit
+    onOverflow: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(ResonanceTheme.dimensions.songRowHeight)
             .padding(horizontal = spacing.lg)

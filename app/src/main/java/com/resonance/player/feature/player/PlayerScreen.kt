@@ -29,7 +29,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.resonance.player.R
 import com.resonance.player.core.common.formatBytes
 import com.resonance.player.core.common.formatDurationMs
@@ -74,10 +74,10 @@ fun PlayerScreen(
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
-    val snapshot by viewModel.snapshot.collectAsState()
-    val details by viewModel.details.collectAsState()
-    val commandError by viewModel.commandError.collectAsState()
-    val isFavorite by viewModel.isFavorite.collectAsState()
+    val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
+    val details by viewModel.details.collectAsStateWithLifecycle()
+    val commandError by viewModel.commandError.collectAsStateWithLifecycle()
+    val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
 
     val song = snapshot.song ?: details
     val duration = snapshot.durationMs

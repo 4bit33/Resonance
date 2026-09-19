@@ -6,11 +6,11 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,67 +21,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.resonance.player.core.ui.theme.ResonanceTheme
 
-/** Missing-artwork fallback styles (DESIGN.md prescribes etched geometry). */
-enum class ArtworkFallbackStyle { Etched, Note }
-
-/**
- * Stitch artwork fallback: dark slate box with an etched vinyl-groove motif
- * (concentric dashed circles + register ticks). Decorative only — playback
- * and list state are always conveyed by text + controls as well.
- */
+/** Note-glyph fallback for missing artwork: fills its slot, glyph scales with it. */
 @Composable
-fun WaveformFallback(
-    modifier: Modifier = Modifier,
-    iconSize: Dp = 24.dp
-) {
-    val colors = ResonanceTheme.colors
-    val groove = colors.outlineStrong
-    Box(
-        modifier = modifier
-            .clip(ResonanceTheme.radii.control)
-            .background(colors.surfaceContainer),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.size(iconSize * 2)) {
-            val cx = size.width / 2f
-            val cy = size.height / 2f
-            val maxR = size.minDimension / 2f * 0.94f
-            val thin = size.minDimension * 0.02f
-            drawCircle(
-                color = groove,
-                radius = maxR,
-                style = Stroke(
-                    width = thin,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
-                )
-            )
-            drawCircle(color = groove, radius = maxR * 0.64f, style = Stroke(thin * 0.8f))
-            drawCircle(color = groove, radius = maxR * 0.28f, style = Stroke(thin))
-            val tick = maxR * 0.12f
-            drawLine(groove, Offset(cx, cy - maxR), Offset(cx, cy - maxR + tick), thin)
-            drawLine(groove, Offset(cx, cy + maxR), Offset(cx, cy + maxR - tick), thin)
-            drawLine(groove, Offset(cx - maxR, cy), Offset(cx - maxR + tick, cy), thin)
-            drawLine(groove, Offset(cx + maxR, cy), Offset(cx + maxR - tick, cy), thin)
-        }
-    }
-}
-
-/** Compact note-glyph fallback for dense rows (matches Stitch list rows). */
-@Composable
-fun NoteFallback(
-    modifier: Modifier = Modifier,
-    iconSize: Dp = 24.dp
-) {
+fun NoteFallback(modifier: Modifier = Modifier) {
     val colors = ResonanceTheme.colors
     Box(
         modifier = modifier
+            .fillMaxSize()
             .clip(ResonanceTheme.radii.control)
             .background(colors.surfaceContainer),
         contentAlignment = Alignment.Center
@@ -90,7 +40,7 @@ fun NoteFallback(
             Icons.Filled.MusicNote,
             contentDescription = null,
             tint = colors.textMuted,
-            modifier = Modifier.size(iconSize)
+            modifier = Modifier.fillMaxSize(0.4f)
         )
     }
 }

@@ -11,6 +11,7 @@ import com.resonance.player.domain.library.GetLibraryStatsUseCase
 import com.resonance.player.domain.library.ObserveLastScanUseCase
 import com.resonance.player.domain.library.ObserveScanStateUseCase
 import com.resonance.player.domain.library.RescanLibraryUseCase
+import com.resonance.player.core.ui.theme.DEFAULT_ACCENT_HUE
 import com.resonance.player.domain.settings.ThemeMode
 import com.resonance.player.domain.settings.UserPreferencesRepository
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,6 +34,9 @@ class SettingsViewModel(
     val themeMode: StateFlow<ThemeMode> = repository.themeMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM)
 
+    val accentHue: StateFlow<Float> = repository.accentHue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DEFAULT_ACCENT_HUE)
+
     val scanState: StateFlow<ScanState> = observeScanState()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScanState.Idle)
 
@@ -53,6 +57,10 @@ class SettingsViewModel(
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { repository.setThemeMode(mode) }
+    }
+
+    fun setAccentHue(hue: Float) {
+        viewModelScope.launch { repository.setAccentHue(hue) }
     }
 
     fun setIgnoreShortFiles(ignore: Boolean) {

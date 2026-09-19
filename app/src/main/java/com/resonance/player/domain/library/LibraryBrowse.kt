@@ -44,6 +44,12 @@ class GetGenreSongsUseCase(private val repository: MusicRepository) {
         repository.getGenreSongs(genreName)
 }
 
+/** Songs directly inside one folder (relative path), for tap-to-play-folder. */
+class GetFolderSongsUseCase(private val repository: MusicRepository) {
+    suspend operator fun invoke(relativePath: String?): Result<List<Song>> =
+        repository.getFolderSongs(relativePath)
+}
+
 /** Scanner state for progress banners and Settings. */
 class ObserveScanStateUseCase(private val repository: MusicRepository) {
     operator fun invoke(): Flow<ScanState> = repository.observeScanState()

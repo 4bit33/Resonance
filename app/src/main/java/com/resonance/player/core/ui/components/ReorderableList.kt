@@ -2,6 +2,7 @@
 
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -79,13 +80,11 @@ class ReorderScope internal constructor(
             )
         }
 
-    /** Lifts the dragged row above siblings while it follows the finger. */
+    /** Follows the finger while dragging; z-raising happens on the item wrapper. */
     fun Modifier.dragged(index: Int): Modifier =
-        this
-            .zIndex(if (draggingIndex == index) 1f else 0f)
-            .graphicsLayer {
-                translationY = if (draggingIndex == index) dragOffsetY else 0f
-            }
+        this.graphicsLayer {
+            translationY = if (draggingIndex == index) dragOffsetY else 0f
+        }
 
     private fun rowTop(index: Int): Float =
         (listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }?.offset
@@ -108,7 +107,16 @@ fun <T> ReorderableLazyColumn(
     val reorder = remember(listState, scope) { ReorderScope(listState, scope) }
     LazyColumn(state = listState, modifier = modifier) {
         itemsIndexed(items, key = { _, item -> key(item) }) { index, item ->
-            reorder.itemContent(item, index)
+            // animateItem() springs siblings into place after a drop commits a
+            // reorder (or after an insert/remove); zIndex here (not on the row)
+            // raises the whole item above siblings while it's being dragged.
+            Box(
+                modifier = Modifier
+                    .animateItem()
+                    .zIndex(if (reorder.draggingIndex == index) 1f else 0f)
+            ) {
+                reorder.itemContent(item, index)
+            }
         }
     }
 }

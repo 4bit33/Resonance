@@ -97,6 +97,9 @@ class FakeMusicRepository(songs: List<Song> = listOf(testSong(1L), testSong(2L))
         albumArtist: String?
     ): Result<List<Song>> = Result.Success(backing)
 
+    override suspend fun getFolderSongs(relativePath: String?): Result<List<Song>> =
+        Result.Success(backing)
+
     override suspend fun getLibraryStats(): com.resonance.player.core.model.LibraryStats =
         com.resonance.player.core.model.LibraryStats(
             songCount = backing.size, albumCount = 1, artistCount = 1,
@@ -262,9 +265,7 @@ class FakePlaylistRepository(
     }
 
     override suspend fun getPlaylistSongs(playlistId: Long): Result<List<Song>> {
-        val ids = items[playlistId] ?: return Result.Failure(AppError.EmptyLibrary)
-        val found = ids.mapNotNull { id -> songs.firstOrNull { it.id == id } }
-        if (found.isEmpty()) return Result.Failure(AppError.EmptyLibrary)
-        return Result.Success(found)
+        val ids = items[playlistId] ?: return Result.Failure(AppError.Unknown("Playlist not found"))
+        return Result.Success(ids.mapNotNull { id -> songs.firstOrNull { it.id == id } })
     }
 }

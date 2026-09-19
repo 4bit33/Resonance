@@ -25,12 +25,11 @@ internal val StitchTextPrimary = Color(0xFFF2F3F5)
 internal val StitchTextSecondary = Color(0xFF9CA3AF)
 internal val StitchTextMuted = Color(0xFF606775)
 internal val StitchTextOnSurface = Color(0xFFE3E2E6)
-internal val StitchCopper = Color(0xFFFF7A30)
-internal val StitchCopperGlow = Color(0xFFFF8A3D)
-internal val StitchCopperDim = Color(0xFF4A2209)
+// Accent (was fixed copper #FF7A30) is now user-selectable — see
+// accentColors(hue) in ResonanceColors.kt. StitchOnCopper is the fixed dark
+// "text on accent" color; it stays constant because every accent hue is
+// generated at the same high saturation/value, so dark text always contrasts.
 internal val StitchOnCopper = Color(0xFF121316)
-internal val StitchCopperSoft = Color(0xFFFFB693)
-internal val StitchCopperDeep = Color(0xFF622400)
 internal val StitchCyan = Color(0xFF2EE5C8)
 internal val StitchCyanDim = Color(0xFF063B34)
 internal val StitchOnCyan = Color(0xFF00382F)

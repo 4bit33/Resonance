@@ -164,6 +164,20 @@ class RoomMusicRepository(
             }
         }
 
+    override suspend fun getFolderSongs(relativePath: String?): Result<List<Song>> =
+        withContext(dispatchers.io) {
+            try {
+                val entities = database.songDao().getSongsOfFolder(relativePath)
+                if (entities.isEmpty()) {
+                    return@withContext Result.Failure(AppError.EmptyLibrary)
+                }
+                val favorites = database.favoriteDao().getFavoriteIds().toSet()
+                Result.Success(entities.map { it.toDomain(isFavorite = favorites.contains(it.id)) })
+            } catch (t: Exception) {
+                Result.Failure(AppError.DatabaseError(t.message))
+            }
+        }
+
     override suspend fun getLibraryStats(): LibraryStats = withContext(dispatchers.io) {
         val dao = database.songDao()
         val lastScan: Long? = try {

@@ -17,6 +17,7 @@ import com.resonance.player.domain.playlists.ObservePlaylistSongsUseCase
 import com.resonance.player.domain.playlists.ObservePlaylistsUseCase
 import com.resonance.player.domain.playlists.RemoveSongFromPlaylistUseCase
 import com.resonance.player.domain.playlists.RenamePlaylistUseCase
+import com.resonance.player.domain.library.ObserveSongsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -66,12 +67,14 @@ class PlaylistsViewModel(
         }
     }
 
-    fun play(playlistId: Long, onPlaying: () -> Unit = {}) {
+    fun play(playlistId: Long, onPlaying: () -> Unit = {}, onEmpty: () -> Unit = {}) {
         viewModelScope.launch {
             val songs = (songsOf(playlistId) as? Result.Success)?.value
             if (!songs.isNullOrEmpty()) {
                 playSongs(songs, 0)
                 onPlaying()
+            } else {
+                onEmpty()
             }
         }
     }
@@ -90,10 +93,16 @@ class PlaylistDetailViewModel(
     private val renameOp: RenamePlaylistUseCase,
     private val deleteOp: DeletePlaylistUseCase,
     private val removeSongOp: RemoveSongFromPlaylistUseCase,
-    private val moveItemOp: MovePlaylistItemUseCase
+    private val moveItemOp: MovePlaylistItemUseCase,
+    observeAllSongs: ObserveSongsUseCase,
+    private val addSongOp: AddSongToPlaylistUseCase
 ) : ViewModel() {
     private val songsMutable = MutableStateFlow<List<Song>>(emptyList())
     val songs: StateFlow<List<Song>> = songsMutable.asStateFlow()
+
+    /** Full library, for the "add songs" picker. */
+    val allSongs: StateFlow<List<Song>> = observeAllSongs()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val errorMutable = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = errorMutable.asStateFlow()
@@ -134,6 +143,15 @@ class PlaylistDetailViewModel(
         viewModelScope.launch {
             removeSongOp(playlistId, songId)
             refresh()
+        }
+    }
+
+    fun addSongs(songIds: List<Long>, onDone: () -> Unit = {}) {
+        if (songIds.isEmpty()) return
+        viewModelScope.launch {
+            songIds.forEach { addSongOp(playlistId, it) }
+            refresh()
+            onDone()
         }
     }
 

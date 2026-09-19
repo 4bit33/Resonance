@@ -88,6 +88,9 @@ class UseCaseTest {
         assertTrue(RemoveSongFromPlaylistUseCase(repo)(id, 2L) is Result.Success)
         val afterRemove = ObservePlaylistSongsUseCase(repo)(id) as Result.Success
         assertEquals(listOf(1L), afterRemove.value.map { it.id })
+        assertTrue(RemoveSongFromPlaylistUseCase(repo)(id, 1L) is Result.Success)
+        // Existing-but-empty playlist is a valid empty list, not an error.
+        assertEquals(emptyList<Long>(), (ObservePlaylistSongsUseCase(repo)(id) as Result.Success).value.map { it.id })
         assertTrue(DeletePlaylistUseCase(repo)(id) is Result.Success)
         assertTrue(ObservePlaylistSongsUseCase(repo)(id) is Result.Failure)
     }

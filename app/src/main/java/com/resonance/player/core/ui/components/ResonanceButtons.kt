@@ -1,5 +1,6 @@
 package com.resonance.player.core.ui.components
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,11 +63,13 @@ fun ResonancePlaybackButton(
             )
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(
-                if (playing) pauseIcon else playIcon,
-                contentDescription = if (playing) pauseDescription else playDescription,
-                modifier = Modifier.size(size * 0.45f)
-            )
+            Crossfade(targetState = playing, label = "playback-icon") { isPlaying ->
+                Icon(
+                    if (isPlaying) pauseIcon else playIcon,
+                    contentDescription = if (isPlaying) pauseDescription else playDescription,
+                    modifier = Modifier.size(size * 0.45f)
+                )
+            }
         }
     }
 }

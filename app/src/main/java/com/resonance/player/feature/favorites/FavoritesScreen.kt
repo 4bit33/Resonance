@@ -5,17 +5,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.resonance.player.R
 import com.resonance.player.core.common.formatDurationMs
+import com.resonance.player.core.model.Song
 import com.resonance.player.core.ui.components.ArtworkImage
+import com.resonance.player.core.ui.components.PlaylistPickerSheet
 import com.resonance.player.core.ui.components.ResonanceEmptyState
 import com.resonance.player.core.ui.components.ResonanceSongRow
 import com.resonance.player.core.ui.components.ResonanceTopBar
 import com.resonance.player.core.ui.components.SongFormatBadge
+import com.resonance.player.core.ui.components.SongOverflowSheet
 import com.resonance.player.core.ui.components.songRowState
 
 @Composable
@@ -25,7 +31,8 @@ fun FavoritesScreen(
     onBack: () -> Unit,
     onSongClick: (Long) -> Unit
 ) {
-    val songs by viewModel.songs.collectAsState()
+    val songs by viewModel.songs.collectAsStateWithLifecycle()
+    var overflowSong by remember { mutableStateOf<Song?>(null) }
     Column(Modifier.fillMaxSize()) {
         ResonanceTopBar(
             title = stringResource(R.string.favorites_title),
@@ -61,10 +68,54 @@ fun FavoritesScreen(
                             isLoading = false
                         ),
                         isPlayingAnimation = song.id == currentSongId,
-                        badge = { SongFormatBadge(song) }
+                        badge = { SongFormatBadge(song) },
+                        onOverflowClick = { overflowSong = song },
+                        modifier = Modifier.animateItem()
                     )
                 }
             }
+        }
+    }
+    overflowSong?.let { song ->
+        var showPicker by remember { mutableStateOf(false) }
+        val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+        val playlistError by viewModel.playlistError.collectAsStateWithLifecycle()
+        if (showPicker) {
+            PlaylistPickerSheet(
+                songTitle = song.title,
+                playlists = playlists,
+                error = playlistError,
+                onPick = { playlistId ->
+                    viewModel.addToPlaylist(playlistId, song.id) {
+                        showPicker = false
+                        overflowSong = null
+                    }
+                },
+                onNewPlaylist = { name ->
+                    viewModel.createPlaylistAndAdd(name, song.id) {
+                        showPicker = false
+                        overflowSong = null
+                    }
+                },
+                onDismiss = {
+                    showPicker = false
+                    viewModel.clearPlaylistError()
+                }
+            )
+        } else {
+            SongOverflowSheet(
+                song = song,
+                onDismiss = { overflowSong = null },
+                onPlayNext = {
+                    viewModel.playNext(song)
+                    overflowSong = null
+                },
+                onAddToQueue = {
+                    viewModel.addToQueue(song)
+                    overflowSong = null
+                },
+                onAddToPlaylist = { showPicker = true }
+            )
         }
     }
 }

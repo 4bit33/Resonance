@@ -34,6 +34,7 @@ interface MusicRepository {
     fun observeGenres(): Flow<List<Genre>>
     fun observeFolders(): Flow<List<MusicFolder>>
     suspend fun getAlbumSongs(albumName: String, albumArtist: String?): Result<List<Song>>
+    suspend fun getFolderSongs(relativePath: String?): Result<List<Song>>
     fun observeRecentlyPlayed(limit: Int): Flow<List<Song>>
     fun observeMostPlayed(limit: Int): Flow<List<Song>>
     fun observeRecentlyAdded(limit: Int): Flow<List<Song>>

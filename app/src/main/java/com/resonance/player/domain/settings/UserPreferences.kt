@@ -8,4 +8,8 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 interface UserPreferencesRepository {
     val themeMode: Flow<ThemeMode>
     suspend fun setThemeMode(mode: ThemeMode)
+
+    /** Accent hue (0-360); see [com.resonance.player.core.ui.theme.DEFAULT_ACCENT_HUE]. */
+    val accentHue: Flow<Float>
+    suspend fun setAccentHue(hue: Float)
 }
