@@ -1,7 +1,9 @@
 package com.resonance.player.core.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,20 +14,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.resonance.player.R
 import com.resonance.player.core.ui.theme.ResonanceTheme
 
 /**
@@ -51,10 +56,14 @@ fun songRowState(
 
 /**
  * Standard 64dp Stitch song row: 48dp art (8dp radius), two-tier
- * title/artist-album column, mono-metric badge + duration column, 48dp
- * overflow. Playing rows get the left indicator bar + EQ overlay + accent
- * title; missing rows get the error-container treatment.
+ * title/artist-album column, mono-metric badge + duration column. A long
+ * press opens the song menu ([onLongClick]; there is no overflow button).
+ * [trailingInset] keeps the badge/duration clear of an overlay at the edge
+ * (the Library alphabet scrubber).
+ * Playing rows get the left indicator bar + EQ overlay + accent title;
+ * missing rows get the error-container treatment.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ResonanceSongRow(
     title: String,
@@ -66,13 +75,23 @@ fun ResonanceSongRow(
     state: SongRowState = SongRowState.Normal,
     badge: (@Composable () -> Unit)? = null,
     isPlayingAnimation: Boolean = false,
-    onOverflowClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     onToggleSelect: (() -> Unit)? = null,
-    missingMessage: String? = null
+    missingMessage: String? = null,
+    trailingInset: Dp = 0.dp
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
+    val haptics = LocalHapticFeedback.current
+    val menu: (() -> Unit)? = if (onLongClick != null && state != SongRowState.Missing) {
+        {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            onLongClick()
+        }
+    } else {
+        null
+    }
     val background = when (state) {
         SongRowState.Playing -> colors.accent.copy(alpha = 0.10f)
         SongRowState.Selected -> colors.surfaceHighest
@@ -94,8 +113,10 @@ fun ResonanceSongRow(
                 .fillMaxWidth()
                 .height(ResonanceTheme.dimensions.songRowHeight)
                 .padding(horizontal = spacing.lg)
-                .clickable(
+                .combinedClickable(
                     enabled = state != SongRowState.Disabled && state != SongRowState.Loading,
+                    onLongClickLabel = if (menu != null) stringResource(R.string.song_actions) else null,
+                    onLongClick = menu,
                     onClick = onClick
                 )
         ) {
@@ -172,18 +193,7 @@ fun ResonanceSongRow(
                 badge?.invoke()
                 Text(duration, style = typography.monoMetric, color = colors.textSecondary)
             }
-            if (onOverflowClick != null && state != SongRowState.Missing) {
-                IconButton(
-                    onClick = onOverflowClick,
-                    modifier = Modifier.size(spacing.touchMin)
-                ) {
-                    Icon(
-                        Icons.Filled.MoreVert,
-                        contentDescription = null,
-                        tint = colors.textSecondary
-                    )
-                }
-            }
+            Spacer(Modifier.width(trailingInset))
         }
     }
 }

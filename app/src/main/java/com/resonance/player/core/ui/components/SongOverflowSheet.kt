@@ -12,10 +12,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.AddToQueue
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -27,10 +32,11 @@ import com.resonance.player.core.model.Song
 import com.resonance.player.core.ui.theme.ResonanceTheme
 
 /**
- * Shared song overflow sheet (Library / Search / Queue / Player rows).
- * Only exposes actions the caller wires — no dead buttons. The
- * add-to-playlist row appears only when [onAddToPlaylist] is provided
- * (Stage G playlist picker).
+ * Shared song menu, opened by a long press on a song row (Home / Library /
+ * Search / Favorites). Only exposes actions the caller wires — no dead
+ * buttons. The add-to-playlist row appears only when [onAddToPlaylist] is
+ * provided. "Remove from library" (after a confirmation) goes through
+ * [LocalMusicActions]: it never deletes the file.
  */
 @Composable
 fun SongOverflowSheet(
@@ -44,6 +50,8 @@ fun SongOverflowSheet(
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
+    val musicActions = LocalMusicActions.current
+    var confirmRemove by remember { mutableStateOf(false) }
     ResonanceBottomSheet(onDismiss = onDismiss, modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ArtworkImage(
@@ -87,6 +95,25 @@ fun SongOverflowSheet(
                 onClick = onAddToPlaylist
             )
         }
+        OverflowAction(
+            icon = Icons.Filled.RemoveCircleOutline,
+            label = stringResource(R.string.action_remove_from_library),
+            onClick = { confirmRemove = true }
+        )
+    }
+    if (confirmRemove) {
+        ResonanceDialog(
+            title = stringResource(R.string.song_remove_title),
+            text = stringResource(R.string.song_remove_body, song.title),
+            confirmLabel = stringResource(R.string.music_remove),
+            onConfirm = {
+                confirmRemove = false
+                musicActions.removeSong(song)
+                onDismiss()
+            },
+            onDismiss = { confirmRemove = false },
+            dismissLabel = stringResource(R.string.action_dismiss)
+        )
     }
 }
 

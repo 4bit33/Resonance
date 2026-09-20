@@ -28,7 +28,7 @@ UI (Compose) -> ViewModel -> UseCase -> Repository -> Data Source (Room / Storag
   releases a persisted read grant. The system pickers live once in the app
   shell (`LocalMusicActions`); screens only trigger them.
 - Queue: runtime-only `QueueBookkeeper`. Never touches saved data.
-- Database: single `ResonanceDatabase` (Room v3). Entities map via
+- Database: single `ResonanceDatabase` (Room v4). Entities map via
   `SongMapper`. Songs belong to a source (FK, ON DELETE CASCADE: removing a
   source drops its songs). Playlists/favorites/history hold NO foreign keys
   to songs, so removing songs never cascades user data.
@@ -100,14 +100,15 @@ User-added sources (folder = TREE via OpenDocumentTree, song = FILE via OpenMult
 - ADR-009 schema upgrades are explicit Migrations (v1->v2 additive, keeps all user data; v2->v3 is a deliberate clean start for songs, see ADR-010); destructive fallback applies to downgrades only.
 - ADR-010 the library is the music the user adds, not a device scan. Folders (OpenDocumentTree) and single songs (OpenMultipleDocuments) with persisted READ grants; scans run only after add/remove and on "Refresh library"; no READ_MEDIA_AUDIO / READ_EXTERNAL_STORAGE. `Song.id` stays a Long (nav arg, Media3 media id, DataStore queue, favorites/playlists untouched) but becomes a stable hash of authority + documentId, pinned by a golden-value test because it is a persisted format. Songs FK to `sources` with CASCADE; source inserts use IGNORE (REPLACE would delete the parent row and cascade every song). v2->v3 drops the old songs and empties playlist items, favorites and history (playlist names are kept); the DDL is copied from the Room-generated code. "Remove" in the UI always means remove from the library: files are never deleted.
   Known limits: Android caps persisted grants (512, 128 before API 30; a picked file costs one) and grants do not survive backup/restore (`allowBackup=true`), so access is derived from `persistedUriPermissions` and re-adding repairs it; Android 11+ refuses the storage root and the Download folder in the folder picker (add a subfolder, or its files via Add songs); `.nomedia` / `IS_MUSIC` are no longer honoured; the same file reached through two providers (picker's Audio tab vs a folder) can appear twice.
+- ADR-011 gestures are threshold swipes with no finger-tracking animation. Mini player: swipe up opens Now Playing, left/right skips next/previous in the queue. Now Playing: no back arrow (system back still works); pulling down anywhere closes it (a nested-scroll connection turns leftover downward drag into the close, so the screen still scrolls where it must); swiping the artwork left/right skips. A long press on a song row replaces the three-dot button and opens the song menu (the long-click label keeps an action for TalkBack). "Remove from library" never deletes the file: a song added on its own goes away with its source; a song inside an added folder is remembered in `excluded_songs` (schema v4, FK to `sources` with CASCADE) so folder listings skip it (a file the user adds explicitly again still comes in), and removing the folder clears that memory. There is no UI to manage hidden songs.
 
 ## What is real
 
 Real SAF discovery of user-added folders and songs, tag extraction,
 normalization, artwork cache, source-scoped incremental reconciliation,
-Room v3, Library tabs (Songs/Albums/Artists/Genres/Folders), extended
+Room v4, Library tabs (Songs/Albums/Artists/Genres/Folders), extended
 Search, tap-to-play + play-album into the Phase 2 engine, Now Playing
-artwork, Settings music sources / refresh / stats, 108 JVM tests.
+artwork, Settings music sources / refresh / stats, swipe gestures and the long-press song menu, 113 JVM tests.
 
 ## Host note (Windows, Cyrillic username)
 
@@ -155,8 +156,6 @@ screens). Translated to native Compose — never copied HTML/CSS.
 
 ## Next
 
-Gestures (swipe down to close Now Playing, swipe up / left / right on the
-mini player, long-press a song for its menu incl. "Remove from library"),
-screen-by-screen Stitch reskin on these components, playlist management
+Screen-by-screen Stitch reskin on these components, playlist management
 UI, Smart Mix engine feeding generated queues, release minification
 (strips unused icons), backup/export.

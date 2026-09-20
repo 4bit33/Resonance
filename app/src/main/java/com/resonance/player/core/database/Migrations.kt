@@ -59,3 +59,16 @@ val MIGRATION_2_3: Migration = object : Migration(2, 3) {
         db.execSQL("DELETE FROM playback_history")
     }
 }
+
+/**
+ * Schema v3 -> v4: songs the user removed from a folder source are remembered
+ * so the scanner skips them (`excluded_songs`, FK to `sources` with CASCADE).
+ * Additive: nothing existing is touched. DDL copied verbatim from the
+ * Room-generated `createAllTables`.
+ */
+val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `excluded_songs` (`id` INTEGER NOT NULL, `sourceId` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`sourceId`) REFERENCES `sources`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_excluded_songs_sourceId` ON `excluded_songs` (`sourceId`)")
+    }
+}

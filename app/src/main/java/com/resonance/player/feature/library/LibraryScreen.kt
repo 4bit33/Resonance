@@ -288,7 +288,8 @@ private fun SongsTab(
                             ),
                             isPlayingAnimation = isCurrent,
                             badge = { SongFormatBadge(song) },
-                            onOverflowClick = { overflowSong = song }
+                            onLongClick = { overflowSong = song },
+                            trailingInset = 20.dp
                         )
                     }
                 }

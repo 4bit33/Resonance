@@ -88,6 +88,10 @@
     <string name="sort_recently_added">Recently added</string>
     <string name="sort_recently_played">Recently played</string>
     <string name="sort_most_played">Most played</string>
+    <string name="song_actions">open the song menu</string>
+    <string name="action_remove_from_library">Remove from library</string>
+    <string name="song_remove_title">Remove from library?</string>
+    <string name="song_remove_body">\"%1$s\" leaves your library. The file stays on your device.</string>
     <string name="action_play_next">Play next</string>
     <string name="action_add_to_queue">Add to queue</string>
     <string name="action_add_to_playlist">Add to playlist</string>

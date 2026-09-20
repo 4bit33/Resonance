@@ -17,6 +17,13 @@ interface SourceRepository {
 
     /** Drops the sources, their songs and their read grants. The files themselves are never touched. */
     suspend fun removeSources(ids: List<Long>)
+
+    /**
+     * Takes one song out of the library (the file is never touched). A song that was added
+     * on its own goes away with its source; a song inside an added folder is remembered
+     * as excluded so scans skip it. Removing the folder clears that memory.
+     */
+    suspend fun removeSong(songId: Long)
 }
 
 class ObserveSourcesUseCase(private val repository: SourceRepository) {
@@ -45,4 +52,8 @@ class RemoveSourcesUseCase(
         sources.removeSources(ids)
         library.scanAndImport()
     }
+}
+
+class RemoveSongUseCase(private val sources: SourceRepository) {
+    suspend operator fun invoke(songId: Long) = sources.removeSong(songId)
 }

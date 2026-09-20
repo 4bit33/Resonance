@@ -389,7 +389,7 @@ private fun RecentlyAddedSection(
                 viewModel,
                 songs,
                 onSongClick,
-                onOverflowClick = { overflowSong = song }
+                onLongClick = { overflowSong = song }
             )
         }
     }
@@ -444,7 +444,7 @@ private fun SongHomeRow(
     viewModel: HomeViewModel,
     songs: List<Song>,
     onSongClick: (Long) -> Unit,
-    onOverflowClick: () -> Unit
+    onLongClick: () -> Unit
 ) {
     ResonanceSongRow(
         title = song.title,
@@ -471,7 +471,7 @@ private fun SongHomeRow(
         badge = {
             SongFormatBadge(song)
         },
-        onOverflowClick = onOverflowClick
+        onLongClick = onLongClick
     )
 }
 

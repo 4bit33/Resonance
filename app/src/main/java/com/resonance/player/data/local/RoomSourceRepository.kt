@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import com.resonance.player.core.common.AppDispatchers
 import com.resonance.player.core.database.ResonanceDatabase
+import com.resonance.player.core.database.entity.ExcludedSongEntity
 import com.resonance.player.core.database.entity.SourceEntity
 import com.resonance.player.core.media.AudioScanner
 import com.resonance.player.core.media.uniqueName
@@ -82,6 +83,21 @@ class RoomSourceRepository(
                 } catch (e: SecurityException) {
                     // No grant left to release (it was already lost).
                 }
+            }
+        }
+    }
+
+    override suspend fun removeSong(songId: Long) {
+        withContext(dispatchers.io) {
+            scanner.cancel()
+            val song = database.songDao().getById(songId) ?: return@withContext
+            val source = database.sourceDao().getById(song.sourceId) ?: return@withContext
+            if (SourceKind.valueOf(source.kind) == SourceKind.FILE) {
+                // A single added song IS its source.
+                removeSources(listOf(source.id))
+            } else {
+                database.excludedSongDao().insert(ExcludedSongEntity(id = songId, sourceId = source.id))
+                database.songDao().deleteByIds(listOf(songId))
             }
         }
     }

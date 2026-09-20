@@ -117,7 +117,7 @@ fun SearchScreen(
                         ),
                         isPlayingAnimation = isCurrent,
                         badge = { SongFormatBadge(song) },
-                        onOverflowClick = { overflowSong = song },
+                        onLongClick = { overflowSong = song },
                         modifier = Modifier.animateItem()
                     )
                 }

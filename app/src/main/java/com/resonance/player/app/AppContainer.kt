@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.resonance.player.core.common.DefaultAppDispatchers
 import com.resonance.player.core.database.MIGRATION_1_2
 import com.resonance.player.core.database.MIGRATION_2_3
+import com.resonance.player.core.database.MIGRATION_3_4
 import com.resonance.player.core.database.ResonanceDatabase
 import com.resonance.player.core.playback.PlaybackController
 import com.resonance.player.data.local.DataStoreSettingsRepository
@@ -42,6 +43,7 @@ import com.resonance.player.domain.library.ObserveScanStateUseCase
 import com.resonance.player.domain.library.ObserveSongsUseCase
 import com.resonance.player.domain.library.ObserveSourcesUseCase
 import com.resonance.player.domain.library.RecordPlayUseCase
+import com.resonance.player.domain.library.RemoveSongUseCase
 import com.resonance.player.domain.library.RemoveSourcesUseCase
 import com.resonance.player.domain.library.RescanLibraryUseCase
 import com.resonance.player.domain.playback.AppendToQueueUseCase
@@ -102,7 +104,7 @@ class AppContainer(context: Context) {
 
     val database: ResonanceDatabase by lazy {
         Room.databaseBuilder(appContext, ResonanceDatabase::class.java, "resonance.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
             .build()
     }
@@ -210,6 +212,7 @@ class AppContainer(context: Context) {
     val observeSources = ObserveSourcesUseCase(sourceRepository)
     val addSources = AddSourcesUseCase(sourceRepository, musicRepository)
     val removeSources = RemoveSourcesUseCase(sourceRepository, musicRepository)
+    val removeSong = RemoveSongUseCase(sourceRepository)
     val getLibraryStats = GetLibraryStatsUseCase(musicRepository)
     val observeLastScan = ObserveLastScanUseCase(musicRepository)
     val observeRecentlyPlayed = ObserveRecentlyPlayedUseCase(musicRepository)

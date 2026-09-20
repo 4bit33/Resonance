@@ -145,7 +145,8 @@ fun ResonanceAppShell(container: AppContainer) {
     val musicActions = remember {
         MusicActions(
             addFolder = { initialUri -> addFolderPicker.launch(initialUri?.let(Uri::parse)) },
-            addSongs = { addSongsPicker.launch(arrayOf("audio/*")) }
+            addSongs = { addSongsPicker.launch(arrayOf("audio/*")) },
+            removeSong = { song -> scope.launch { container.removeSong(song.id) } }
         )
     }
 
