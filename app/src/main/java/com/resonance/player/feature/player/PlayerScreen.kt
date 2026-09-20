@@ -33,10 +33,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
@@ -54,8 +57,10 @@ import com.resonance.player.core.ui.components.ResonanceIconButton
 import com.resonance.player.core.ui.components.ResonanceMetric
 import com.resonance.player.core.ui.components.ResonancePlaybackButton
 import com.resonance.player.core.ui.components.ResonanceQueuePeek
+import com.resonance.player.core.ui.components.PullDownToDismiss
 import com.resonance.player.core.ui.components.ResonanceTopBar
 import com.resonance.player.core.ui.components.SongFormatBadge
+import com.resonance.player.core.ui.components.onSwipe
 import com.resonance.player.core.ui.theme.ResonanceTheme
 
 /**
@@ -63,7 +68,9 @@ import com.resonance.player.core.ui.theme.ResonanceTheme
  * with queue counter, custom scrubber (real position + buffered layer),
  * 64dp master switch, favorite toggle, queue peek, technical sheet with
  * real file data. EQ/sleep-timer controls are intentionally absent (no
- * such functionality exists — never fake it).
+ * such functionality exists — never fake it). Pull down anywhere on the
+ * screen closes it (no back arrow; system back still works); swiping the
+ * artwork left/right skips to the next/previous track.
  */
 @Composable
 fun PlayerScreen(
@@ -88,11 +95,14 @@ fun PlayerScreen(
     val shownPosition = if (dragging) dragMs.toLong() else snapshot.positionMs
     var techSheetOpen by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize()) {
-        ResonanceTopBar(
-            title = stringResource(R.string.nav_player),
-            onBack = onBack
-        )
+    val close by rememberUpdatedState(onBack)
+    val density = LocalDensity.current
+    val pullToClose = remember(density) {
+        with(density) { PullDownToDismiss(96.dp.toPx(), 32.dp.toPx(), 1000f) { close() } }
+    }
+
+    Column(Modifier.fillMaxSize().nestedScroll(pullToClose)) {
+        ResonanceTopBar(title = stringResource(R.string.nav_player))
         Column(
             Modifier
                 .fillMaxSize()
@@ -118,6 +128,7 @@ fun PlayerScreen(
                         .fillMaxWidth()
                         .aspectRatio(1f)
                         .clip(ResonanceTheme.radii.card)
+                        .onSwipe(onLeft = viewModel::onNext, onRight = viewModel::onPrevious)
                 )
                 Spacer(Modifier.height(spacing.lg))
                 Text(

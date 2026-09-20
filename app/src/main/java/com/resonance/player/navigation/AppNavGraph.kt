@@ -200,6 +200,7 @@ fun ResonanceAppShell(container: AppContainer) {
             onToggle = { scope.launch { container.togglePlayPause() } },
             onOpenPlayer = ::openPlayerForCurrentTrack,
             onNext = { scope.launch { container.skipToNext() } },
+            onPrevious = { scope.launch { container.skipToPrevious() } },
             modifier = modifier
         )
     }
@@ -336,7 +337,10 @@ fun ResonanceAppShell(container: AppContainer) {
                 route = AppDestination.Player.route,
                 arguments = listOf(navArgument(AppDestination.Player.ARG_SONG_ID) {
                     type = NavType.LongType
-                })
+                }),
+                // Now Playing rises from the mini player and is pulled back down to close.
+                enterTransition = { slideInVertically(tween(280)) { it } + fadeIn(tween(180)) },
+                popExitTransition = { slideOutVertically(tween(240)) { it } + fadeOut(tween(200)) }
             ) { entry ->
                 val songId = entry.arguments?.getLong(AppDestination.Player.ARG_SONG_ID) ?: -1L
                 val vm: PlayerViewModel = viewModel(

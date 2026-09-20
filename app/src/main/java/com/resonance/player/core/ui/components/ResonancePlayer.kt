@@ -39,7 +39,8 @@ fun shouldShowMiniPlayer(snapshot: PlaybackSnapshot): Boolean = snapshot.song !=
 /**
  * Stitch mini player: 64dp floating dock (16dp radius, high container,
  * strong top border), 40dp art, title/artist column, 48dp play + next
- * targets, 2dp copper progress along the bottom. Tap opens Now Playing.
+ * targets, 2dp copper progress along the bottom. Tap or swipe up opens Now
+ * Playing; swipe left/right skips to the next/previous track in the queue.
  * Receives snapshot values as params — never touches playback state.
  */
 @Composable
@@ -55,7 +56,8 @@ fun ResonanceMiniPlayer(
     onToggle: () -> Unit,
     onOpenPlayer: () -> Unit,
     onNext: (() -> Unit)?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onPrevious: (() -> Unit)? = null
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
@@ -68,6 +70,7 @@ fun ResonanceMiniPlayer(
             .clip(ResonanceTheme.radii.card)
             .background(colors.surfaceHigh)
             .clickable(onClick = onOpenPlayer)
+            .onSwipe(onLeft = onNext, onRight = onPrevious, onUp = onOpenPlayer)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
