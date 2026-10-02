@@ -6,6 +6,7 @@ import com.resonance.player.core.common.DefaultAppDispatchers
 import com.resonance.player.core.database.MIGRATION_1_2
 import com.resonance.player.core.database.MIGRATION_2_3
 import com.resonance.player.core.database.MIGRATION_3_4
+import com.resonance.player.core.database.MIGRATION_4_5
 import com.resonance.player.core.database.ResonanceDatabase
 import com.resonance.player.core.playback.PlaybackController
 import com.resonance.player.data.local.DataStoreSettingsRepository
@@ -60,6 +61,9 @@ import com.resonance.player.domain.playlists.ObservePlaylistSongsUseCase
 import com.resonance.player.domain.playlists.ObservePlaylistsUseCase
 import com.resonance.player.domain.playlists.RemoveSongFromPlaylistUseCase
 import com.resonance.player.domain.playlists.RenamePlaylistUseCase
+import com.resonance.player.domain.playlists.SetPlaylistCoverUseCase
+import com.resonance.player.domain.library.ObserveListeningStatsUseCase
+import com.resonance.player.data.media.FilePlaylistCoverStore
 import com.resonance.player.domain.playback.RemoveQueueItemUseCase
 import com.resonance.player.domain.playback.SkipToQueueItemUseCase
 import com.resonance.player.domain.playback.SeekToUseCase
@@ -104,7 +108,7 @@ class AppContainer(context: Context) {
 
     val database: ResonanceDatabase by lazy {
         Room.databaseBuilder(appContext, ResonanceDatabase::class.java, "resonance.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
             .build()
     }
@@ -204,6 +208,7 @@ class AppContainer(context: Context) {
     val observeAlbums = ObserveAlbumsUseCase(musicRepository)
     val observeArtists = ObserveArtistsUseCase(musicRepository)
     val observeGenres = ObserveGenresUseCase(musicRepository)
+    val observeListeningStats = ObserveListeningStatsUseCase(musicRepository)
     val observeFolders = ObserveFoldersUseCase(musicRepository)
     val getAlbumSongs = GetAlbumSongsUseCase(musicRepository)
     val getFolderSongs = GetFolderSongsUseCase(musicRepository)
@@ -226,7 +231,9 @@ class AppContainer(context: Context) {
     val observePlaylistSongs = ObservePlaylistSongsUseCase(playlistRepository)
     val createPlaylist = CreatePlaylistUseCase(playlistRepository)
     val renamePlaylist = RenamePlaylistUseCase(playlistRepository)
-    val deletePlaylist = DeletePlaylistUseCase(playlistRepository)
+    private val playlistCovers = FilePlaylistCoverStore(appContext, dispatchers)
+    val deletePlaylist = DeletePlaylistUseCase(playlistRepository, playlistCovers)
+    val setPlaylistCover = SetPlaylistCoverUseCase(playlistRepository, playlistCovers)
     val addSongToPlaylist = AddSongToPlaylistUseCase(playlistRepository)
     val removeSongFromPlaylist = RemoveSongFromPlaylistUseCase(playlistRepository)
     val movePlaylistItem = MovePlaylistItemUseCase(playlistRepository)

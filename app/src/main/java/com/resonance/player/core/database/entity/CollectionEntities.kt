@@ -13,7 +13,9 @@ data class PlaylistEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val name: String,
     val createdAtEpochSec: Long,
-    val updatedAtEpochSec: Long
+    val updatedAtEpochSec: Long,
+    /** A cover the user picked (app-private file URI); null = built from the songs. */
+    val coverUri: String? = null
 )
 
 @Entity(

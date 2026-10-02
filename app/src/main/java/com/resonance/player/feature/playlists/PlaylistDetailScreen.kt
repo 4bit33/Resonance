@@ -1,5 +1,18 @@
-﻿package com.resonance.player.feature.playlists
+package com.resonance.player.feature.playlists
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material3.TextButton
+import com.resonance.player.core.ui.components.pressClickable
+import com.resonance.player.feature.home.PlaylistCover
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,6 +56,47 @@ import com.resonance.player.core.ui.components.ResonanceTopBar
 import com.resonance.player.core.ui.components.SongPickerSheet
 import com.resonance.player.core.ui.theme.ResonanceTheme
 
+/** Big cover; tap to pick a picture from the gallery (system photo picker, no permission). */
+@Composable
+private fun CoverHeader(playlist: Playlist, onPick: () -> Unit, onRemove: () -> Unit) {
+    val colors = ResonanceTheme.colors
+    Row(
+        verticalAlignment = Alignment.Bottom,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Box(
+            Modifier
+                .size(148.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .pressClickable(onClickLabel = stringResource(R.string.playlist_cover_change), onClick = onPick)
+        ) {
+            PlaylistCover(playlist.coverUri, Modifier.fillMaxSize())
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(colors.background.copy(alpha = 0.7f))
+            ) {
+                Icon(Icons.Rounded.Image, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(18.dp))
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            TextButton(onClick = onPick) { Text(stringResource(R.string.playlist_cover_change)) }
+            if (playlist.coverUri != null) {
+                TextButton(onClick = onRemove) {
+                    Text(stringResource(R.string.playlist_cover_remove), color = colors.textSecondary)
+                }
+            }
+        }
+    }
+}
+
 /**
  * Playlist detail: persisted songs in stored order, play-all/shuffle,
  * remove, drag reorder, rename, delete. Everything hits Room through
@@ -64,12 +118,24 @@ fun PlaylistDetailScreen(
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var showAddSongs by remember { mutableStateOf(false) }
+    val pickCover = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) viewModel.setCover(uri.toString())
+    }
 
     Column(Modifier.fillMaxSize()) {
         ResonanceTopBar(
             title = playlist?.name ?: stringResource(R.string.nav_playlists),
             onBack = onBack
         )
+        if (playlist != null) {
+            CoverHeader(
+                playlist = playlist,
+                onPick = {
+                    pickCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                onRemove = { viewModel.setCover(null) }
+            )
+        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier

@@ -9,7 +9,10 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.resonance.player.core.ui.theme.DEFAULT_ACCENT_HUE
+import com.resonance.player.domain.settings.HomeLayout
 import com.resonance.player.domain.settings.LookPreferences
+import com.resonance.player.domain.settings.decodeHomeLayout
+import com.resonance.player.domain.settings.encodeHomeLayout
 import com.resonance.player.domain.settings.ThemeMode
 import com.resonance.player.domain.settings.UserPreferencesRepository
 import kotlinx.coroutines.flow.Flow
@@ -52,6 +55,15 @@ class DataStoreSettingsRepository(private val context: Context) : UserPreference
         }
     }
 
+    override val homeLayout: Flow<HomeLayout> =
+        context.settingsStore.data.map { decodeHomeLayout(it[Keys.HOME_LAYOUT]) }
+
+    override suspend fun updateHomeLayout(transform: (HomeLayout) -> HomeLayout) {
+        context.settingsStore.edit { prefs ->
+            prefs[Keys.HOME_LAYOUT] = encodeHomeLayout(transform(decodeHomeLayout(prefs[Keys.HOME_LAYOUT])))
+        }
+    }
+
     private fun Preferences.toLook(): LookPreferences {
         val defaults = LookPreferences()
         return LookPreferences(
@@ -69,5 +81,6 @@ class DataStoreSettingsRepository(private val context: Context) : UserPreference
         val GLOW_BREATHING = booleanPreferencesKey("look_glow_breathing")
         val ARTWORK_COLORS = booleanPreferencesKey("look_artwork_colors")
         val MOTION_SPEED = floatPreferencesKey("look_motion_speed")
+        val HOME_LAYOUT = stringPreferencesKey("home_layout")
     }
 }

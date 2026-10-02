@@ -7,9 +7,9 @@ import org.junit.Test
 class DestinationsTest {
 
     @Test
-    fun tabs_coverStitchDestinations() {
+    fun tabs_areHomeLibraryPlaylists() {
         assertEquals(
-            listOf("home", "library", "playlists", "settings"),
+            listOf("home", "library", "playlists"),
             AppDestination.tabs.map { it.route.substringBefore("?") }
         )
     }
@@ -20,7 +20,9 @@ class DestinationsTest {
         assertEquals(AppDestination.Library, AppDestination.tabForRoute("library"))
         assertEquals(AppDestination.Library, AppDestination.tabForRoute("library?tab=2"))
         assertEquals(AppDestination.Playlists, AppDestination.tabForRoute("playlists"))
-        assertEquals(AppDestination.Settings, AppDestination.tabForRoute("settings"))
+        // Settings is reached from Home's gear, not a tab; the Home editor belongs to Home.
+        assertNull(AppDestination.tabForRoute("settings"))
+        assertEquals(AppDestination.Home, AppDestination.tabForRoute("home/edit"))
         assertNull(AppDestination.tabForRoute("search"))
         assertNull(AppDestination.tabForRoute("player/42"))
         assertNull(AppDestination.tabForRoute("queue"))

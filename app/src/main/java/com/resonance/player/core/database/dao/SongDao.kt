@@ -39,7 +39,9 @@ data class ArtistRow(
 
 data class GenreRow(
     val genreName: String,
-    val songCount: Int
+    val songCount: Int,
+    /** One cover from the genre, so genre tiles can show real artwork. */
+    val sampleArtworkUri: String? = null
 )
 
 data class FolderRow(
@@ -143,7 +145,7 @@ interface SongDao {
     fun observeArtistGroups(): Flow<List<ArtistRow>>
 
     @Query(
-        "SELECT genreName, COUNT(*) AS songCount FROM songs " +
+        "SELECT genreName, COUNT(*) AS songCount, MAX(artworkUri) AS sampleArtworkUri FROM songs " +
             "WHERE genreName IS NOT NULL AND genreName != '' " +
             "GROUP BY genreName COLLATE NOCASE ORDER BY genreName COLLATE NOCASE ASC"
     )
@@ -175,7 +177,7 @@ interface SongDao {
     fun searchArtistGroups(q: String, limit: Int): Flow<List<ArtistRow>>
 
     @Query(
-        "SELECT genreName, COUNT(*) AS songCount FROM songs " +
+        "SELECT genreName, COUNT(*) AS songCount, MAX(artworkUri) AS sampleArtworkUri FROM songs " +
             "WHERE genreName LIKE :q ESCAPE '\\' " +
             "GROUP BY genreName COLLATE NOCASE ORDER BY genreName COLLATE NOCASE ASC LIMIT :limit"
     )

@@ -1,6 +1,7 @@
 package com.resonance.player.feature.settings
 
 import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.runtime.mutableFloatStateOf
@@ -76,7 +77,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel) {
+fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenHomeEditor: () -> Unit) {
     val theme by viewModel.themeMode.collectAsStateWithLifecycle()
     val accentHue by viewModel.accentHue.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
@@ -90,7 +91,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
     Column(Modifier.fillMaxSize()) {
-        ResonanceTopBar(title = stringResource(R.string.nav_settings))
+        ResonanceTopBar(title = stringResource(R.string.nav_settings), onBack = onBack)
         Column(
             Modifier
                 .fillMaxSize()
@@ -207,6 +208,22 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 )
                 Spacer(Modifier.height(spacing.md))
                 AccentPicker(hue = accentHue, onSelect = viewModel::setAccentHue)
+            }
+            Spacer(Modifier.height(spacing.sectionSpacing))
+            Surface(
+                shape = ResonanceTheme.radii.card,
+                color = colors.surfaceContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.lg)
+            ) {
+                ResonanceSettingsRow(
+                    title = stringResource(R.string.settings_home),
+                    subtitle = stringResource(R.string.settings_home_body),
+                    leading = { ResonanceSettingsIcon(icon = Icons.Rounded.Dashboard, contentDescription = null) },
+                    trailing = { },
+                    onClick = onOpenHomeEditor
+                )
             }
             Spacer(Modifier.height(spacing.sectionSpacing))
             SettingsGroupLabel(stringResource(R.string.settings_group_player_look))

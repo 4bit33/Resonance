@@ -72,3 +72,10 @@ val MIGRATION_3_4: Migration = object : Migration(3, 4) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_excluded_songs_sourceId` ON `excluded_songs` (`sourceId`)")
     }
 }
+
+/** Schema v4 -> v5: playlists can carry a user-picked cover. Additive. */
+val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `playlists` ADD COLUMN `coverUri` TEXT")
+    }
+}

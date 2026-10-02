@@ -25,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -73,6 +72,9 @@ import com.resonance.player.core.ui.components.ResonanceSnackbarVisuals
 import com.resonance.player.core.ui.components.shouldShowMiniPlayer
 import com.resonance.player.feature.favorites.FavoritesScreen
 import com.resonance.player.feature.favorites.FavoritesViewModel
+import com.resonance.player.feature.home.HomeDependencies
+import com.resonance.player.feature.home.HomeEditorScreen
+import com.resonance.player.feature.home.HomeEditorViewModel
 import com.resonance.player.feature.home.HomeScreen
 import com.resonance.player.feature.home.HomeViewModel
 import com.resonance.player.feature.library.LibraryScreen
@@ -107,11 +109,6 @@ private fun dockDestinations(): List<NavDockDestination> = listOf(
         AppDestination.Playlists.route,
         stringResource(R.string.nav_playlists),
         Icons.AutoMirrored.Rounded.QueueMusic
-    ),
-    NavDockDestination(
-        AppDestination.Settings.route,
-        stringResource(R.string.nav_settings),
-        Icons.Rounded.Settings
     )
 )
 
@@ -233,33 +230,46 @@ fun ResonanceAppShell(container: AppContainer) {
                 val vm: HomeViewModel = viewModel(
                     factory = factory {
                         HomeViewModel(
-                            container.observeRecentlyPlayed,
-                            container.observeMostPlayed,
-                            container.observeRecentlyAdded,
-                            container.observeStorageOverview,
-                            container.observeScanState,
-                            container.observeFavoriteIds,
-                            container.playSongs,
-                            container.getAlbumSongs,
-                            container.setShuffleMode,
-                            container.rescanLibrary,
-                            container.playNext,
-                            container.appendToQueue,
-                            container.observePlaylists,
-                            container.addSongToPlaylist,
-                            container.createPlaylist
+                            HomeDependencies(
+                                observeRecentlyPlayed = container.observeRecentlyPlayed,
+                                observeMostPlayed = container.observeMostPlayed,
+                                observeRecentlyAdded = container.observeRecentlyAdded,
+                                observeStorageOverview = container.observeStorageOverview,
+                                observeScanState = container.observeScanState,
+                                observeGenres = container.observeGenres,
+                                observeListeningStats = container.observeListeningStats,
+                                observeSongs = container.observeSongs,
+                                observePlaylists = container.observePlaylists,
+                                settings = container.settingsRepository,
+                                playSongs = container.playSongs,
+                                getAlbumSongs = container.getAlbumSongs,
+                                getGenreSongs = container.getGenreSongs,
+                                setShuffleMode = container.setShuffleMode,
+                                togglePlayPause = container.togglePlayPause,
+                                playNext = container.playNext,
+                                appendToQueue = container.appendToQueue,
+                                addSongToPlaylist = container.addSongToPlaylist,
+                                createPlaylist = container.createPlaylist
+                            )
                         )
                     }
                 )
                 HomeScreen(
                     vm,
-                    snapshot.song?.id,
-                    onOpenLibrary = { navigate(AppDestination.Library.routeFor(it)) },
+                    snapshot,
                     onOpenSearch = { navigate(AppDestination.Search.route) },
+                    onOpenSettings = { navigate(AppDestination.Settings.route) },
+                    onOpenPlayer = { navigate(AppDestination.Player.routeFor(it)) },
+                    onOpenPlaylist = { navigate(AppDestination.PlaylistDetail.routeFor(it)) },
+                    onOpenPlaylists = { navigateToTab(AppDestination.Playlists.route) },
                     onOpenFavorites = { navigate(AppDestination.Favorites.route) },
-                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) },
-                    onOpenQueue = { navigate(AppDestination.Queue.route) }
+                    onOpenLibrary = { navigate(AppDestination.Library.routeFor(it)) },
+                    onCustomize = { navigate(AppDestination.HomeEditor.route) }
                 )
+            }
+            screen(AppDestination.HomeEditor.route) {
+                val vm: HomeEditorViewModel = viewModel(factory = factory { HomeEditorViewModel(container.settingsRepository) })
+                HomeEditorScreen(vm, onBack = { navController.popBackStack() })
             }
             screen(
                 route = AppDestination.Library.route,
@@ -344,7 +354,11 @@ fun ResonanceAppShell(container: AppContainer) {
                         )
                     }
                 )
-                SettingsScreen(vm)
+                SettingsScreen(
+                    vm,
+                    onBack = { navController.popBackStack() },
+                    onOpenHomeEditor = { navigate(AppDestination.HomeEditor.route) }
+                )
             }
             composable(
                 route = AppDestination.Player.route,
@@ -437,7 +451,8 @@ fun ResonanceAppShell(container: AppContainer) {
                             container.removeSongFromPlaylist,
                             container.movePlaylistItem,
                             container.observeSongs,
-                            container.addSongToPlaylist
+                            container.addSongToPlaylist,
+                            container.setPlaylistCover
                         )
                     }
                 )

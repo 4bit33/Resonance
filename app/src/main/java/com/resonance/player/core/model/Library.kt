@@ -25,5 +25,6 @@ data class Artist(
 /** Genre view derived from song tags. */
 data class Genre(
     val name: String,
-    val songCount: Int
+    val songCount: Int,
+    val artUri: String? = null
 )

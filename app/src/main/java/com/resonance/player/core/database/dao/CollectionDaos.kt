@@ -46,9 +46,18 @@ interface PlaylistDao {
     @Query("DELETE FROM playlists WHERE id = :id")
     suspend fun deletePlaylist(id: Long)
 
+    @Query("UPDATE playlists SET coverUri = :coverUri, updatedAtEpochSec = :updatedAt WHERE id = :id")
+    suspend fun setCover(id: Long, coverUri: String?, updatedAt: Long)
+
     @Query("DELETE FROM playlist_items WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun removeSong(playlistId: Long, songId: Long)
 }
+
+data class HistoryPlayRow(
+    val durationMs: Long,
+    val genreName: String?,
+    val artistName: String
+)
 
 /** Playlist item counts for list subtitles (GROUP BY, no full loads). */
 data class PlaylistCount(
@@ -78,6 +87,13 @@ interface HistoryDao {
 
     @Insert
     suspend fun insert(entry: HistoryEntryEntity): Long
+
+    @Query(
+        "SELECT s.durationMs AS durationMs, s.genreName AS genreName, s.artistName AS artistName " +
+            "FROM playback_history h INNER JOIN songs s ON s.id = h.songId " +
+            "WHERE h.playedAtEpochSec >= :sinceSec"
+    )
+    fun observePlaysSince(sinceSec: Long): Flow<List<HistoryPlayRow>>
 
     @Query("DELETE FROM playback_history WHERE playedAtEpochSec < :olderThanSec")
     suspend fun pruneOlderThan(olderThanSec: Long)

@@ -19,6 +19,9 @@ enum class SongSort { TITLE, ARTIST, ALBUM, DATE_ADDED, LAST_PLAYED, PLAY_COUNT 
  */
 interface MusicRepository {
     fun observeSongs(sort: SongSort = SongSort.TITLE): Flow<List<Song>>
+
+    /** Plays recorded since [sinceSec] (epoch seconds), for listening stats. */
+    fun observeHistorySince(sinceSec: Long): Flow<List<HistoryPlay>>
     suspend fun getSong(id: Long): Result<Song>
     fun searchSongs(query: String): Flow<List<Song>>
     fun searchAlbums(query: String): Flow<List<Album>>

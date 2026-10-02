@@ -21,7 +21,8 @@ import com.resonance.player.core.database.entity.SourceEntity
  * built from user-added sources (folders / single songs) instead of a device
  * scan; songs carry a stable id and belong to a source (ADR-010). Upgrade
  * from v2 is the hand-written [MIGRATION_2_3] (clean start for songs); v3 -> v4
- * ([MIGRATION_3_4]) adds the excluded-songs table and keeps all data.
+ * ([MIGRATION_3_4]) adds the excluded-songs table and keeps all data; v4 -> v5
+ * ([MIGRATION_4_5]) adds playlist covers.
  */
 @Database(
     entities = [
@@ -33,7 +34,7 @@ import com.resonance.player.core.database.entity.SourceEntity
         FavoriteEntity::class,
         HistoryEntryEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class ResonanceDatabase : RoomDatabase() {

@@ -1,10 +1,9 @@
 package com.resonance.player.navigation
 
 /**
- * Stitch route architecture: tabs are Home / Library / Playlists / Settings.
- * Search, Now Playing and Queue are GLOBAL routes (no tab slot); Search stays
- * fully functional and is reached via top-bar actions + back navigation until
- * the global search entry lands on every header.
+ * Route architecture: tabs are Home / Library / Playlists. Settings (gear on
+ * Home), Search, Now Playing, Queue and the Home editor are global routes
+ * (no tab slot), reached by a push and left with back.
  */
 sealed class AppDestination(val route: String) {
     data object Home : AppDestination("home")
@@ -14,6 +13,7 @@ sealed class AppDestination(val route: String) {
     }
     data object Search : AppDestination("search")
     data object Settings : AppDestination("settings")
+    data object HomeEditor : AppDestination("home/edit")
     data object Favorites : AppDestination("favorites")
     data object Player : AppDestination("player/{songId}") {
         const val ARG_SONG_ID = "songId"
@@ -28,12 +28,12 @@ sealed class AppDestination(val route: String) {
 
     companion object {
         /**
-         * The four Stitch tab destinations, in dock order. Lazy on purpose:
+         * The tab destinations, in dock order. Lazy on purpose:
          * eager initialization here would read nested `object` instances from
          * the outer class static initializer — a JLS 12.4.2 recursive-init
          * cycle that can surface null elements at runtime.
          */
-        val tabs: List<AppDestination> by lazy { listOf(Home, Library, Playlists, Settings) }
+        val tabs: List<AppDestination> by lazy { listOf(Home, Library, Playlists) }
 
         /**
          * Maps a current nav route to its tab, or null for global routes

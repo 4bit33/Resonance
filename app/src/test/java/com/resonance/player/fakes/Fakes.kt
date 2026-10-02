@@ -112,6 +112,9 @@ class FakeMusicRepository(songs: List<Song> = listOf(testSong(1L), testSong(2L))
     override fun observeRecentlyPlayed(limit: Int): Flow<List<Song>> =
         flowOf(backing.take(limit))
 
+    override fun observeHistorySince(sinceSec: Long): Flow<List<com.resonance.player.domain.library.HistoryPlay>> =
+        flowOf(emptyList())
+
     override fun observeMostPlayed(limit: Int): Flow<List<Song>> =
         flowOf(backing.take(limit))
 
@@ -267,5 +270,12 @@ class FakePlaylistRepository(
     override suspend fun getPlaylistSongs(playlistId: Long): Result<List<Song>> {
         val ids = items[playlistId] ?: return Result.Failure(AppError.Unknown("Playlist not found"))
         return Result.Success(ids.mapNotNull { id -> songs.firstOrNull { it.id == id } })
+    }
+
+    override suspend fun setCover(playlistId: Long, coverUri: String?): Result<Unit> {
+        val index = playlists.indexOfFirst { it.id == playlistId }
+        if (index < 0) return Result.Failure(AppError.Unknown("Playlist not found"))
+        playlists[index] = playlists[index].copy(coverUri = coverUri)
+        return Result.Success(Unit)
     }
 }

@@ -30,4 +30,7 @@ interface UserPreferencesRepository {
 
     val look: Flow<LookPreferences>
     suspend fun updateLook(transform: (LookPreferences) -> LookPreferences)
+
+    val homeLayout: Flow<HomeLayout>
+    suspend fun updateHomeLayout(transform: (HomeLayout) -> HomeLayout)
 }

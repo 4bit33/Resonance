@@ -1,5 +1,6 @@
-﻿package com.resonance.player.feature.playlists
+package com.resonance.player.feature.playlists
 
+import com.resonance.player.domain.playlists.SetPlaylistCoverUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.common.Result
@@ -95,7 +96,8 @@ class PlaylistDetailViewModel(
     private val removeSongOp: RemoveSongFromPlaylistUseCase,
     private val moveItemOp: MovePlaylistItemUseCase,
     observeAllSongs: ObserveSongsUseCase,
-    private val addSongOp: AddSongToPlaylistUseCase
+    private val addSongOp: AddSongToPlaylistUseCase,
+    private val setCoverOp: SetPlaylistCoverUseCase
 ) : ViewModel() {
     private val songsMutable = MutableStateFlow<List<Song>>(emptyList())
     val songs: StateFlow<List<Song>> = songsMutable.asStateFlow()
@@ -159,6 +161,17 @@ class PlaylistDetailViewModel(
         viewModelScope.launch {
             moveItemOp(playlistId, fromPosition, toPosition)
             refresh()
+        }
+    }
+
+    /** [sourceUri] = a picked image; null removes the cover. */
+    fun setCover(sourceUri: String?) {
+        viewModelScope.launch {
+            when (val result = setCoverOp(playlistId, sourceUri)) {
+                is Result.Success -> errorMutable.value = null
+                is Result.Failure -> errorMutable.value = result.error.userMessage()
+                is Result.Loading -> Unit
+            }
         }
     }
 
