@@ -94,6 +94,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -396,6 +397,8 @@ private fun Artwork(
                 translationX = dragX
                 rotationZ = dragX / widthPx * 5f
                 alpha = 1f - (abs(dragX) / widthPx * 0.7f).coerceIn(0f, 0.7f)
+                // An offscreen layer would be clipped to the artwork bounds and cut the glow.
+                compositingStrategy = CompositingStrategy.ModulateAlpha
             }
             .draggable(
                 state = dragState,
@@ -419,10 +422,11 @@ private fun Artwork(
                 Modifier
                     .matchParentSize()
                     .graphicsLayer {
-                        val s = pausedScale * breath * 1.08f
+                        val s = pausedScale * breath * 1.1f
                         scaleX = s
                         scaleY = s
                         alpha = glowAlpha
+                        compositingStrategy = CompositingStrategy.ModulateAlpha
                     }
             ) {
                 Box(

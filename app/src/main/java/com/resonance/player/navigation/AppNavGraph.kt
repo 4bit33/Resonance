@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -474,7 +475,7 @@ fun ResonanceAppShell(container: AppContainer) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().background(ResonanceTheme.colors.background)) {
         Row(modifier = Modifier.fillMaxSize()) {
             if (widthSize == WindowWidthSize.EXPANDED) {
                 ResonanceRail(
@@ -492,7 +493,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     enter = fadeIn(ResonanceTheme.motion.duration(200)) + slideInVertically(ResonanceTheme.motion.spatial()) { it },
                     exit = fadeOut(ResonanceTheme.motion.duration(150)) + slideOutVertically(ResonanceTheme.motion.spatial()) { it }
                 ) {
-                    Box(modifier = Modifier.padding(horizontal = 8.dp)) {
+                    Box(modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp)) {
                         MiniPlayerSlot()
                     }
                 }
