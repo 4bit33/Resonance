@@ -126,4 +126,24 @@
     <string name="favorites_title">Favorites</string>
     <string name="favorites_empty_title">No favorites yet</string>
     <string name="favorites_empty_body">Tap the heart on Now Playing to keep songs here.</string>
+    <string name="cd_close_player">Close player</string>
+    <string name="cd_more">More</string>
+    <string name="cd_audio_output">Audio output: %1$s</string>
+    <string name="output_speaker">Phone speaker</string>
+    <string name="output_headphones">Headphones</string>
+    <string name="output_bluetooth">Bluetooth</string>
+    <string name="output_usb">USB audio</string>
+    <string name="cd_seek">Seek</string>
+    <string name="settings_group_player_look">Player look</string>
+    <string name="look_artwork_colors">Colors from artwork</string>
+    <string name="look_artwork_colors_body">The player takes its colors from the cover of the song</string>
+    <string name="look_glow">Glow</string>
+    <string name="look_glow_body">Light around the artwork. Slide to the left to turn it off.</string>
+    <string name="look_breathing">Breathing glow</string>
+    <string name="look_breathing_body">The glow pulses slowly while music plays</string>
+    <string name="look_motion">Animations</string>
+    <string name="look_motion_off">Off</string>
+    <string name="look_motion_calm">Calm</string>
+    <string name="look_motion_normal">Normal</string>
+    <string name="look_motion_fast">Fast</string>
 </resources>

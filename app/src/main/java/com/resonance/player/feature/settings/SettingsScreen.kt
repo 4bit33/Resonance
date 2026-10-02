@@ -1,5 +1,12 @@
 package com.resonance.player.feature.settings
 
+import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.BlurOn
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.runtime.mutableFloatStateOf
+import com.resonance.player.domain.settings.LookPreferences
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -77,6 +84,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val ignoreShort by viewModel.ignoreShortFiles.collectAsStateWithLifecycle()
+    val look by viewModel.look.collectAsStateWithLifecycle()
     var removeTarget by remember { mutableStateOf<List<MusicSource>?>(null) }
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
@@ -200,6 +208,9 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 Spacer(Modifier.height(spacing.md))
                 AccentPicker(hue = accentHue, onSelect = viewModel::setAccentHue)
             }
+            Spacer(Modifier.height(spacing.sectionSpacing))
+            SettingsGroupLabel(stringResource(R.string.settings_group_player_look))
+            PlayerLookCard(look = look, onChange = viewModel::updateLook)
             Spacer(Modifier.height(spacing.sectionSpacing))
             SettingsGroupLabel(stringResource(R.string.settings_group_about))
             Surface(
@@ -379,6 +390,92 @@ private fun AccentPicker(hue: Float, onSelect: (Float) -> Unit) {
             inactiveTrackColor = colors.surfaceHighest
         )
     )
+}
+
+/** Animation speed presets; the stored value is a plain multiplier. */
+private val MOTION_PRESETS = listOf(0f, 0.75f, 1f, 1.5f)
+
+/** Everything about how the player looks and moves. Changes apply live. */
+@Composable
+private fun PlayerLookCard(look: LookPreferences, onChange: ((LookPreferences) -> LookPreferences) -> Unit) {
+    val colors = ResonanceTheme.colors
+    val typography = ResonanceTheme.typography
+    val spacing = ResonanceTheme.spacing
+    Surface(
+        shape = ResonanceTheme.radii.card,
+        color = colors.surfaceContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.lg)
+    ) {
+        Column {
+            ResonanceSettingsRow(
+                title = stringResource(R.string.look_artwork_colors),
+                subtitle = stringResource(R.string.look_artwork_colors_body),
+                leading = { ResonanceSettingsIcon(icon = Icons.Rounded.Palette, contentDescription = null) },
+                trailing = {
+                    ResonanceSwitch(
+                        checked = look.artworkColors,
+                        onCheckedChange = { on -> onChange { it.copy(artworkColors = on) } }
+                    )
+                }
+            )
+            ResonanceSettingsRow(
+                title = stringResource(R.string.look_glow),
+                subtitle = stringResource(R.string.look_glow_body),
+                leading = { ResonanceSettingsIcon(icon = Icons.Rounded.BlurOn, contentDescription = null) },
+                trailing = {
+                    Text(
+                        "${(look.glowStrength * 100).roundToInt()}%",
+                        style = typography.monoMetric,
+                        color = colors.textSecondary
+                    )
+                }
+            )
+            var glow by remember(look.glowStrength) { mutableFloatStateOf(look.glowStrength) }
+            Slider(
+                value = glow,
+                onValueChange = { glow = it },
+                onValueChangeFinished = { onChange { it.copy(glowStrength = glow) } },
+                colors = SliderDefaults.colors(
+                    thumbColor = colors.accent,
+                    activeTrackColor = colors.accent,
+                    inactiveTrackColor = colors.surfaceHighest
+                ),
+                modifier = Modifier.padding(horizontal = spacing.lg)
+            )
+            ResonanceSettingsRow(
+                title = stringResource(R.string.look_breathing),
+                subtitle = stringResource(R.string.look_breathing_body),
+                leading = { ResonanceSettingsIcon(icon = Icons.Rounded.Air, contentDescription = null) },
+                trailing = {
+                    ResonanceSwitch(
+                        checked = look.glowBreathing,
+                        enabled = look.glowStrength > 0f,
+                        onCheckedChange = { on -> onChange { it.copy(glowBreathing = on) } }
+                    )
+                }
+            )
+            Text(
+                stringResource(R.string.look_motion),
+                style = typography.titleMd,
+                color = colors.textPrimary,
+                modifier = Modifier.padding(start = spacing.lg, end = spacing.lg, top = spacing.md, bottom = spacing.sm)
+            )
+            val selected = MOTION_PRESETS.indices.minByOrNull { abs(MOTION_PRESETS[it] - look.motionSpeed) } ?: 2
+            ResonanceSegmentedControl(
+                options = listOf(
+                    stringResource(R.string.look_motion_off),
+                    stringResource(R.string.look_motion_calm),
+                    stringResource(R.string.look_motion_normal),
+                    stringResource(R.string.look_motion_fast)
+                ),
+                selectedIndex = selected,
+                onSelect = { index -> onChange { it.copy(motionSpeed = MOTION_PRESETS[index]) } },
+                modifier = Modifier.padding(start = spacing.lg, end = spacing.lg, bottom = spacing.lg)
+            )
+        }
+    }
 }
 
 @Composable

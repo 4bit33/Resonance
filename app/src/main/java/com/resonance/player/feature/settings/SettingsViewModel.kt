@@ -13,6 +13,7 @@ import com.resonance.player.domain.library.ObserveSourcesUseCase
 import com.resonance.player.domain.library.RemoveSourcesUseCase
 import com.resonance.player.domain.library.RescanLibraryUseCase
 import com.resonance.player.core.ui.theme.DEFAULT_ACCENT_HUE
+import com.resonance.player.domain.settings.LookPreferences
 import com.resonance.player.domain.settings.ThemeMode
 import com.resonance.player.domain.settings.UserPreferencesRepository
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,6 +39,9 @@ class SettingsViewModel(
 
     val accentHue: StateFlow<Float> = repository.accentHue
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DEFAULT_ACCENT_HUE)
+
+    val look: StateFlow<LookPreferences> = repository.look
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LookPreferences())
 
     val scanState: StateFlow<ScanState> = observeScanState()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScanState.Idle)
@@ -68,6 +72,10 @@ class SettingsViewModel(
 
     fun setAccentHue(hue: Float) {
         viewModelScope.launch { repository.setAccentHue(hue) }
+    }
+
+    fun updateLook(transform: (LookPreferences) -> LookPreferences) {
+        viewModelScope.launch { repository.updateLook(transform) }
     }
 
     fun setIgnoreShortFiles(ignore: Boolean) {

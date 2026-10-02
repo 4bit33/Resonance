@@ -7,10 +7,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 /**
- * Semantic Resonance colors. M3 roles come from [scheme] (so stock M3
- * components keep working); Stitch-only roles (container tiers, text tiers,
- * copper/cyan accents, status colors, outlines) live here by intent —
- * never `color1`/`orange2` style names.
+ * Semantic colors. M3 roles come from [scheme] (so stock M3 components keep
+ * working); the app's own roles (container tiers, text tiers, accent, status
+ * colors, outlines) live here by intent, never `color1`/`orange2` style names.
+ * There is ONE accent: the "secondary" roles are kept for old call sites and
+ * point at it.
  */
 @Immutable
 data class ResonanceColors(
@@ -39,16 +40,16 @@ data class ResonanceColors(
     val outlineStrong: Color
 )
 
-/** Default accent hue (0-360), reproducing the original Stitch copper. */
+/** Default accent hue (0-360): a warm copper. */
 const val DEFAULT_ACCENT_HUE = 22f
 
-/** HSV->RGB via the platform converter — same saturation/value as the
- *  original copper accent, only the hue varies, so contrast stays constant. */
+/** HSV->RGB via the platform converter: only the hue varies between accents,
+ *  so contrast with the dark text on them stays constant. */
 private fun accentTone(hue: Float, saturation: Float, value: Float): Color =
     Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value)))
 
 /** The [accent] tone for a hue, for swatch previews in the picker UI. */
-fun accentPreviewColor(hue: Float): Color = accentTone(hue, 0.81f, 1f)
+fun accentPreviewColor(hue: Float): Color = accentTone(hue, 0.55f, 1f)
 
 /** Curated accent hues (name to degrees) for the palette picker. */
 val ACCENT_PRESETS = listOf(
@@ -60,75 +61,70 @@ val ACCENT_PRESETS = listOf(
     "Teal" to 174f
 )
 
-/** Authoritative Stitch dark scheme (dark-first per DESIGN.md). [accentHue]
- *  drives the user-selectable primary accent; everything else is fixed. */
-fun stitchDarkColors(accentHue: Float = DEFAULT_ACCENT_HUE): ResonanceColors {
-    val accent = accentTone(accentHue, 0.81f, 1f)
+/** The dark scheme. [accentHue] drives the one accent; everything else is neutral. */
+fun darkColors(accentHue: Float = DEFAULT_ACCENT_HUE): ResonanceColors {
+    val accent = accentTone(accentHue, 0.55f, 1f)
     val accentGlow = accentTone(accentHue, 0.75f, 1f)
-    val accentDim = accentTone(accentHue, 0.85f, 0.29f)
-    val onAccentContainer = accentTone(accentHue, 0.42f, 1f)
+    val accentDim = accentTone(accentHue, 0.6f, 0.26f)
+    val onAccentContainer = accentTone(accentHue, 0.35f, 1f)
     val scheme = darkColorScheme(
         primary = accent,
-        onPrimary = StitchOnCopper,
+        onPrimary = InkOnAccent,
         primaryContainer = accentDim,
         onPrimaryContainer = onAccentContainer,
-        secondary = StitchCyan,
-        onSecondary = StitchOnCyan,
-        secondaryContainer = StitchCyanDim,
-        onSecondaryContainer = StitchCyan,
-        tertiary = StitchAmber,
-        onTertiary = StitchOnAmber,
-        background = StitchBackground,
-        onBackground = StitchTextOnSurface,
-        surface = StitchBackground,
-        onSurface = StitchTextPrimary,
-        surfaceVariant = StitchSurfaceContainer,
-        onSurfaceVariant = StitchTextSecondary,
-        surfaceContainerLowest = StitchSurfaceLowest,
-        surfaceContainerLow = StitchSurfaceLow,
-        surfaceContainer = StitchSurfaceContainer,
-        surfaceContainerHigh = StitchSurfaceHigh,
-        surfaceContainerHighest = StitchSurfaceHighest,
+        secondary = accent,
+        onSecondary = InkOnAccent,
+        secondaryContainer = accentDim,
+        onSecondaryContainer = onAccentContainer,
+        tertiary = accentGlow,
+        onTertiary = InkOnAccent,
+        background = InkBackground,
+        onBackground = InkTextPrimary,
+        surface = InkBackground,
+        onSurface = InkTextPrimary,
+        surfaceVariant = InkSurfaceContainer,
+        onSurfaceVariant = InkTextSecondary,
+        surfaceContainerLowest = InkSurfaceLowest,
+        surfaceContainerLow = InkSurfaceLow,
+        surfaceContainer = InkSurfaceContainer,
+        surfaceContainerHigh = InkSurfaceHigh,
+        surfaceContainerHighest = InkSurfaceHighest,
         surfaceTint = onAccentContainer,
-        outline = StitchOutlineStrong,
-        outlineVariant = StitchOutlineSubtle,
-        error = StitchError,
-        onError = StitchOnError,
-        errorContainer = StitchErrorContainer,
-        onErrorContainer = StitchOnErrorContainer
+        outline = InkOutlineStrong,
+        outlineVariant = InkOutlineSubtle,
+        error = InkError,
+        onError = InkOnError,
+        errorContainer = InkErrorContainer,
+        onErrorContainer = InkOnErrorContainer
     )
     return ResonanceColors(
         scheme = scheme,
-        background = StitchBackground,
-        surfaceLowest = StitchSurfaceLowest,
-        surfaceLow = StitchSurfaceLow,
-        surfaceContainer = StitchSurfaceContainer,
-        surfaceHigh = StitchSurfaceHigh,
-        surfaceHighest = StitchSurfaceHighest,
-        textPrimary = StitchTextPrimary,
-        textSecondary = StitchTextSecondary,
-        textMuted = StitchTextMuted,
+        background = InkBackground,
+        surfaceLowest = InkSurfaceLowest,
+        surfaceLow = InkSurfaceLow,
+        surfaceContainer = InkSurfaceContainer,
+        surfaceHigh = InkSurfaceHigh,
+        surfaceHighest = InkSurfaceHighest,
+        textPrimary = InkTextPrimary,
+        textSecondary = InkTextSecondary,
+        textMuted = InkTextMuted,
         accent = accent,
         accentGlow = accentGlow,
         accentDim = accentDim,
-        onAccent = StitchOnCopper,
-        accentSecondary = StitchCyan,
-        accentSecondaryDim = StitchCyanDim,
-        onAccentSecondary = StitchOnCyan,
-        amber = StitchAmber,
-        error = StitchError,
-        statusError = StitchStatusError,
-        statusErrorContainer = StitchStatusErrorContainer,
-        outlineSubtle = StitchOutlineSubtle,
-        outlineStrong = StitchOutlineStrong
+        onAccent = InkOnAccent,
+        accentSecondary = accent,
+        accentSecondaryDim = accentDim,
+        onAccentSecondary = InkOnAccent,
+        amber = accentGlow,
+        error = InkError,
+        statusError = InkStatusError,
+        statusErrorContainer = InkStatusErrorContainer,
+        outlineSubtle = InkOutlineSubtle,
+        outlineStrong = InkOutlineStrong
     )
 }
 
-/**
- * Interim stock-M3 light scheme. Stitch delivered dark tokens only; this
- * keeps the persisted LIGHT preference working without fabricating
- * unapproved light colors (STEP 12).
- */
+/** Interim stock-M3 light scheme until the light theme gets its own design. */
 fun interimLightColors(): ResonanceColors {
     val scheme = lightColorScheme()
     return ResonanceColors(

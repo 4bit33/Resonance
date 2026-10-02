@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
+    implementation(libs.androidx.palette)
 
     // Room (local library database). KSP processor, no KAPT.
     implementation(libs.androidx.room.runtime)

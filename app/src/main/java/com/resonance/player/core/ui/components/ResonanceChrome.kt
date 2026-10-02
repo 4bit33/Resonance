@@ -1,6 +1,14 @@
 package com.resonance.player.core.ui.components
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -171,7 +179,10 @@ fun ResonanceSearchField(
     )
 }
 
-/** Custom 68dp Stitch navigation dock with dot indicator. */
+/**
+ * Bottom navigation: icon + label for every tab, the selected one sits on an
+ * accent pill that grows in from the center.
+ */
 @Composable
 fun ResonanceNavDock(
     destinations: List<NavDockDestination>,
@@ -181,53 +192,64 @@ fun ResonanceNavDock(
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
+    val motion = ResonanceTheme.motion
     androidx.compose.material3.Surface(
-        color = colors.surfaceContainer,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(ResonanceTheme.dimensions.navigationDockHeight)
+        color = colors.surfaceLow,
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(ResonanceTheme.dimensions.navigationDockHeight)
         ) {
             destinations.forEach { destination ->
                 val selected = destination.route == selectedRoute
+                val pill by animateFloatAsState(if (selected) 1f else 0f, motion.expressive(), label = "nav-pill")
+                val tint by animateColorAsState(
+                    if (selected) colors.textPrimary else colors.textSecondary,
+                    motion.effects(),
+                    label = "nav-tint"
+                )
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier
-                        .size(spacing.touchMin)
-                        .clickable(onClick = { onSelect(destination.route) })
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            role = Role.Tab,
+                            onClick = { onSelect(destination.route) }
+                        )
+                        .semantics { this.selected = selected }
                 ) {
-                    val iconTint by animateColorAsState(
-                        if (selected) colors.accent else colors.textSecondary,
-                        label = "nav-icon-tint"
-                    )
-                    Icon(
-                        destination.icon,
-                        contentDescription = destination.label,
-                        tint = iconTint,
-                        modifier = Modifier.size(ResonanceTheme.dimensions.navIcon)
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Crossfade(targetState = selected, label = "nav-indicator") { isSelected ->
-                        if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .size(4.dp)
-                                    .background(colors.accent, ResonanceTheme.radii.full)
-                            )
-                        } else {
-                            Text(
-                                destination.label,
-                                style = typography.labelSm,
-                                color = colors.textSecondary
-                            )
-                        }
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(width = 60.dp, height = 32.dp)) {
+                        Box(
+                            Modifier
+                                .matchParentSize()
+                                .graphicsLayer {
+                                    scaleX = 0.4f + 0.6f * pill
+                                    alpha = pill
+                                }
+                                .background(colors.accent.copy(alpha = 0.22f), RoundedCornerShape(16.dp))
+                        )
+                        Icon(
+                            destination.icon,
+                            contentDescription = null,
+                            tint = tint,
+                            modifier = Modifier.size(ResonanceTheme.dimensions.navIcon)
+                        )
                     }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        destination.label,
+                        style = typography.labelSm,
+                        color = tint,
+                        maxLines = 1
+                    )
                 }
             }
         }

@@ -9,6 +9,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.resonance.player.app.ResonanceApp
 import com.resonance.player.core.ui.theme.DEFAULT_ACCENT_HUE
 import com.resonance.player.core.ui.theme.ResonanceTheme
+import com.resonance.player.domain.settings.LookPreferences
 import com.resonance.player.domain.settings.ThemeMode
 import com.resonance.player.navigation.ResonanceAppShell
 
@@ -25,7 +26,10 @@ class MainActivity : ComponentActivity() {
             val accentHue by container.settingsRepository.accentHue.collectAsStateWithLifecycle(
                 initialValue = DEFAULT_ACCENT_HUE
             )
-            ResonanceTheme(themeMode = themeMode, accentHue = accentHue) {
+            val look by container.settingsRepository.look.collectAsStateWithLifecycle(
+                initialValue = LookPreferences()
+            )
+            ResonanceTheme(themeMode = themeMode, accentHue = accentHue, look = look) {
                 ResonanceAppShell(container)
             }
         }

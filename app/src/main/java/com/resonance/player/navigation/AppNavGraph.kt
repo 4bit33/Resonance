@@ -4,7 +4,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -17,12 +18,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -35,6 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -51,6 +56,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import com.resonance.player.R
 import com.resonance.player.core.ui.theme.ResonanceTheme
+import com.resonance.player.core.ui.theme.rememberArtworkPalette
 import com.resonance.player.app.AppContainer
 import com.resonance.player.core.ui.adaptive.WindowWidthSize
 import com.resonance.player.core.model.SourceKind
@@ -89,22 +95,22 @@ private fun dockDestinations(): List<NavDockDestination> = listOf(
     NavDockDestination(
         AppDestination.Home.route,
         stringResource(R.string.nav_home),
-        Icons.Filled.Home
+        Icons.Rounded.Home
     ),
     NavDockDestination(
         AppDestination.Library.route,
         stringResource(R.string.nav_library),
-        Icons.AutoMirrored.Filled.List
+        Icons.Rounded.LibraryMusic
     ),
     NavDockDestination(
         AppDestination.Playlists.route,
         stringResource(R.string.nav_playlists),
-        Icons.AutoMirrored.Filled.QueueMusic
+        Icons.AutoMirrored.Rounded.QueueMusic
     ),
     NavDockDestination(
         AppDestination.Settings.route,
         stringResource(R.string.nav_settings),
-        Icons.Filled.Settings
+        Icons.Rounded.Settings
     )
 )
 
@@ -123,8 +129,8 @@ fun ResonanceAppShell(container: AppContainer) {
     val selectedTab = AppDestination.tabForRoute(currentRoute)?.route
     val scope = rememberCoroutineScope()
     val snapshot by container.playbackController.snapshot.collectAsStateWithLifecycle()
-    val onPlayerOrQueue = currentRoute == AppDestination.Player.route ||
-        currentRoute == AppDestination.Queue.route
+    val onPlayer = currentRoute == AppDestination.Player.route
+    val onPlayerOrQueue = onPlayer || currentRoute == AppDestination.Queue.route
     val showMiniPlayer = shouldShowMiniPlayer(snapshot) && !onPlayerOrQueue
     val dockDestinations = dockDestinations()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -179,6 +185,7 @@ fun ResonanceAppShell(container: AppContainer) {
         // (so it can still render the last-known song while animating out);
         // this guard only protects against a genuinely absent song.
         val song = snapshot.song ?: return
+        val palette = rememberArtworkPalette(song.artworkUri, ResonanceTheme.look.artworkColors)
         val progress = if (snapshot.durationMs > 0L) {
             snapshot.positionMs.toFloat() / snapshot.durationMs.toFloat()
         } else {
@@ -202,22 +209,26 @@ fun ResonanceAppShell(container: AppContainer) {
             onOpenPlayer = ::openPlayerForCurrentTrack,
             onNext = { scope.launch { container.skipToNext() } },
             onPrevious = { scope.launch { container.skipToPrevious() } },
-            modifier = modifier
+            modifier = modifier,
+            containerColor = palette.surface,
+            accent = palette.accent
         )
     }
 
     @Composable
     fun AppGraph(modifier: Modifier = Modifier) {
+        val motion = ResonanceTheme.motion
         NavHost(
             navController = navController,
             startDestination = AppDestination.Home.route,
             modifier = modifier,
-            enterTransition = { fadeIn(tween(180)) },
-            exitTransition = { fadeOut(tween(120)) },
-            popEnterTransition = { fadeIn(tween(180)) },
-            popExitTransition = { fadeOut(tween(120)) }
+            // Fade-through: the old screen leaves quickly, the new one settles in from 96%.
+            enterTransition = { fadeIn(motion.duration(220)) + scaleIn(motion.spatial(), initialScale = 0.96f) },
+            exitTransition = { fadeOut(motion.duration(90)) },
+            popEnterTransition = { fadeIn(motion.duration(220)) + scaleIn(motion.spatial(), initialScale = 0.96f) },
+            popExitTransition = { fadeOut(motion.duration(90)) }
         ) {
-            composable(AppDestination.Home.route) {
+            screen(AppDestination.Home.route) {
                 val vm: HomeViewModel = viewModel(
                     factory = factory {
                         HomeViewModel(
@@ -249,7 +260,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     onOpenQueue = { navigate(AppDestination.Queue.route) }
                 )
             }
-            composable(
+            screen(
                 route = AppDestination.Library.route,
                 arguments = listOf(navArgument(AppDestination.Library.ARG_TAB) {
                     type = NavType.IntType
@@ -290,7 +301,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     onOpenSearch = { navigate(AppDestination.Search.route) }
                 )
             }
-            composable(AppDestination.Search.route) {
+            screen(AppDestination.Search.route) {
                 val vm: SearchViewModel = viewModel(
                     factory = factory {
                         SearchViewModel(
@@ -317,7 +328,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     onOpenPlaylist = { navigate(AppDestination.PlaylistDetail.routeFor(it)) }
                 )
             }
-            composable(AppDestination.Settings.route) {
+            screen(AppDestination.Settings.route) {
                 val vm: SettingsViewModel = viewModel(
                     factory = factory {
                         SettingsViewModel(
@@ -340,8 +351,10 @@ fun ResonanceAppShell(container: AppContainer) {
                     type = NavType.LongType
                 }),
                 // Now Playing rises from the mini player and is pulled back down to close.
-                enterTransition = { slideInVertically(tween(280)) { it } + fadeIn(tween(180)) },
-                popExitTransition = { slideOutVertically(tween(240)) { it } + fadeOut(tween(200)) }
+                enterTransition = { slideInVertically(motion.spatial()) { it } },
+                exitTransition = { fadeOut(motion.duration(150)) },
+                popEnterTransition = { fadeIn(motion.duration(150)) },
+                popExitTransition = { slideOutVertically(motion.spatial()) { it } }
             ) { entry ->
                 val songId = entry.arguments?.getLong(AppDestination.Player.ARG_SONG_ID) ?: -1L
                 val vm: PlayerViewModel = viewModel(
@@ -368,7 +381,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(AppDestination.Queue.route) {
+            screen(AppDestination.Queue.route) {
                 val vm: QueueViewModel = viewModel(
                     factory = factory {
                         QueueViewModel(
@@ -382,7 +395,7 @@ fun ResonanceAppShell(container: AppContainer) {
                 )
                 QueueScreen(vm, onBack = { navController.popBackStack() })
             }
-            composable(AppDestination.Playlists.route) {
+            screen(AppDestination.Playlists.route) {
                 val vm: PlaylistsViewModel = viewModel(
                     factory = factory {
                         PlaylistsViewModel(
@@ -402,7 +415,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     onShowMessage = ::showMessage
                 )
             }
-            composable(
+            screen(
                 route = AppDestination.PlaylistDetail.route,
                 arguments = listOf(navArgument(AppDestination.PlaylistDetail.ARG_PLAYLIST_ID) {
                     type = NavType.LongType
@@ -437,7 +450,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     onDeleted = { navController.popBackStack() }
                 )
             }
-            composable(AppDestination.Favorites.route) {
+            screen(AppDestination.Favorites.route) {
                 val vm: FavoritesViewModel = viewModel(
                     factory = factory {
                         FavoritesViewModel(
@@ -462,11 +475,7 @@ fun ResonanceAppShell(container: AppContainer) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars)
-        ) {
+        Row(modifier = Modifier.fillMaxSize()) {
             if (widthSize == WindowWidthSize.EXPANDED) {
                 ResonanceRail(
                     destinations = dockDestinations,
@@ -480,14 +489,18 @@ fun ResonanceAppShell(container: AppContainer) {
                 }
                 AnimatedVisibility(
                     visible = showMiniPlayer,
-                    enter = fadeIn() + slideInVertically { it },
-                    exit = fadeOut() + slideOutVertically { it }
+                    enter = fadeIn(ResonanceTheme.motion.duration(200)) + slideInVertically(ResonanceTheme.motion.spatial()) { it },
+                    exit = fadeOut(ResonanceTheme.motion.duration(150)) + slideOutVertically(ResonanceTheme.motion.spatial()) { it }
                 ) {
                     Box(modifier = Modifier.padding(horizontal = 8.dp)) {
                         MiniPlayerSlot()
                     }
                 }
-                if (widthSize != WindowWidthSize.EXPANDED) {
+                AnimatedVisibility(
+                    visible = widthSize != WindowWidthSize.EXPANDED && !onPlayer,
+                    enter = slideInVertically(ResonanceTheme.motion.spatial()) { it },
+                    exit = slideOutVertically(ResonanceTheme.motion.spatial()) { it }
+                ) {
                     ResonanceNavDock(
                         destinations = dockDestinations,
                         selectedRoute = selectedTab,
@@ -497,7 +510,7 @@ fun ResonanceAppShell(container: AppContainer) {
                 }
             }
         }
-        val snackbarBottomInset = if (widthSize != WindowWidthSize.EXPANDED) {
+        val snackbarBottomInset = if (widthSize != WindowWidthSize.EXPANDED && !onPlayer) {
             ResonanceTheme.dimensions.navigationDockHeight + if (showMiniPlayer) {
                 ResonanceTheme.dimensions.miniPlayerHeight
             } else {
@@ -527,7 +540,9 @@ private fun ResonanceRail(
     NavigationRail(
         containerColor = colors.surfaceContainer,
         contentColor = colors.textSecondary,
-        modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+        modifier = Modifier
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         destinations.forEach { destination ->
             val selected = destination.route == selectedRoute
@@ -547,6 +562,21 @@ private fun ResonanceRail(
                 )
             )
         }
+    }
+}
+
+/**
+ * A regular destination: content starts below the status bar. Now Playing is
+ * the one route that does not use this, so its colors reach under the status bar.
+ */
+private fun NavGraphBuilder.screen(
+    route: String,
+    arguments: List<NamedNavArgument> = emptyList(),
+    content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit
+) {
+    composable(route = route, arguments = arguments) { entry ->
+        val scope = this
+        Box(Modifier.fillMaxSize().statusBarsPadding()) { scope.content(entry) }
     }
 }
 
