@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,24 +7,56 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+/**
+ * One permanent signing key for every build, so any build installs over the
+ * previous one whichever machine made it. The key lives outside the repo
+ * (~/.android-keys/crate.properties, or -PcrateSigning=<path>); without it
+ * builds fall back to the machine's debug key.
+ */
+val crateSigning: Properties? = (findProperty("crateSigning") as String? ?: "${System.getProperty("user.home")}/.android-keys/crate.properties")
+    .let(::file)
+    .takeIf { it.isFile }
+    ?.let { f -> Properties().apply { f.inputStream().use(::load) } }
+
+/** Grows with every commit, so a newer build is always an update, never a downgrade. */
+val gitCommitCount: Int = providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
+    .standardOutput.asText.get().trim().toIntOrNull() ?: 1
+
 android {
     namespace = "com.resonance.player"
     compileSdk = 36
 
+    signingConfigs {
+        if (crateSigning != null) {
+            create("crate") {
+                storeFile = file(crateSigning.getProperty("storeFile"))
+                storePassword = crateSigning.getProperty("storePassword")
+                keyAlias = crateSigning.getProperty("keyAlias")
+                keyPassword = crateSigning.getProperty("keyPassword")
+            }
+        }
+    }
+
     defaultConfig {
-        applicationId = "com.resonance.player"
+        // New id (was com.resonance.player): builds signed with the old debug keys
+        // could not be updated in place; this one installs next to them.
+        applicationId = "app.crate.player"
         // ADR-002: minSdk 26 (notification channels, Media3 baseline). Scoped-storage
         // and media-permission branches are isolated in core.permissions.
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-foundation"
+        versionCode = gitCommitCount
+        versionName = "0.2.$gitCommitCount"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
+        debug {
+            signingConfigs.findByName("crate")?.let { signingConfig = it }
+        }
         release {
+            signingConfigs.findByName("crate")?.let { signingConfig = it }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
