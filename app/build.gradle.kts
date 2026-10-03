@@ -111,6 +111,8 @@ dependencies {
     implementation(libs.androidx.documentfile)
     // Drag-to-reorder for lazy lists (Apache-2.0).
     implementation(libs.reorderable)
+    // Shape morphing (what Material 3 MaterialShapes is built on).
+    implementation(libs.graphics.shapes)
 
     // Import (ADR-013): yt-dlp + ffmpeg packaged for Android (GPL-3.0, same as Seal / YTDLnis).
     implementation(libs.youtubedl.android)

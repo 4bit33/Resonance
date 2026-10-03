@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.Orientation
@@ -222,7 +223,7 @@ fun ResonanceMiniPlayer(
 private fun MiniPlayButton(playing: Boolean, accent: Color, description: String, onClick: () -> Unit) {
     val colors = ResonanceTheme.colors
     val motion = ResonanceTheme.motion
-    val corner by animateDpAsState(if (playing) 12.dp else 20.dp, motion.expressive(), label = "mini-play-shape")
+    val morph = animateFloatAsState(if (playing) 1f else 0f, motion.spatial(), label = "mini-play-morph")
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -240,7 +241,10 @@ private fun MiniPlayButton(playing: Boolean, accent: Color, description: String,
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(40.dp)
-                .clip(RoundedCornerShape(corner))
+                .graphicsLayer {
+                    shape = MorphShape(PlayShapes.playPause, morph.value)
+                    clip = true
+                }
                 .background(accent)
         ) {
             Crossfade(targetState = playing, animationSpec = motion.duration(150), label = "mini-play-icon") { p ->

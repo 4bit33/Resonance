@@ -1,5 +1,11 @@
 package com.resonance.player.feature.player
 
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Path
+import com.resonance.player.core.ui.components.PlayShapes
+import com.resonance.player.core.ui.components.MorphShape
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInRoot
@@ -604,8 +610,9 @@ private fun Scrubber(
         derivedStateOf { (dragFraction?.let { (it * duration).toLong() } ?: currentMs()) / 1000L }
     }
     val active = dragFraction != null
-    val trackHeight by animateDpAsState(if (active) 8.dp else 5.dp, motion.spatialFast(), label = "track-h")
-    val thumbRadius by animateDpAsState(if (active) 10.dp else 7.dp, motion.spatialFast(), label = "thumb-r")
+    // Material 3 slider look, kept straight: the track thickens and the handle narrows under the finger.
+    val trackHeight by animateDpAsState(if (active) 10.dp else 6.dp, motion.spatialFast(), label = "track-h")
+    val handleWidth by animateDpAsState(if (active) 2.dp else 4.dp, motion.spatialFast(), label = "handle-w")
 
     val seekDescription = stringResource(R.string.cd_seek)
 
@@ -645,17 +652,47 @@ private fun Scrubber(
                     }
                 }
         ) {
-            val trackColor = colors.textPrimary.copy(alpha = 0.16f)
-            val thumbColor = colors.textPrimary
+            val trackColor = accent.copy(alpha = 0.26f)
             Canvas(Modifier.matchParentSize()) {
                 val h = trackHeight.toPx()
                 val top = (size.height - h) / 2f
-                val radius = CornerRadius(h / 2f, h / 2f)
-                drawRoundRect(trackColor, Offset(0f, top), Size(size.width, h), radius)
-                val fraction = currentFraction()
-                drawRoundRect(accent, Offset(0f, top), Size(size.width * fraction, h), radius)
+                val outer = h / 2f
+                val inner = 2.dp.toPx()
+                val gap = 5.dp.toPx()
+                val handleW = handleWidth.toPx()
+                val x = size.width * currentFraction()
+                fun segment(left: Float, right: Float, color: Color, roundLeft: Float, roundRight: Float) {
+                    if (right - left <= 0f) return
+                    val path = Path().apply {
+                        addRoundRect(
+                            RoundRect(
+                                left, top, right, top + h,
+                                topLeftCornerRadius = CornerRadius(roundLeft),
+                                bottomLeftCornerRadius = CornerRadius(roundLeft),
+                                topRightCornerRadius = CornerRadius(roundRight),
+                                bottomRightCornerRadius = CornerRadius(roundRight)
+                            )
+                        )
+                    }
+                    drawPath(path, color)
+                }
                 if (enabled) {
-                    drawCircle(thumbColor, thumbRadius.toPx(), Offset(size.width * fraction, size.height / 2f))
+                    // Active track, a gap, the handle, a gap, the inactive track with a stop dot at its end.
+                    segment(0f, x - gap - handleW / 2f, accent, outer, inner)
+                    segment(x + gap + handleW / 2f, size.width, trackColor, inner, outer)
+                    val dot = 2.dp.toPx()
+                    if (size.width - (x + gap + handleW / 2f) > dot * 4f) {
+                        drawCircle(accent, dot, Offset(size.width - outer, size.height / 2f))
+                    }
+                    val handleH = h + 16.dp.toPx()
+                    drawRoundRect(
+                        accent,
+                        Offset(x - handleW / 2f, (size.height - handleH) / 2f),
+                        Size(handleW, handleH),
+                        CornerRadius(handleW / 2f)
+                    )
+                } else {
+                    segment(0f, size.width, trackColor, outer, outer)
                 }
             }
         }
@@ -667,7 +704,12 @@ private fun Scrubber(
     }
 }
 
-/** Play/pause. Circle when paused, rounded square while playing; squeezes under the finger. */
+/**
+ * Play/pause: a circle while paused that morphs into a soft nine-sided
+ * "cookie" while playing (androidx.graphics.shapes) and turns slowly as the
+ * music plays; squeezes under the finger. Shape, turn and squeeze are all
+ * read in the layer, so none of it recomposes.
+ */
 @Composable
 private fun PlayPauseButton(playing: Boolean, enabled: Boolean, accent: Color, onClick: () -> Unit) {
     val colors = ResonanceTheme.colors
@@ -675,18 +717,26 @@ private fun PlayPauseButton(playing: Boolean, enabled: Boolean, accent: Color, o
     val haptics = LocalHapticFeedback.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, motion.expressive(), label = "play-press")
-    val corner by animateDpAsState(if (playing) 26.dp else 42.dp, motion.expressive(), label = "play-shape")
+    val scale = animateFloatAsState(if (pressed) 0.9f else 1f, motion.expressive(), label = "play-press")
+    val morph = animateFloatAsState(if (playing) 1f else 0f, motion.spatial(), label = "play-morph")
+    val turn = remember { Animatable(0f) }
+    LaunchedEffect(playing, motion.enabled) {
+        if (!playing || !motion.enabled) return@LaunchedEffect
+        while (true) {
+            turn.animateTo(turn.value + 360f, tween(14_000, easing = LinearEasing))
+        }
+    }
     val label = stringResource(if (playing) R.string.cd_pause else R.string.cd_play)
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(84.dp)
             .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
+                scaleX = scale.value
+                scaleY = scale.value
+                shape = MorphShape(PlayShapes.playPause, morph.value, turn.value)
+                clip = true
             }
-            .clip(RoundedCornerShape(corner))
             .background(if (enabled) accent else colors.surfaceHighest)
             .clickable(
                 interactionSource = interaction,
@@ -703,8 +753,8 @@ private fun PlayPauseButton(playing: Boolean, enabled: Boolean, accent: Color, o
         AnimatedContent(
             targetState = playing,
             transitionSpec = {
-                (fadeIn(motion.duration(140)) + scaleIn(motion.expressive(), initialScale = 0.5f)) togetherWith
-                    (fadeOut(motion.duration(90)) + scaleOut(motion.spatialFast(), targetScale = 0.5f))
+                (fadeIn(motion.effectsFast()) + scaleIn(motion.expressive(), initialScale = 0.6f)) togetherWith
+                    (fadeOut(motion.effectsFast()) + scaleOut(motion.spatialFast(), targetScale = 0.6f))
             },
             label = "play-icon"
         ) { isPlaying ->
