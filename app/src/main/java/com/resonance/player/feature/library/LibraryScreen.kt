@@ -1,5 +1,8 @@
 package com.resonance.player.feature.library
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Tab
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.foundation.layout.offset
@@ -198,14 +201,10 @@ private fun QuickTile(icon: ImageVector, label: String, modifier: Modifier, onCl
     }
 }
 
-/**
- * Text tabs over a pill that slides with the pager (it follows a swipe
- * between pages too, not just taps).
- */
+/** Material 3 scrollable tabs, kept in step with the swipeable pager. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryTabs(pager: PagerState, onSelect: (Int) -> Unit) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
     val labels = listOf(
         stringResource(R.string.tab_songs),
         stringResource(R.string.tab_albums),
@@ -213,59 +212,20 @@ private fun CategoryTabs(pager: PagerState, onSelect: (Int) -> Unit) {
         stringResource(R.string.tab_genres),
         stringResource(R.string.tab_folders)
     )
-    val tabBounds = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
-    val scroll = rememberScrollState()
-    val density = LocalDensity.current
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .padding(top = 14.dp, bottom = 6.dp)
-            .horizontalScroll(scroll)
-            .padding(horizontal = 16.dp)
+    PrimaryScrollableTabRow(
+        selectedTabIndex = pager.currentPage,
+        edgePadding = 12.dp,
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        divider = {},
+        modifier = Modifier.padding(top = 8.dp)
     ) {
-        // The pill: interpolated between the current tab and the one being swiped to.
-        Box(
-            Modifier
-                .matchParentSize()
-                .drawBehind {
-                    val page = pager.currentPage
-                    val offset = pager.currentPageOffsetFraction
-                    val target = (page + if (offset >= 0f) 1 else -1).coerceIn(0, labels.lastIndex)
-                    val a = tabBounds[page] ?: return@drawBehind
-                    val b = tabBounds[target] ?: a
-                    val f = kotlin.math.abs(offset)
-                    val left = a.first + (b.first - a.first) * f
-                    val width = a.second + (b.second - a.second) * f
-                    drawRoundRect(
-                        color = colors.textPrimary.copy(alpha = 0.1f),
-                        topLeft = Offset(left, 0f),
-                        size = Size(width, size.height),
-                        cornerRadius = CornerRadius(size.height / 2f)
-                    )
-                }
-        )
-        Row {
-            labels.forEachIndexed { index, label ->
-                val selected = pager.currentPage == index
-                val tint by animateColorAsState(
-                    if (selected) colors.textPrimary else colors.textSecondary,
-                    ResonanceTheme.motion.effects(),
-                    label = "tab-tint"
-                )
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .height(38.dp)
-                        .onGloballyPositioned { coordinates ->
-                            tabBounds[index] = coordinates.positionInParent().x to coordinates.size.width.toFloat()
-                        }
-                        .clip(CircleShape)
-                        .clickable(role = Role.Tab, onClick = { onSelect(index) })
-                        .padding(horizontal = 16.dp)
-                ) {
-                    Text(label, style = typography.labelLg, color = tint)
-                }
-            }
+        labels.forEachIndexed { index, label ->
+            Tab(
+                selected = pager.currentPage == index,
+                onClick = { onSelect(index) },
+                text = { Text(label, maxLines = 1) },
+                unselectedContentColor = ResonanceTheme.colors.textSecondary
+            )
         }
     }
 }

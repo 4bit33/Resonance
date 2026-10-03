@@ -1,5 +1,18 @@
 package com.resonance.player.core.ui.components
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.BorderStroke
@@ -104,11 +117,7 @@ fun ResonanceIconButton(
     }
 }
 
-/**
- * Filter chip: 32dp, 8dp radius. Selected = 15% accent fill + accent
- * border + accent text; unselected = highest container + secondary text
- * with an optional muted mono-metric count.
- */
+/** Filter chip (Material 3): a check appears when selected; [count] trails the label. */
 @Composable
 fun ResonanceChip(
     label: String,
@@ -118,40 +127,22 @@ fun ResonanceChip(
     count: String? = null,
     leadingIcon: (@Composable () -> Unit)? = null
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    val motion = ResonanceTheme.motion
-    val background by animateColorAsState(
-        if (selected) colors.accent else colors.textPrimary.copy(alpha = 0.07f),
-        motion.effects(),
-        label = "chip-bg"
-    )
-    val content by animateColorAsState(
-        if (selected) colors.onAccent else colors.textPrimary,
-        motion.effects(),
-        label = "chip-fg"
-    )
-    Surface(
+    FilterChip(
+        selected = selected,
         onClick = onClick,
-        shape = androidx.compose.foundation.shape.CircleShape,
-        color = background,
-        modifier = modifier.height(36.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.padding(horizontal = 14.dp)
-        ) {
-            leadingIcon?.invoke()
-            Text(label, style = typography.labelLg, color = content)
-            if (count != null) {
-                Text(count, style = typography.monoMetric, color = content.copy(alpha = 0.7f))
-            }
-        }
-    }
+        label = { Text(if (count != null) "$label  $count" else label) },
+        leadingIcon = leadingIcon ?: if (selected) {
+            { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+        } else {
+            null
+        },
+        shape = CircleShape,
+        modifier = modifier
+    )
 }
 
-/** Segmented single-select control (tempo arcs, theme picker, transitions). */
+/** Single-choice segmented buttons (Material 3); the selected segment shows a check. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResonanceSegmentedControl(
     options: List<String>,
@@ -159,39 +150,20 @@ fun ResonanceSegmentedControl(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    Surface(
-        shape = ResonanceTheme.radii.control,
-        color = colors.surfaceHighest,
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Row(modifier = Modifier.padding(ResonanceTheme.spacing.xs)) {
-            options.forEachIndexed { index, option ->
-                val selected = index == selectedIndex
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(ResonanceTheme.radii.control)
-                        .clickable(role = Role.RadioButton) { onSelect(index) }
-                        .background(
-                            if (selected) colors.accentDim else androidx.compose.ui.graphics.Color.Transparent
-                        )
-                        .padding(vertical = ResonanceTheme.spacing.sm)
-                ) {
-                    Text(
-                        option,
-                        style = typography.labelMd,
-                        color = if (selected) colors.accent else colors.textSecondary
-                    )
-                }
+    SingleChoiceSegmentedButtonRow(modifier = modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, option ->
+            SegmentedButton(
+                selected = index == selectedIndex,
+                onClick = { onSelect(index) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+            ) {
+                Text(option, maxLines = 1)
             }
         }
     }
 }
 
-/** Stitch toggle: copper track when on, highest container when off. */
+/** Material 3 switch; a check rides on the thumb when on. */
 @Composable
 fun ResonanceSwitch(
     checked: Boolean,
@@ -199,24 +171,20 @@ fun ResonanceSwitch(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    val colors = ResonanceTheme.colors
     Switch(
         checked = checked,
         onCheckedChange = onCheckedChange,
         enabled = enabled,
-        colors = SwitchDefaults.colors(
-            checkedThumbColor = colors.onAccent,
-            checkedTrackColor = colors.accent,
-            checkedBorderColor = colors.accent,
-            uncheckedThumbColor = colors.textPrimary,
-            uncheckedTrackColor = colors.surfaceHighest,
-            uncheckedBorderColor = androidx.compose.ui.graphics.Color.Transparent
-        ),
+        thumbContent = if (checked) {
+            { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(SwitchDefaults.IconSize)) }
+        } else {
+            null
+        },
         modifier = modifier
     )
 }
 
-/** Settings-cluster row slot used by Stitch grouped rows (icon + texts + trailing). */
+/** A settings line (Material 3 list item): leading icon, title, optional supporting text, trailing slot. */
 @Composable
 fun ResonanceSettingsRow(
     title: String,
@@ -226,44 +194,28 @@ fun ResonanceSettingsRow(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(spacing.lg)
-    ) {
-        leading()
-        androidx.compose.foundation.layout.Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = spacing.md)
-        ) {
-            Text(title, style = typography.titleMd, color = colors.textPrimary)
-            if (subtitle != null) {
-                Text(subtitle, style = typography.bodySm, color = colors.textSecondary)
-            }
-        }
-        trailing()
-    }
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = subtitle?.let { { Text(it) } },
+        leadingContent = leading,
+        trailingContent = { Row(verticalAlignment = Alignment.CenterVertically, content = trailing) },
+        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+        modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+    )
 }
 
-/** 40dp settings-cluster leading icon box (high container, secondary glyph). */
+/** Leading icon for a settings line: tonal circle. */
 @Composable
 fun ResonanceSettingsIcon(
     icon: ImageVector,
     contentDescription: String?,
     modifier: Modifier = Modifier
 ) {
-    val colors = ResonanceTheme.colors
     Surface(
-        shape = ResonanceTheme.radii.control,
-        color = colors.surfaceHigh,
-        modifier = modifier.size(40.dp),
-        contentColor = colors.textSecondary
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        modifier = modifier.size(40.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(20.dp))
@@ -271,7 +223,7 @@ fun ResonanceSettingsIcon(
     }
 }
 
-/** Primary CTA: 48dp, 8dp radius, copper fill, dark bold label. */
+/** Tonal button (Material 3). */
 @Composable
 fun ResonancePrimaryButton(
     label: String,
@@ -279,21 +231,7 @@ fun ResonancePrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    androidx.compose.material3.Button(
-        onClick = onClick,
-        enabled = enabled,
-        shape = ResonanceTheme.radii.control,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = colors.accent,
-            contentColor = colors.onAccent,
-            disabledContainerColor = colors.surfaceHighest,
-            disabledContentColor = colors.textMuted
-        ),
-        contentPadding = PaddingValues(horizontal = ResonanceTheme.spacing.md),
-        modifier = modifier.height(ResonanceTheme.spacing.touchMin)
-    ) {
-        Text(label, style = typography.labelLg)
+    FilledTonalButton(onClick = onClick, enabled = enabled, modifier = modifier) {
+        Text(label)
     }
 }

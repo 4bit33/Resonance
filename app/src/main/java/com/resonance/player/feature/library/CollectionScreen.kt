@@ -1,5 +1,9 @@
 package com.resonance.player.feature.library
 
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
 import kotlinx.coroutines.flow.Flow
 import com.resonance.player.core.ui.components.LocalMusicActions
 import androidx.compose.material3.TextButton
@@ -338,6 +342,7 @@ private fun CollectionCover(ref: CollectionRef, cover: String?, palette: Artwork
     }
 }
 
+/** Play (filled) and Shuffle (tonal) buttons, Material 3, tinted with the artwork's accent. */
 @Composable
 private fun ActionPill(
     icon: ImageVector,
@@ -347,20 +352,28 @@ private fun ActionPill(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    val colors = ResonanceTheme.colors
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .height(48.dp)
-            .clip(CircleShape)
-            .background(if (filled) accent else colors.textPrimary.copy(alpha = 0.08f))
-            .graphicsLayer { alpha = if (enabled) 1f else 0.4f }
-            .pressClickable(onClick = { if (enabled) onClick() })
-            .padding(horizontal = 22.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = if (filled) colors.onAccent else colors.textPrimary, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(label, style = ResonanceTheme.typography.labelLg, color = if (filled) colors.onAccent else colors.textPrimary)
+    val content: @Composable RowScope.() -> Unit = {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+        Text(label)
+    }
+    if (filled) {
+        Button(
+            onClick = onClick,
+            enabled = enabled,
+            colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = ResonanceTheme.colors.onAccent),
+            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            modifier = Modifier.height(48.dp),
+            content = content
+        )
+    } else {
+        FilledTonalButton(
+            onClick = onClick,
+            enabled = enabled,
+            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            modifier = Modifier.height(48.dp),
+            content = content
+        )
     }
 }
 

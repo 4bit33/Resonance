@@ -1,5 +1,7 @@
 package com.resonance.player.feature.importer
 
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -138,23 +140,15 @@ fun ImportScreen(container: AppContainer, onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .clip(CircleShape)
-                        .background(if (canDownload) colors.accent else colors.surfaceHighest)
-                        .pressClickable(onClick = ::submit),
-                    horizontalArrangement = Arrangement.Center
+                Button(
+                    onClick = ::submit,
+                    enabled = canDownload,
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {
-                    Icon(Icons.Rounded.Download, contentDescription = null, tint = if (canDownload) colors.onAccent else colors.textMuted)
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.import_download),
-                        style = typography.labelLg,
-                        color = if (canDownload) colors.onAccent else colors.textMuted
-                    )
+                    Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    Text(stringResource(R.string.import_download))
                 }
             }
             item {

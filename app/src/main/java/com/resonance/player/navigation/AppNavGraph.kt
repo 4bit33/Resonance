@@ -161,7 +161,7 @@ fun ResonanceAppShell(container: AppContainer) {
     val sheetMotion = ResonanceTheme.motion
     fun settleSheet(target: Float, velocity: Float = 0f) {
         scope.launch {
-            sheet.animateTo(target, sheetMotion.spatial(), initialVelocity = -velocity / rootHeight)
+            sheet.animateTo(target, sheetMotion.settle(), initialVelocity = -velocity / rootHeight)
         }
     }
     fun dragSheet(delta: Float) {

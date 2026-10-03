@@ -1,5 +1,8 @@
 package com.resonance.player.feature.playlists
 
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -375,28 +378,17 @@ private fun Header(
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .height(44.dp)
-                            .clip(CircleShape)
-                            .background(if (songs.isNotEmpty()) colors.accent else colors.surfaceHighest)
-                            .pressClickable(onClick = { if (songs.isNotEmpty()) onPlay() })
-                            .padding(horizontal = 18.dp)
+                    Button(
+                        onClick = onPlay,
+                        enabled = songs.isNotEmpty(),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding
                     ) {
-                        Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = colors.onAccent, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.cd_play), style = typography.labelLg, color = colors.onAccent)
+                        Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.cd_play))
                     }
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(colors.textPrimary.copy(alpha = 0.08f))
-                            .pressClickable(onClickLabel = stringResource(R.string.cd_shuffle), onClick = { if (songs.isNotEmpty()) onShuffle() })
-                    ) {
-                        Icon(Icons.Rounded.Shuffle, contentDescription = stringResource(R.string.cd_shuffle), tint = colors.textPrimary, modifier = Modifier.size(20.dp))
+                    FilledTonalIconButton(onClick = onShuffle, enabled = songs.isNotEmpty()) {
+                        Icon(Icons.Rounded.Shuffle, contentDescription = stringResource(R.string.cd_shuffle))
                     }
                 }
             }

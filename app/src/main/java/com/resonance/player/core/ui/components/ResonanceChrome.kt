@@ -1,5 +1,15 @@
 package com.resonance.player.core.ui.components
 
+import com.resonance.player.R
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBar
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -40,7 +50,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.resonance.player.core.ui.theme.ResonanceTheme
 
-/** 56dp Stitch top bar: title + global search + overflow slots. */
+/** Top app bar (Material 3): optional back, title, search / overflow / custom actions. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResonanceTopBar(
     title: String,
@@ -54,39 +65,28 @@ fun ResonanceTopBar(
     overflowDescription: String? = null,
     trailing: (@Composable () -> Unit)? = null
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    TopAppBar(
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        navigationIcon = {
+            if (onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.cd_back))
+                }
+            }
+        },
+        actions = {
+            if (searchIcon != null && onSearch != null) {
+                IconButton(onClick = onSearch) { Icon(searchIcon, contentDescription = searchDescription) }
+            }
+            if (overflowIcon != null && onOverflow != null) {
+                IconButton(onClick = onOverflow) { Icon(overflowIcon, contentDescription = overflowDescription) }
+            }
+            trailing?.invoke()
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+        windowInsets = WindowInsets(0, 0, 0, 0),
         modifier = modifier
-            .fillMaxWidth()
-            .height(ResonanceTheme.dimensions.topBarHeight)
-            .padding(horizontal = spacing.lg)
-    ) {
-        if (onBack != null) {
-            IconButton(onClick = onBack, modifier = Modifier.size(spacing.touchMin)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = colors.textPrimary)
-            }
-        }
-        Text(
-            title,
-            style = typography.headlineMd,
-            color = colors.textPrimary,
-            modifier = Modifier.weight(1f)
-        )
-        if (searchIcon != null && onSearch != null) {
-            IconButton(onClick = onSearch, modifier = Modifier.size(spacing.touchMin)) {
-                Icon(searchIcon, contentDescription = searchDescription, tint = colors.textSecondary)
-            }
-        }
-        if (overflowIcon != null && onOverflow != null) {
-            IconButton(onClick = onOverflow, modifier = Modifier.size(spacing.touchMin)) {
-                Icon(overflowIcon, contentDescription = overflowDescription, tint = colors.textSecondary)
-            }
-        }
-        trailing?.invoke()
-    }
+    )
 }
 
 /** Section header: title-md + optional copper action (View all / Sort). */
@@ -180,8 +180,8 @@ fun ResonanceSearchField(
 }
 
 /**
- * Bottom navigation: icon + label for every tab, the selected one sits on an
- * accent pill that grows in from the center.
+ * Bottom navigation (Material 3 navigation bar): the selected destination
+ * gets the standard indicator pill, animated by the platform component.
  */
 @Composable
 fun ResonanceNavDock(
@@ -190,68 +190,18 @@ fun ResonanceNavDock(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    val motion = ResonanceTheme.motion
-    androidx.compose.material3.Surface(
-        color = colors.surfaceLow,
-        modifier = modifier.fillMaxWidth()
+    NavigationBar(
+        containerColor = ResonanceTheme.colors.surfaceLow,
+        windowInsets = WindowInsets(0, 0, 0, 0),
+        modifier = modifier
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceAround,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(ResonanceTheme.dimensions.navigationDockHeight)
-        ) {
-            destinations.forEach { destination ->
-                val selected = destination.route == selectedRoute
-                val pill by animateFloatAsState(if (selected) 1f else 0f, motion.expressive(), label = "nav-pill")
-                val tint by animateColorAsState(
-                    if (selected) colors.textPrimary else colors.textSecondary,
-                    motion.effects(),
-                    label = "nav-tint"
-                )
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            role = Role.Tab,
-                            onClick = { onSelect(destination.route) }
-                        )
-                        .semantics { this.selected = selected }
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(width = 60.dp, height = 32.dp)) {
-                        Box(
-                            Modifier
-                                .matchParentSize()
-                                .graphicsLayer {
-                                    scaleX = 0.4f + 0.6f * pill
-                                    alpha = pill
-                                }
-                                .background(colors.accent.copy(alpha = 0.22f), RoundedCornerShape(16.dp))
-                        )
-                        Icon(
-                            destination.icon,
-                            contentDescription = null,
-                            tint = tint,
-                            modifier = Modifier.size(ResonanceTheme.dimensions.navIcon)
-                        )
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        destination.label,
-                        style = typography.labelSm,
-                        color = tint,
-                        maxLines = 1
-                    )
-                }
-            }
+        destinations.forEach { destination ->
+            NavigationBarItem(
+                selected = destination.route == selectedRoute,
+                onClick = { onSelect(destination.route) },
+                icon = { Icon(destination.icon, contentDescription = null) },
+                label = { Text(destination.label, maxLines = 1) }
+            )
         }
     }
 }
