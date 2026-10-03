@@ -1,5 +1,6 @@
 package com.resonance.player.core.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -24,6 +25,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -118,33 +120,32 @@ fun ResonanceChip(
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
+    val motion = ResonanceTheme.motion
+    val background by animateColorAsState(
+        if (selected) colors.accent else colors.textPrimary.copy(alpha = 0.07f),
+        motion.effects(),
+        label = "chip-bg"
+    )
+    val content by animateColorAsState(
+        if (selected) colors.onAccent else colors.textPrimary,
+        motion.effects(),
+        label = "chip-fg"
+    )
     Surface(
         onClick = onClick,
-        shape = ResonanceTheme.radii.control,
-        color = if (selected) colors.accent.copy(alpha = 0.15f) else colors.surfaceHighest,
-        border = BorderStroke(
-            width = androidx.compose.ui.unit.Dp.Hairline,
-            color = if (selected) colors.accent else colors.outlineSubtle
-        ),
-        modifier = modifier.height(32.dp)
+        shape = androidx.compose.foundation.shape.CircleShape,
+        color = background,
+        modifier = modifier.height(36.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(ResonanceTheme.spacing.xs),
-            modifier = Modifier.padding(horizontal = ResonanceTheme.spacing.md)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 14.dp)
         ) {
             leadingIcon?.invoke()
-            Text(
-                label,
-                style = typography.labelMd,
-                color = if (selected) colors.accent else colors.textSecondary
-            )
+            Text(label, style = typography.labelLg, color = content)
             if (count != null) {
-                Text(
-                    count,
-                    style = typography.monoMetric,
-                    color = if (selected) colors.accent else colors.textMuted
-                )
+                Text(count, style = typography.monoMetric, color = content.copy(alpha = 0.7f))
             }
         }
     }

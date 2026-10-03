@@ -72,7 +72,10 @@ import com.resonance.player.core.ui.components.ResonanceSnackbarVisuals
 import com.resonance.player.core.ui.components.shouldShowMiniPlayer
 import com.resonance.player.feature.favorites.FavoritesScreen
 import com.resonance.player.feature.favorites.FavoritesViewModel
+import com.resonance.player.domain.library.CollectionRef
 import com.resonance.player.feature.home.HomeDependencies
+import com.resonance.player.feature.library.CollectionScreen
+import com.resonance.player.feature.library.CollectionViewModel
 import com.resonance.player.feature.home.HomeEditorScreen
 import com.resonance.player.feature.home.HomeEditorViewModel
 import com.resonance.player.feature.home.HomeScreen
@@ -172,6 +175,10 @@ fun ResonanceAppShell(container: AppContainer) {
         navController.navigate(route) { launchSingleTop = true }
     }
 
+    fun openCollection(ref: CollectionRef) {
+        navigate(AppDestination.Collection.routeFor(ref, Uri::encode))
+    }
+
     fun openPlayerForCurrentTrack() {
         val song = snapshot.song ?: return
         navigate(AppDestination.Player.routeFor(song.id))
@@ -242,8 +249,6 @@ fun ResonanceAppShell(container: AppContainer) {
                                 observePlaylists = container.observePlaylists,
                                 settings = container.settingsRepository,
                                 playSongs = container.playSongs,
-                                getAlbumSongs = container.getAlbumSongs,
-                                getGenreSongs = container.getGenreSongs,
                                 setShuffleMode = container.setShuffleMode,
                                 togglePlayPause = container.togglePlayPause,
                                 playNext = container.playNext,
@@ -264,7 +269,44 @@ fun ResonanceAppShell(container: AppContainer) {
                     onOpenPlaylists = { navigateToTab(AppDestination.Playlists.route) },
                     onOpenFavorites = { navigate(AppDestination.Favorites.route) },
                     onOpenLibrary = { navigate(AppDestination.Library.routeFor(it)) },
+                    onOpenCollection = ::openCollection,
                     onCustomize = { navigate(AppDestination.HomeEditor.route) }
+                )
+            }
+            // Draws its artwork-tinted background under the status bar itself.
+            composable(
+                route = AppDestination.Collection.route,
+                arguments = listOf(
+                    navArgument(AppDestination.Collection.ARG_KIND) { type = NavType.StringType },
+                    navArgument(AppDestination.Collection.ARG_KEY) { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument(AppDestination.Collection.ARG_EXTRA) { type = NavType.StringType; nullable = true; defaultValue = null }
+                )
+            ) { entry ->
+                val args = entry.arguments
+                val ref = AppDestination.Collection.refFor(
+                    args?.getString(AppDestination.Collection.ARG_KIND),
+                    args?.getString(AppDestination.Collection.ARG_KEY),
+                    args?.getString(AppDestination.Collection.ARG_EXTRA)
+                ) ?: return@composable
+                val vm: CollectionViewModel = viewModel(
+                    key = "collection-${entry.id}",
+                    factory = factory {
+                        CollectionViewModel(
+                            ref,
+                            container.getAlbumSongs,
+                            container.getArtistSongs,
+                            container.getGenreSongs,
+                            container.getFolderSongs,
+                            container.playSongs,
+                            container.setShuffleMode
+                        )
+                    }
+                )
+                CollectionScreen(
+                    vm,
+                    snapshot.song?.id,
+                    onBack = { navController.popBackStack() },
+                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) }
                 )
             }
             screen(AppDestination.HomeEditor.route) {
@@ -289,10 +331,6 @@ fun ResonanceAppShell(container: AppContainer) {
                             container.observeArtists,
                             container.observeGenres,
                             container.observeFolders,
-                            container.getAlbumSongs,
-                            container.getArtistSongs,
-                            container.getGenreSongs,
-                            container.getFolderSongs,
                             container.setShuffleMode,
                             container.playNext,
                             container.appendToQueue,
@@ -308,8 +346,9 @@ fun ResonanceAppShell(container: AppContainer) {
                     initialTab,
                     snapshot.song?.id,
                     onSongClick = { navigate(AppDestination.Player.routeFor(it)) },
-                    onOpenQueue = { navigate(AppDestination.Queue.route) },
-                    onOpenSearch = { navigate(AppDestination.Search.route) }
+                    onOpenSearch = { navigate(AppDestination.Search.route) },
+                    onOpenCollection = ::openCollection,
+                    onOpenFavorites = { navigate(AppDestination.Favorites.route) }
                 )
             }
             screen(AppDestination.Search.route) {

@@ -63,11 +63,13 @@ import com.resonance.player.core.model.Playlist
 import com.resonance.player.core.model.Song
 import com.resonance.player.core.ui.components.ArtworkImage
 import com.resonance.player.core.ui.components.EmptyLibraryView
+import com.resonance.player.core.ui.components.GenreTile
 import com.resonance.player.core.ui.components.LocalMusicActions
 import com.resonance.player.core.ui.components.ScanProgressBanner
 import com.resonance.player.core.ui.components.pressClickable
 import com.resonance.player.core.ui.theme.ResonanceTheme
 import com.resonance.player.core.ui.theme.rememberArtworkPalette
+import com.resonance.player.domain.library.CollectionRef
 import com.resonance.player.domain.library.ListeningStats
 import com.resonance.player.domain.settings.HomeSection
 import java.util.Calendar
@@ -98,6 +100,7 @@ fun HomeScreen(
     onOpenPlaylists: () -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenLibrary: (Int) -> Unit,
+    onOpenCollection: (CollectionRef) -> Unit,
     onCustomize: () -> Unit
 ) {
     val layout by viewModel.layout.collectAsStateWithLifecycle()
@@ -135,7 +138,7 @@ fun HomeScreen(
                                 albums = albums,
                                 size = sizes.album,
                                 onAll = { onOpenLibrary(1) },
-                                onPlay = { viewModel.playAlbum(it.name, it.albumArtist) }
+                                onPlay = { onOpenCollection(CollectionRef.Album(it.name, it.albumArtist)) }
                             )
                         }
                         HomeSection.RECENTLY_ADDED -> {
@@ -145,12 +148,12 @@ fun HomeScreen(
                                 albums = albums,
                                 size = sizes.added,
                                 onAll = null,
-                                onPlay = { viewModel.playAlbum(it.name, it.albumArtist) }
+                                onPlay = { onOpenCollection(CollectionRef.Album(it.name, it.albumArtist)) }
                             )
                         }
                         HomeSection.GENRES -> {
                             val genres by viewModel.genres.collectAsStateWithLifecycle()
-                            GenreGrid(genres, sizes.tile, onAll = { onOpenLibrary(3) }, onPlay = viewModel::playGenre)
+                            GenreGrid(genres, sizes.tile, onAll = { onOpenLibrary(3) }, onPlay = { onOpenCollection(CollectionRef.Genre(it)) })
                         }
                         HomeSection.PLAYLISTS -> {
                             val playlists by viewModel.playlists.collectAsStateWithLifecycle()
@@ -393,7 +396,7 @@ private fun AlbumRow(
     }
 }
 
-/** Genre tiles: tinted with a cover from the genre, the cover peeking in at the corner. Tap plays it shuffled. */
+/** Genre tiles; a tap opens the genre page. */
 @Composable
 private fun GenreGrid(genres: List<Genre>, tileHeight: Dp, onAll: () -> Unit, onPlay: (String) -> Unit) {
     if (genres.isEmpty()) return
@@ -409,39 +412,6 @@ private fun GenreGrid(genres: List<Genre>, tileHeight: Dp, onAll: () -> Unit, on
                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun GenreTile(genre: Genre, height: Dp, modifier: Modifier, onClick: () -> Unit) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    val palette = rememberArtworkPalette(genre.artUri, ResonanceTheme.look.artworkColors)
-    Box(
-        modifier
-            .height(height)
-            .clip(RoundedCornerShape(18.dp))
-            .background(palette.surface)
-            .pressClickable(onClickLabel = genre.name, onClick = onClick)
-    ) {
-        Box(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = 18.dp, y = 18.dp)
-                .size(height + 4.dp)
-                .graphicsLayer { rotationZ = 18f }
-                .clip(RoundedCornerShape(14.dp))
-        ) {
-            ArtworkImage(artworkUri = genre.artUri, contentDescription = null, modifier = Modifier.fillMaxSize())
-        }
-        Column(Modifier.padding(12.dp).fillMaxWidth(0.7f)) {
-            Text(genre.name, style = typography.titleMd, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                pluralStringResource(R.plurals.music_song_count, genre.songCount, genre.songCount),
-                style = typography.bodySm,
-                color = colors.textSecondary
-            )
         }
     }
 }

@@ -188,4 +188,12 @@
     <string name="playlist_cover_remove">Прибрати обкладинку</string>
     <string name="settings_home">Головний екран</string>
     <string name="settings_home_body">Які блоки показувати на головній і в якому порядку</string>
+    <string name="collection_genre">Жанр</string>
+    <string name="collection_folder">Папка</string>
+    <plurals name="album_count">
+        <item quantity="one">%1$d альбом</item>
+        <item quantity="few">%1$d альбоми</item>
+        <item quantity="many">%1$d альбомів</item>
+        <item quantity="other">%1$d альбому</item>
+    </plurals>
 </resources>

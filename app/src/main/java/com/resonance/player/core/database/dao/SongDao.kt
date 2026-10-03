@@ -34,7 +34,9 @@ data class AlbumRow(
 data class ArtistRow(
     val artistName: String,
     val songCount: Int,
-    val albumCount: Int
+    val albumCount: Int,
+    /** One of the artist's covers, for the round avatar. */
+    val sampleArtworkUri: String? = null
 )
 
 data class GenreRow(
@@ -139,7 +141,7 @@ interface SongDao {
 
     @Query(
         "SELECT artistName, COUNT(*) AS songCount, " +
-            "COUNT(DISTINCT albumName) AS albumCount FROM songs " +
+            "COUNT(DISTINCT albumName) AS albumCount, MAX(artworkUri) AS sampleArtworkUri FROM songs " +
             "GROUP BY artistName COLLATE NOCASE ORDER BY artistName COLLATE NOCASE ASC"
     )
     fun observeArtistGroups(): Flow<List<ArtistRow>>
@@ -170,7 +172,7 @@ interface SongDao {
 
     @Query(
         "SELECT artistName, COUNT(*) AS songCount, " +
-            "COUNT(DISTINCT albumName) AS albumCount FROM songs " +
+            "COUNT(DISTINCT albumName) AS albumCount, MAX(artworkUri) AS sampleArtworkUri FROM songs " +
             "WHERE artistName LIKE :q ESCAPE '\\' " +
             "GROUP BY artistName COLLATE NOCASE ORDER BY artistName COLLATE NOCASE ASC LIMIT :limit"
     )

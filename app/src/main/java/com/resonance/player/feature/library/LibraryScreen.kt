@@ -1,5 +1,30 @@
-﻿package com.resonance.player.feature.library
+package com.resonance.player.feature.library
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.background
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.rounded.TrendingUp
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.style.TextOverflow
+import com.resonance.player.core.ui.components.GenreTile
+import com.resonance.player.core.ui.components.pressClickable
+import com.resonance.player.core.ui.theme.ResonanceMotion
+import com.resonance.player.domain.library.CollectionRef
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -63,11 +88,9 @@ import com.resonance.player.core.ui.theme.ResonanceTheme
 import kotlinx.coroutines.launch
 
 /**
- * Stitch Library: top bar with global search, category chips with counts,
- * sort toolbar + shuffle-all, Stitch song rows with playing state/badges/
- * overflow, alphabet scrubber with HUD. Missing-file rows are intentionally
- * absent (a library refresh prunes vanished files; playback-time absence
- * surfaces via the player error state).
+ * Library: everything that is not on Home. Quick buttons (shuffle all,
+ * favorites, most played), then songs / albums / artists / genres / folders.
+ * Albums, artists, genres and folders open their own page.
  */
 @Composable
 fun LibraryScreen(
@@ -75,27 +98,83 @@ fun LibraryScreen(
     initialTab: Int = 0,
     currentSongId: Long? = null,
     onSongClick: (Long) -> Unit,
-    onOpenQueue: () -> Unit,
-    onOpenSearch: () -> Unit
+    onOpenSearch: () -> Unit,
+    onOpenCollection: (CollectionRef) -> Unit,
+    onOpenFavorites: () -> Unit
 ) {
     var tab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 4)) }
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
+    val colors = ResonanceTheme.colors
     Column(Modifier.fillMaxSize()) {
-        ResonanceTopBar(
-            title = stringResource(R.string.nav_library),
-            searchIcon = Icons.Filled.Search,
-            onSearch = onOpenSearch,
-            searchDescription = stringResource(R.string.nav_search)
-        )
-        ScanProgressBanner(scanState)
-        CategoryChips(viewModel, tab, onSelect = { tab = it })
-        when (tab) {
-            0 -> SongsTab(viewModel, currentSongId, onSongClick)
-            1 -> AlbumsTab(viewModel, onOpenQueue)
-            2 -> ArtistsTab(viewModel, onOpenQueue)
-            3 -> GenresTab(viewModel, onOpenQueue)
-            4 -> FoldersTab(viewModel, onOpenQueue)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 8.dp, top = 12.dp)
+        ) {
+            Text(
+                stringResource(R.string.nav_library),
+                style = ResonanceTheme.typography.displayLgMobile,
+                color = colors.textPrimary,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onOpenSearch) {
+                Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.nav_search), tint = colors.textSecondary)
+            }
         }
+        ScanProgressBanner(scanState)
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 12.dp)
+        ) {
+            item { QuickPill(Icons.Rounded.Shuffle, stringResource(R.string.home_shuffle_all), viewModel::shuffleAll) }
+            item { QuickPill(Icons.Rounded.Favorite, stringResource(R.string.home_favorites), onOpenFavorites) }
+            item {
+                QuickPill(Icons.AutoMirrored.Rounded.TrendingUp, stringResource(R.string.home_most_played)) {
+                    tab = 0
+                    viewModel.setSort(SongSort.PLAY_COUNT)
+                }
+            }
+        }
+        CategoryChips(viewModel, tab, onSelect = { tab = it })
+        AnimatedContent(
+            targetState = tab,
+            transitionSpec = {
+                val motion = ResonanceMotion()
+                fadeIn(motion.duration(180)) togetherWith fadeOut(motion.duration(90))
+            },
+            label = "library-tab",
+            modifier = Modifier.fillMaxSize()
+        ) { shown ->
+            Column(Modifier.fillMaxSize()) {
+                when (shown) {
+                    0 -> SongsTab(viewModel, currentSongId, onSongClick)
+                    1 -> AlbumsTab(viewModel, onOpenCollection)
+                    2 -> ArtistsTab(viewModel, onOpenCollection)
+                    3 -> GenresTab(viewModel, onOpenCollection)
+                    else -> FoldersTab(viewModel, onOpenCollection)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickPill(icon: ImageVector, label: String, onClick: () -> Unit) {
+    val colors = ResonanceTheme.colors
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .height(40.dp)
+            .clip(CircleShape)
+            .background(colors.surfaceContainer)
+            .pressClickable(onClick = onClick)
+            .padding(horizontal = 14.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = ResonanceTheme.typography.labelLg, color = colors.textPrimary)
     }
 }
 
@@ -432,200 +511,146 @@ private fun pickLetter(
 }
 
 @Composable
-private fun AlbumsTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
+private fun AlbumsTab(viewModel: LibraryViewModel, onOpen: (CollectionRef) -> Unit) {
     val albums by viewModel.albums.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     if (albums.isEmpty()) {
         EmptyLibraryView()
         return
     }
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 150.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
         items(albums, key = { it.id }) { album ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
+            Column(
+                Modifier
                     .animateItem()
-                    .fillMaxWidth()
-                    .height(ResonanceTheme.dimensions.songRowHeight)
-                    .padding(horizontal = spacing.lg)
-                    .clickable {
-                        viewModel.playAlbum(album.name, album.albumArtist)
-                        onOpenQueue()
-                    }
+                    .pressClickable(onClickLabel = album.name) { onOpen(CollectionRef.Album(album.name, album.albumArtist)) }
             ) {
-                ArtworkImage(
-                    artworkUri = album.artUri,
-                    contentDescription = album.name,
-                    modifier = Modifier.size(ResonanceTheme.dimensions.songArtwork)
-                )
-                Spacer(Modifier.width(spacing.md))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        album.name,
-                        style = typography.titleMd,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                    Text(
-                        album.artistName + " - " + album.songCount + " " +
-                            stringResource(R.string.settings_songs),
-                        style = typography.bodySm,
-                        color = colors.textSecondary,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(18.dp))
+                ) {
+                    ArtworkImage(artworkUri = album.artUri, contentDescription = album.name, modifier = Modifier.fillMaxSize())
                 }
+                Spacer(Modifier.height(8.dp))
+                Text(album.name, style = typography.labelLg, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    listOfNotNull(album.artistName, album.year?.toString()).joinToString(" · "),
+                    style = typography.bodySm,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            HorizontalDivider(color = colors.outlineSubtle)
         }
     }
 }
 
 @Composable
-private fun ArtistsTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
+private fun ArtistsTab(viewModel: LibraryViewModel, onOpen: (CollectionRef) -> Unit) {
     val artists by viewModel.artists.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     if (artists.isEmpty()) {
         EmptyLibraryView()
         return
     }
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), modifier = Modifier.fillMaxSize()) {
         items(artists, key = { it.id }) { artist ->
-            Column(
-                modifier = Modifier
-                    .animateItem()
-                    .fillMaxWidth()
-                    .clickable {
-                        viewModel.playArtist(artist.name)
-                        onOpenQueue()
-                    }
-                    .padding(horizontal = spacing.lg, vertical = spacing.md)
-            ) {
-                Text(
-                    artist.name,
-                    style = typography.titleMd,
-                    color = colors.textPrimary,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                Text(
-                    artist.songCount.toString() + " " + stringResource(R.string.settings_songs) +
-                        " - " + artist.albumCount.toString() + " " +
-                        stringResource(R.string.settings_albums),
-                    style = typography.bodySm,
-                    color = colors.textSecondary
-                )
-            }
-            HorizontalDivider(color = colors.outlineSubtle)
-        }
-    }
-}
-
-@Composable
-private fun GenresTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
-    val genres by viewModel.genres.collectAsStateWithLifecycle()
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
-    if (genres.isEmpty()) {
-        EmptyLibraryView()
-        return
-    }
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(genres, key = { it.name }) { genre ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .animateItem()
                     .fillMaxWidth()
-                    .clickable {
-                        viewModel.playGenre(genre.name)
-                        onOpenQueue()
-                    }
-                    .padding(horizontal = spacing.lg, vertical = spacing.md)
+                    .pressClickable(pressedScale = 0.98f, onClickLabel = artist.name) { onOpen(CollectionRef.Artist(artist.name)) }
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
-                Text(
-                    genre.name,
-                    style = typography.titleMd,
-                    color = colors.textPrimary,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                Text(
-                    genre.songCount.toString(),
-                    style = typography.monoMetric,
-                    color = colors.textSecondary
-                )
+                Box(Modifier.size(56.dp).clip(CircleShape)) {
+                    ArtworkImage(artworkUri = artist.artUri, contentDescription = null, modifier = Modifier.fillMaxSize())
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(artist.name, style = typography.titleMd, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        pluralStringResource(R.plurals.album_count, artist.albumCount, artist.albumCount) + " · " +
+                            pluralStringResource(R.plurals.music_song_count, artist.songCount, artist.songCount),
+                        style = typography.bodySm,
+                        color = colors.textSecondary
+                    )
+                }
             }
-            HorizontalDivider(color = colors.outlineSubtle)
         }
     }
 }
 
 @Composable
-private fun FoldersTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
+private fun GenresTab(viewModel: LibraryViewModel, onOpen: (CollectionRef) -> Unit) {
+    val genres by viewModel.genres.collectAsStateWithLifecycle()
+    if (genres.isEmpty()) {
+        EmptyLibraryView()
+        return
+    }
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 150.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(genres, key = { it.name }) { genre ->
+            GenreTile(genre, 88.dp, Modifier.animateItem()) { onOpen(CollectionRef.Genre(genre.name)) }
+        }
+    }
+}
+
+@Composable
+private fun FoldersTab(viewModel: LibraryViewModel, onOpen: (CollectionRef) -> Unit) {
     val folders by viewModel.folders.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     if (folders.isEmpty()) {
         EmptyLibraryView()
         return
     }
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), modifier = Modifier.fillMaxSize()) {
         items(folders, key = { it.path }) { folder ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .animateItem()
                     .fillMaxWidth()
-                    .clickable {
-                        viewModel.playFolder(folder.path)
-                        onOpenQueue()
+                    .pressClickable(pressedScale = 0.98f, onClickLabel = folder.name) {
+                        onOpen(CollectionRef.Folder(folder.path, folder.name))
                     }
-                    .padding(horizontal = spacing.lg, vertical = spacing.md)
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.surfaceContainer)
+                ) {
+                    Icon(Icons.Rounded.Folder, contentDescription = null, tint = colors.accent)
+                }
+                Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        folder.name,
-                        style = typography.titleMd,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
+                    Text(folder.name, style = typography.titleMd, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (folder.path.isNotEmpty()) {
-                        Text(
-                            folder.path,
-                            style = typography.bodySm,
-                            color = colors.textSecondary,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
+                        Text(folder.path, style = typography.bodySm, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                Spacer(Modifier.width(spacing.sm))
-                Text(
-                    folder.songCount.toString(),
-                    style = typography.monoMetric,
-                    color = colors.textSecondary
-                )
+                Spacer(Modifier.width(8.dp))
+                Text(folder.songCount.toString(), style = typography.monoMetric, color = colors.textSecondary)
             }
-            HorizontalDivider(color = colors.outlineSubtle)
         }
     }
 }
-
-
-
-
-
-
-
-
-

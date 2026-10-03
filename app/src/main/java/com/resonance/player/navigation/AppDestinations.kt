@@ -1,5 +1,7 @@
 package com.resonance.player.navigation
 
+import com.resonance.player.domain.library.CollectionRef
+
 /**
  * Route architecture: tabs are Home / Library / Playlists. Settings (gear on
  * Home), Search, Now Playing, Queue and the Home editor are global routes
@@ -14,6 +16,32 @@ sealed class AppDestination(val route: String) {
     data object Search : AppDestination("search")
     data object Settings : AppDestination("settings")
     data object HomeEditor : AppDestination("home/edit")
+
+    /** An album, artist, genre or folder page. Values are URI-encoded by the caller-facing builder. */
+    data object Collection : AppDestination("collection/{kind}?key={key}&extra={extra}") {
+        const val ARG_KIND = "kind"
+        const val ARG_KEY = "key"
+        const val ARG_EXTRA = "extra"
+
+        fun routeFor(ref: CollectionRef, encode: (String) -> String): String {
+            val (kind, key, extra) = when (ref) {
+                is CollectionRef.Album -> Triple("album", ref.name, ref.albumArtist)
+                is CollectionRef.Artist -> Triple("artist", ref.name, null)
+                is CollectionRef.Genre -> Triple("genre", ref.name, null)
+                is CollectionRef.Folder -> Triple("folder", ref.path, ref.name)
+            }
+            return "collection/$kind?key=${encode(key)}" + (extra?.let { "&extra=${encode(it)}" } ?: "")
+        }
+
+        /** Inverse of [routeFor] on the already-decoded arguments; null for an unknown kind. */
+        fun refFor(kind: String?, key: String?, extra: String?): CollectionRef? = when (kind) {
+            "album" -> key?.let { CollectionRef.Album(it, extra) }
+            "artist" -> key?.let { CollectionRef.Artist(it) }
+            "genre" -> key?.let { CollectionRef.Genre(it) }
+            "folder" -> CollectionRef.Folder(key.orEmpty(), extra.orEmpty())
+            else -> null
+        }
+    }
     data object Favorites : AppDestination("favorites")
     data object Player : AppDestination("player/{songId}") {
         const val ARG_SONG_ID = "songId"

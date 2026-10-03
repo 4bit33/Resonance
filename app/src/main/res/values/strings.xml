@@ -188,4 +188,10 @@
     <string name="settings_home_body">Choose and order the blocks on Home</string>
     <string name="home_stats_hours">%1$d h %2$d min</string>
     <string name="home_stats_minutes">%1$d min</string>
+    <string name="collection_genre">Genre</string>
+    <string name="collection_folder">Folder</string>
+    <plurals name="album_count">
+        <item quantity="one">%1$d album</item>
+        <item quantity="other">%1$d albums</item>
+    </plurals>
 </resources>

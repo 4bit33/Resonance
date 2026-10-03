@@ -11,8 +11,6 @@ import com.resonance.player.core.model.Playlist
 import com.resonance.player.core.model.ShuffleMode
 import com.resonance.player.core.model.Song
 import com.resonance.player.core.model.StorageOverview
-import com.resonance.player.domain.library.GetAlbumSongsUseCase
-import com.resonance.player.domain.library.GetGenreSongsUseCase
 import com.resonance.player.domain.library.ListeningStats
 import com.resonance.player.domain.library.ObserveGenresUseCase
 import com.resonance.player.domain.library.ObserveListeningStatsUseCase
@@ -56,8 +54,6 @@ class HomeDependencies(
     val observePlaylists: ObservePlaylistsUseCase,
     val settings: UserPreferencesRepository,
     val playSongs: PlaySongsUseCase,
-    val getAlbumSongs: GetAlbumSongsUseCase,
-    val getGenreSongs: GetGenreSongsUseCase,
     val setShuffleMode: SetShuffleModeUseCase,
     val togglePlayPause: TogglePlayPauseUseCase,
     val playNext: PlayNextUseCase,
@@ -113,21 +109,6 @@ class HomeViewModel(private val deps: HomeDependencies) : ViewModel() {
 
     fun togglePlayPause() {
         viewModelScope.launch { deps.togglePlayPause() }
-    }
-
-    fun playAlbum(albumName: String, albumArtist: String?) {
-        viewModelScope.launch {
-            val songs = (deps.getAlbumSongs(albumName, albumArtist) as? Result.Success)?.value
-            if (!songs.isNullOrEmpty()) deps.playSongs(songs, 0)
-        }
-    }
-
-    /** A genre plays shuffled: a tile is for discovering, not for track order. */
-    fun playGenre(genreName: String) {
-        viewModelScope.launch {
-            val songs = (deps.getGenreSongs(genreName) as? Result.Success)?.value
-            if (!songs.isNullOrEmpty()) shuffle(songs)
-        }
     }
 
     fun shuffleAll() {
