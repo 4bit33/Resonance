@@ -1,7 +1,8 @@
 # Crate — Architecture (Phase 3: library ingestion pipeline, music sources)
 
-Local-first, offline-first music player. No INTERNET permission by design
-(verified in the merged manifest), and no storage/audio permission either.
+Local-first music player: playback and the library are fully offline. The
+network is used only for what the user starts (import, tag lookups, own
+server; ADR-013). No storage/audio permission.
 Single `:app` Gradle module with strict package layers (solo-dev friendly;
 split into Gradle modules only when build times or reuse demand it).
 
@@ -103,6 +104,7 @@ User-added sources (folder = TREE via OpenDocumentTree, song = FILE via OpenMult
 - ADR-011 gestures are threshold swipes with no finger-tracking animation. Mini player: swipe up opens Now Playing, left/right skips next/previous in the queue. Now Playing: no back arrow (system back still works); pulling down anywhere closes it (a nested-scroll connection turns leftover downward drag into the close, so the screen still scrolls where it must); swiping the artwork left/right skips. A long press on a song row replaces the three-dot button and opens the song menu (the long-click label keeps an action for TalkBack). "Remove from library" never deletes the file: a song added on its own goes away with its source; a song inside an added folder is remembered in `excluded_songs` (schema v4, FK to `sources` with CASCADE) so folder listings skip it (a file the user adds explicitly again still comes in), and removing the folder clears that memory. There is no UI to manage hidden songs.
 
 - ADR-012 license and reach (2026-10-03): the project is GPL-3.0 (LICENSE), free with no paid features. This allows building on GPL-3.0 work such as youtubedl-android (yt-dlp + ffmpeg on Android), YTDLnis and Seal. Phone-first: every feature (import, tag fixing, audio fingerprinting) must work on the phone alone; a home server or the desktop app acting as a local server are optional helpers for heavy or background work, never required. Shared logic is written in Kotlin so the same code can run in all three places.
+- ADR-013 network (2026-10-03, supersedes "no INTERNET permission"): the app may use the network only for music the user asks for — downloading/importing (yt-dlp), metadata, cover art and audio-fingerprint lookups (MusicBrainz, Cover Art Archive, AcoustID and similar open services), and talking to the user's own server or desktop app. Never for analytics, ads, accounts, crash upload or anything in the background the user did not start. Playback and the library stay fully offline.
 
 ## What is real
 
