@@ -1,5 +1,27 @@
 package com.resonance.player.feature.library
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.animation.fadeIn
@@ -88,9 +110,10 @@ import com.resonance.player.core.ui.theme.ResonanceTheme
 import kotlinx.coroutines.launch
 
 /**
- * Library: everything that is not on Home. Quick buttons (shuffle all,
- * favorites, most played), then songs / albums / artists / genres / folders.
- * Albums, artists, genres and folders open their own page.
+ * Library: everything that is not on Home. Three tiles (shuffle all,
+ * favorites, most played), then swipeable categories with a sliding
+ * indicator: songs, albums, artists, genres, folders. Albums, artists,
+ * genres and folders open their own page.
  */
 @Composable
 fun LibraryScreen(
@@ -102,9 +125,10 @@ fun LibraryScreen(
     onOpenCollection: (CollectionRef) -> Unit,
     onOpenFavorites: () -> Unit
 ) {
-    var tab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 4)) }
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
+    val pager = rememberPagerState(initialPage = initialTab.coerceIn(0, 4)) { 5 }
+    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -123,32 +147,21 @@ fun LibraryScreen(
             }
         }
         ScanProgressBanner(scanState)
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(top = 12.dp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp)
         ) {
-            item { QuickPill(Icons.Rounded.Shuffle, stringResource(R.string.home_shuffle_all), viewModel::shuffleAll) }
-            item { QuickPill(Icons.Rounded.Favorite, stringResource(R.string.home_favorites), onOpenFavorites) }
-            item {
-                QuickPill(Icons.AutoMirrored.Rounded.TrendingUp, stringResource(R.string.home_most_played)) {
-                    tab = 0
-                    viewModel.setSort(SongSort.PLAY_COUNT)
-                }
+            QuickTile(Icons.Rounded.Shuffle, stringResource(R.string.tile_shuffle), Modifier.weight(1f), viewModel::shuffleAll)
+            QuickTile(Icons.Rounded.Favorite, stringResource(R.string.home_favorites), Modifier.weight(1f), onOpenFavorites)
+            QuickTile(Icons.AutoMirrored.Rounded.TrendingUp, stringResource(R.string.tile_most_played), Modifier.weight(1f)) {
+                viewModel.setSort(SongSort.PLAY_COUNT)
+                scope.launch { pager.animateScrollToPage(0) }
             }
         }
-        CategoryChips(viewModel, tab, onSelect = { tab = it })
-        AnimatedContent(
-            targetState = tab,
-            transitionSpec = {
-                val motion = ResonanceMotion()
-                fadeIn(motion.duration(180)) togetherWith fadeOut(motion.duration(90))
-            },
-            label = "library-tab",
-            modifier = Modifier.fillMaxSize()
-        ) { shown ->
+        CategoryTabs(pager) { page -> scope.launch { pager.animateScrollToPage(page) } }
+        HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), beyondViewportPageCount = 1) { page ->
             Column(Modifier.fillMaxSize()) {
-                when (shown) {
+                when (page) {
                     0 -> SongsTab(viewModel, currentSongId, onSongClick)
                     1 -> AlbumsTab(viewModel, onOpenCollection)
                     2 -> ArtistsTab(viewModel, onOpenCollection)
@@ -161,84 +174,99 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun QuickPill(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun QuickTile(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
     val colors = ResonanceTheme.colors
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .height(40.dp)
-            .clip(CircleShape)
+    Column(
+        modifier = modifier
+            .height(76.dp)
+            .clip(RoundedCornerShape(18.dp))
             .background(colors.surfaceContainer)
-            .pressClickable(onClick = onClick)
-            .padding(horizontal = 14.dp)
+            .pressClickable(onClickLabel = label, onClick = onClick)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Icon(icon, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(label, style = ResonanceTheme.typography.labelLg, color = colors.textPrimary)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(colors.accent.copy(alpha = 0.16f))
+        ) {
+            Icon(icon, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
+        }
+        Text(label, style = ResonanceTheme.typography.labelMd, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
+/**
+ * Text tabs over a pill that slides with the pager (it follows a swipe
+ * between pages too, not just taps).
+ */
 @Composable
-private fun CategoryChips(
-    viewModel: LibraryViewModel,
-    selectedTab: Int,
-    onSelect: (Int) -> Unit
-) {
-    val spacing = ResonanceTheme.spacing
-    val songs by viewModel.uiState.collectAsStateWithLifecycle()
-    val songCount = (songs as? LibraryUiState.Content)?.songs?.size ?: 0
-    val albums by viewModel.albums.collectAsStateWithLifecycle()
-    val artists by viewModel.artists.collectAsStateWithLifecycle()
-    val genres by viewModel.genres.collectAsStateWithLifecycle()
-    val folders by viewModel.folders.collectAsStateWithLifecycle()
-    LazyRow(
-        modifier = Modifier
+private fun CategoryTabs(pager: PagerState, onSelect: (Int) -> Unit) {
+    val colors = ResonanceTheme.colors
+    val typography = ResonanceTheme.typography
+    val labels = listOf(
+        stringResource(R.string.tab_songs),
+        stringResource(R.string.tab_albums),
+        stringResource(R.string.tab_artists),
+        stringResource(R.string.tab_genres),
+        stringResource(R.string.tab_folders)
+    )
+    val tabBounds = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
+    val scroll = rememberScrollState()
+    val density = LocalDensity.current
+    Box(
+        Modifier
             .fillMaxWidth()
-            .padding(vertical = spacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+            .padding(top = 14.dp, bottom = 6.dp)
+            .horizontalScroll(scroll)
+            .padding(horizontal = 16.dp)
     ) {
-        item { Spacer(Modifier.width(spacing.lg - spacing.sm)) }
-        item {
-            ResonanceChip(
-                label = stringResource(R.string.tab_songs),
-                count = songCount.toString(),
-                selected = selectedTab == 0,
-                onClick = { onSelect(0) }
-            )
+        // The pill: interpolated between the current tab and the one being swiped to.
+        Box(
+            Modifier
+                .matchParentSize()
+                .drawBehind {
+                    val page = pager.currentPage
+                    val offset = pager.currentPageOffsetFraction
+                    val target = (page + if (offset >= 0f) 1 else -1).coerceIn(0, labels.lastIndex)
+                    val a = tabBounds[page] ?: return@drawBehind
+                    val b = tabBounds[target] ?: a
+                    val f = kotlin.math.abs(offset)
+                    val left = a.first + (b.first - a.first) * f
+                    val width = a.second + (b.second - a.second) * f
+                    drawRoundRect(
+                        color = colors.textPrimary.copy(alpha = 0.1f),
+                        topLeft = Offset(left, 0f),
+                        size = Size(width, size.height),
+                        cornerRadius = CornerRadius(size.height / 2f)
+                    )
+                }
+        )
+        Row {
+            labels.forEachIndexed { index, label ->
+                val selected = pager.currentPage == index
+                val tint by animateColorAsState(
+                    if (selected) colors.textPrimary else colors.textSecondary,
+                    ResonanceTheme.motion.effects(),
+                    label = "tab-tint"
+                )
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .height(38.dp)
+                        .onGloballyPositioned { coordinates ->
+                            tabBounds[index] = coordinates.positionInParent().x to coordinates.size.width.toFloat()
+                        }
+                        .clip(CircleShape)
+                        .clickable(role = Role.Tab, onClick = { onSelect(index) })
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Text(label, style = typography.labelLg, color = tint)
+                }
+            }
         }
-        item {
-            ResonanceChip(
-                label = stringResource(R.string.tab_albums),
-                count = albums.size.toString(),
-                selected = selectedTab == 1,
-                onClick = { onSelect(1) }
-            )
-        }
-        item {
-            ResonanceChip(
-                label = stringResource(R.string.tab_artists),
-                count = artists.size.toString(),
-                selected = selectedTab == 2,
-                onClick = { onSelect(2) }
-            )
-        }
-        item {
-            ResonanceChip(
-                label = stringResource(R.string.tab_genres),
-                count = genres.size.toString(),
-                selected = selectedTab == 3,
-                onClick = { onSelect(3) }
-            )
-        }
-        item {
-            ResonanceChip(
-                label = stringResource(R.string.tab_folders),
-                count = folders.size.toString(),
-                selected = selectedTab == 4,
-                onClick = { onSelect(4) }
-            )
-        }
-        item { Spacer(Modifier.width(spacing.lg - spacing.sm)) }
     }
 }
 
@@ -252,56 +280,58 @@ private fun sortLabel(sort: SongSort): String = when (sort) {
     SongSort.PLAY_COUNT -> stringResource(R.string.sort_most_played)
 }
 
+/** "N songs" on the left; sort (a small menu) and shuffle on the right. */
 @Composable
-private fun SortToolbar(viewModel: LibraryViewModel) {
+private fun SongsHeader(count: Int, viewModel: LibraryViewModel) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     val sort by viewModel.sort.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = spacing.lg, vertical = spacing.xs)
+            .padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 4.dp)
     ) {
-        androidx.compose.material3.TextButton(onClick = { expanded = true }) {
-            Icon(
-                Icons.Filled.SwapVert,
-                contentDescription = null,
-                tint = colors.accent,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(Modifier.width(spacing.xs))
-            Text(
-                stringResource(R.string.sort_label) + ": " + sortLabel(sort),
-                style = typography.labelMd,
-                color = colors.textPrimary
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            SongSort.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = {
-                        Text(sortLabel(option), style = typography.bodyMd, color = colors.textPrimary)
-                    },
-                    onClick = {
-                        viewModel.setSort(option)
-                        expanded = false
-                    }
-                )
+        Text(
+            pluralStringResource(R.plurals.music_song_count, count, count),
+            style = typography.bodyMd,
+            color = colors.textSecondary,
+            modifier = Modifier.weight(1f)
+        )
+        Box {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .height(36.dp)
+                    .clip(CircleShape)
+                    .pressClickable { expanded = true }
+                    .padding(horizontal = 12.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(sortLabel(sort), style = typography.labelLg, color = colors.textPrimary)
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                SongSort.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                sortLabel(option),
+                                style = typography.bodyMd,
+                                color = if (option == sort) colors.accent else colors.textPrimary
+                            )
+                        },
+                        onClick = {
+                            viewModel.setSort(option)
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
-        Spacer(Modifier.weight(1f))
-        IconButton(
-            onClick = viewModel::shuffleAll,
-            modifier = Modifier.size(spacing.touchMin)
-        ) {
-            Icon(
-                Icons.Filled.Shuffle,
-                contentDescription = stringResource(R.string.cd_shuffle),
-                tint = colors.textSecondary
-            )
+        IconButton(onClick = viewModel::shuffleAll) {
+            Icon(Icons.Rounded.Shuffle, contentDescription = stringResource(R.string.cd_shuffle), tint = colors.textPrimary)
         }
     }
 }
@@ -333,14 +363,11 @@ private fun SongsTab(
         LibraryUiState.Empty -> EmptyLibraryView()
         is LibraryUiState.Error -> ErrorView(message = s.message)
         is LibraryUiState.Content -> {
-            SortToolbar(viewModel)
             var overflowSong by remember { mutableStateOf<Song?>(null) }
             val listState = rememberLazyListState()
-            val scope = rememberCoroutineScope()
-            val index = remember(s.songs) { alphabetIndex(s.songs.map { it.title }) }
-            var hudLetter by remember { mutableStateOf<String?>(null) }
             Box(Modifier.fillMaxSize()) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 24.dp), modifier = Modifier.fillMaxSize()) {
+                    item(key = "header") { SongsHeader(s.songs.size, viewModel) }
                     items(s.songs, key = { it.id }) { song ->
                         val isCurrent = song.id == currentSongId
                         ResonanceSongRow(
@@ -348,10 +375,7 @@ private fun SongsTab(
                             artistLine = song.artistName + " - " + song.albumName,
                             duration = formatDurationMs(song.durationMs),
                             artwork = {
-                                ArtworkImage(
-                                    artworkUri = song.artworkUri,
-                                    contentDescription = song.albumName
-                                )
+                                ArtworkImage(artworkUri = song.artworkUri, contentDescription = song.albumName)
                             },
                             onClick = {
                                 val at = s.songs.indexOfFirst { it.id == song.id }
@@ -359,30 +383,17 @@ private fun SongsTab(
                                 onSongClick(song.id)
                             },
                             modifier = Modifier.animateItem(),
-                            state = songRowState(
-                                isCurrent = isCurrent,
-                                isSelected = false,
-                                isMissing = false,
-                                isLoading = false
-                            ),
+                            state = songRowState(isCurrent = isCurrent, isSelected = false, isMissing = false, isLoading = false),
                             isPlayingAnimation = isCurrent,
-                            badge = { SongFormatBadge(song) },
                             onLongClick = { overflowSong = song },
-                            trailingInset = 20.dp
+                            trailingInset = 12.dp
                         )
                     }
                 }
-                AlphabetScrubber(
-                    index = index,
-                    hudLetter = hudLetter,
-                    onScrub = { letter, position ->
-                        val target = index.firstOrNull { it.first == letter }?.second
-                        if (target != null) {
-                            hudLetter = letter
-                            scope.launch { listState.scrollToItem(target) }
-                        }
-                    },
-                    onScrubEnd = { hudLetter = null },
+                FastScroller(
+                    listState = listState,
+                    labels = remember(s.songs) { s.songs.map { it.title } },
+                    headerItems = 1,
                     modifier = Modifier.align(Alignment.CenterEnd)
                 )
             }
@@ -432,82 +443,83 @@ private fun SongsTab(
     }
 }
 
+/**
+ * Fast scroll for long lists: a slim thumb at the right edge that shows up
+ * while the list moves; dragging it jumps through the list and shows the
+ * first letter of where you are in a bubble.
+ */
 @Composable
-private fun AlphabetScrubber(
-    index: List<Pair<String, Int>>,
-    hudLetter: String?,
-    onScrub: (String, Int) -> Unit,
-    onScrubEnd: () -> Unit,
+private fun FastScroller(
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    labels: List<String>,
+    headerItems: Int,
     modifier: Modifier = Modifier
 ) {
+    if (labels.size < 30) return
     val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    if (index.isEmpty()) return
-    Box(modifier = modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .width(32.dp)
-                .pointerInput(index) {
-                    detectVerticalDragGestures(
-                        onDragStart = { offset ->
-                            pickLetter(index, offset.y, size.height)?.let { (letter, position) ->
-                                onScrub(letter, position)
-                            }
-                        },
-                        onVerticalDrag = { change, _ ->
-                            change.consume()
-                            pickLetter(index, change.position.y, size.height)?.let { (letter, position) ->
-                                onScrub(letter, position)
-                            }
-                        },
-                        onDragEnd = onScrubEnd,
-                        onDragCancel = onScrubEnd
-                    )
-                }
-                .padding(vertical = 32.dp)
-        ) {
-            val letters = index.map { it.first }
-            val step = maxOf(1, letters.size / 18)
-            letters.filterIndexed { i, _ -> i % step == 0 }.forEach { letter ->
-                Text(
-                    letter,
-                    style = typography.labelSm,
-                    color = if (letter == hudLetter) colors.accent else colors.textMuted,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+    val motion = ResonanceTheme.motion
+    val scope = rememberCoroutineScope()
+    var dragging by remember { mutableStateOf(false) }
+    var dragFraction by remember { mutableFloatStateOf(0f) }
+    var trackHeight by remember { mutableFloatStateOf(1f) }
+    val visible = dragging || listState.isScrollInProgress
+    val alpha by animateFloatAsState(if (visible) 1f else 0f, motion.duration(if (visible) 150 else 600), label = "scroller-alpha")
+    val fraction = if (dragging) {
+        dragFraction
+    } else {
+        val total = (listState.layoutInfo.totalItemsCount - headerItems).coerceAtLeast(1)
+        ((listState.firstVisibleItemIndex - headerItems).coerceAtLeast(0).toFloat() / total).coerceIn(0f, 1f)
+    }
+    val letter = labels.getOrNull((fraction * (labels.size - 1)).toInt())
+        ?.trim()?.firstOrNull()?.uppercaseChar()?.let { if (it.isLetter()) it.toString() else "#" }
+    Box(
+        modifier
+            .fillMaxHeight()
+            .width(40.dp)
+            .padding(vertical = 12.dp)
+            .onSizeChanged { trackHeight = it.height.toFloat().coerceAtLeast(1f) }
+            .graphicsLayer { this.alpha = alpha }
+            .pointerInput(labels) {
+                detectVerticalDragGestures(
+                    onDragStart = { offset ->
+                        dragging = true
+                        dragFraction = (offset.y / trackHeight).coerceIn(0f, 1f)
+                    },
+                    onDragEnd = { dragging = false },
+                    onDragCancel = { dragging = false },
+                    onVerticalDrag = { change, _ ->
+                        change.consume()
+                        dragFraction = (change.position.y / trackHeight).coerceIn(0f, 1f)
+                        val target = headerItems + (dragFraction * (labels.size - 1)).toInt()
+                        scope.launch { listState.scrollToItem(target) }
+                    }
                 )
             }
-        }
-        if (hudLetter != null) {
-            Surface(
-                shape = ResonanceTheme.radii.card,
-                color = colors.surfaceHighest,
-                modifier = Modifier.align(Alignment.Center)
+    ) {
+        val thumbHeight = 44.dp
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 6.dp)
+                .offset { IntOffset(0, ((trackHeight - thumbHeight.toPx()) * fraction).toInt()) }
+                .size(width = if (dragging) 6.dp else 4.dp, height = thumbHeight)
+                .clip(CircleShape)
+                .background(if (dragging) colors.accent else colors.textSecondary)
+        )
+        if (dragging && letter != null) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset { IntOffset(-56.dp.roundToPx(), ((trackHeight - 64.dp.toPx()) * fraction).toInt()) }
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(colors.accent)
             ) {
-                Text(
-                    hudLetter,
-                    style = typography.headlineMd,
-                    color = colors.accent,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(
-                        horizontal = ResonanceTheme.spacing.xl,
-                        vertical = ResonanceTheme.spacing.lg
-                    )
-                )
+                Text(letter, style = ResonanceTheme.typography.headlineLg, color = colors.onAccent)
             }
         }
     }
-}
-
-private fun pickLetter(
-    index: List<Pair<String, Int>>,
-    y: Float,
-    height: Int
-): Pair<String, Int>? {
-    if (index.isEmpty() || height <= 0) return null
-    val position = ((y / height.toFloat()) * index.size).toInt().coerceIn(0, index.size - 1)
-    return index[position]
 }
 
 @Composable

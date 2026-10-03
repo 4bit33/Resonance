@@ -239,4 +239,6 @@
     <string name="genre_edit_all">Жанр для всіх</string>
     <string name="genre_rename">Перейменувати жанр</string>
     <string name="playlist_delete_action">Видалити плейлист</string>
+    <string name="tile_shuffle">Перемішати</string>
+    <string name="tile_most_played">Найчастіше</string>
 </resources>

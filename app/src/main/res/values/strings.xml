@@ -235,4 +235,6 @@
     <string name="genre_edit_all">Genre for all</string>
     <string name="genre_rename">Rename genre</string>
     <string name="playlist_delete_action">Delete playlist</string>
+    <string name="tile_shuffle">Shuffle</string>
+    <string name="tile_most_played">Top</string>
 </resources>
