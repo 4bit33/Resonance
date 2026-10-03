@@ -1,5 +1,14 @@
 package com.resonance.player.navigation
 
+import com.resonance.player.feature.player.NowPlayingSheet
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.animation.core.Animatable
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -140,8 +149,24 @@ fun ResonanceAppShell(container: AppContainer) {
     val snapshot by container.playbackController.snapshot.collectAsStateWithLifecycle()
     // Now Playing is a layer over the whole app (dock and mini player included), not a
     // page inside the content area: it slides up whole instead of being clipped above the bars.
-    var playerOpen by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(snapshot.song == null) { if (snapshot.song == null) playerOpen = false }
+    // 0 = mini player, 1 = full Now Playing; fingers drive it directly (NowPlayingSheet).
+    val sheet = remember { Animatable(0f) }
+    val sheetVisible by remember { derivedStateOf { sheet.value > 0f } }
+    var rootHeight by remember { mutableFloatStateOf(2000f) }
+    var rootWidth by remember { mutableFloatStateOf(1000f) }
+    var miniBounds by remember { mutableStateOf<Rect?>(null) }
+    var miniArtBounds by remember { mutableStateOf<Rect?>(null) }
+    var bigArtBounds by remember { mutableStateOf<Rect?>(null) }
+    val sheetMotion = ResonanceTheme.motion
+    fun settleSheet(target: Float, velocity: Float = 0f) {
+        scope.launch {
+            sheet.animateTo(target, sheetMotion.spatial(), initialVelocity = -velocity / rootHeight)
+        }
+    }
+    fun dragSheet(delta: Float) {
+        scope.launch { sheet.snapTo((sheet.value - delta / rootHeight).coerceIn(0f, 1f)) }
+    }
+    LaunchedEffect(snapshot.song == null) { if (snapshot.song == null) sheet.snapTo(0f) }
     val showMiniPlayer = shouldShowMiniPlayer(snapshot) && currentRoute != AppDestination.Queue.route
     val dockDestinations = dockDestinations()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -203,7 +228,7 @@ fun ResonanceAppShell(container: AppContainer) {
     }
 
     fun openPlayerForCurrentTrack() {
-        if (snapshot.song != null) playerOpen = true
+        if (snapshot.song != null) settleSheet(1f)
     }
 
     @Composable
@@ -236,9 +261,16 @@ fun ResonanceAppShell(container: AppContainer) {
             onOpenPlayer = ::openPlayerForCurrentTrack,
             onNext = { scope.launch { container.skipToNext() } },
             onPrevious = { scope.launch { container.skipToPrevious() } },
-            modifier = modifier,
+            modifier = modifier
+                .onGloballyPositioned { miniBounds = it.boundsInRoot() }
+                .graphicsLayer { alpha = 1f - (sheet.value * 5f).coerceIn(0f, 1f) },
             containerColor = palette.surface,
-            accent = palette.accent
+            accent = palette.accent,
+            onExpandDrag = ::dragSheet,
+            onExpandDragStopped = { velocity ->
+                settleSheet(if (velocity < -800f || sheet.value > 0.3f) 1f else 0f, velocity)
+            },
+            onArtworkBounds = { miniArtBounds = it }
         )
     }
 
@@ -286,7 +318,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     snapshot,
                     onOpenSearch = { navigate(AppDestination.Search.route) },
                     onOpenSettings = { navigate(AppDestination.Settings.route) },
-                    onOpenPlayer = { playerOpen = true },
+                    onOpenPlayer = { settleSheet(1f) },
                     onOpenPlaylist = { navigate(AppDestination.PlaylistDetail.routeFor(it)) },
                     onOpenPlaylists = { navigateToTab(AppDestination.Playlists.route) },
                     onOpenFavorites = { navigate(AppDestination.Favorites.route) },
@@ -520,7 +552,15 @@ fun ResonanceAppShell(container: AppContainer) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(ResonanceTheme.colors.background)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ResonanceTheme.colors.background)
+            .onSizeChanged {
+                rootHeight = it.height.toFloat().coerceAtLeast(1f)
+                rootWidth = it.width.toFloat().coerceAtLeast(1f)
+            }
+    ) {
         Row(modifier = Modifier.fillMaxSize()) {
             if (widthSize == WindowWidthSize.EXPANDED) {
                 ResonanceRail(
@@ -565,40 +605,55 @@ fun ResonanceAppShell(container: AppContainer) {
         } else {
             0.dp
         }
-        AnimatedVisibility(
-            visible = playerOpen,
-            enter = slideInVertically(ResonanceTheme.motion.spatial()) { it },
-            exit = slideOutVertically(ResonanceTheme.motion.spatial()) { it }
-        ) {
-            val vm: PlayerViewModel = viewModel(
-                key = "now-playing",
-                factory = factory {
-                    PlayerViewModel(
-                        -1L,
-                        container.getSong,
-                        container.playbackController,
-                        container.togglePlayPause,
-                        container.seekTo,
-                        container.skipToNext,
-                        container.skipToPrevious,
-                        container.setShuffleMode,
-                        container.setRepeatMode,
-                        container.toggleFavorite,
-                        container.observeFavoriteIds,
-                        container.playbackSources
-                    )
-                }
-            )
-            PlayerScreen(
-                vm,
-                onOpenQueue = {
-                    playerOpen = false
-                    navigate(AppDestination.Queue.route)
-                },
-                onBack = { playerOpen = false }
-            )
+        if (sheetVisible) {
+            val song = snapshot.song
+            val sheetPalette = rememberArtworkPalette(song?.artworkUri, ResonanceTheme.look.artworkColors)
+            NowPlayingSheet(
+                progress = { sheet.value },
+                miniBounds = miniBounds,
+                miniArtBounds = miniArtBounds,
+                bigArtBounds = bigArtBounds ?: estimatedCoverBounds(rootWidth, rootHeight),
+                artworkUri = song?.artworkUri,
+                palette = sheetPalette,
+                coverScale = if (snapshot.isPlaying) 1f else 0.86f
+            ) {
+                val vm: PlayerViewModel = viewModel(
+                    key = "now-playing",
+                    factory = factory {
+                        PlayerViewModel(
+                            -1L,
+                            container.getSong,
+                            container.playbackController,
+                            container.togglePlayPause,
+                            container.seekTo,
+                            container.skipToNext,
+                            container.skipToPrevious,
+                            container.setShuffleMode,
+                            container.setRepeatMode,
+                            container.toggleFavorite,
+                            container.observeFavoriteIds,
+                            container.playbackSources
+                        )
+                    }
+                )
+                PlayerScreen(
+                    vm,
+                    onOpenQueue = {
+                        settleSheet(0f)
+                        navigate(AppDestination.Queue.route)
+                    },
+                    onBack = { settleSheet(0f) },
+                    onCollapseDrag = ::dragSheet,
+                    onCollapseDragStopped = { velocity ->
+                        settleSheet(if (velocity > 800f || sheet.value < 0.85f) 0f else 1f, velocity)
+                    },
+                    // Only taken at rest, so the target does not chase the rising content.
+                    onArtworkBounds = { if (sheet.value >= 0.999f) bigArtBounds = it },
+                    coverAlpha = { if (sheet.value >= 0.999f) 1f else 0f }
+                )
+            }
         }
-        BackHandler(enabled = playerOpen) { playerOpen = false }
+        BackHandler(enabled = sheetVisible) { settleSheet(0f) }
         genreTarget?.let { target ->
             val genresFlow = remember { container.observeGenres() }
             val genres by genresFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -680,6 +735,13 @@ private fun NavGraphBuilder.screen(
 }
 
 /** Songs waiting in the genre dialog, and what to do once a genre is saved. */
+/** Until the big cover has been measured once: a square across the width, a bit below the top. */
+private fun estimatedCoverBounds(width: Float, rootHeight: Float): Rect {
+    val side = width * 0.88f
+    val left = (width - side) / 2f
+    return Rect(left, rootHeight * 0.14f, left + side, rootHeight * 0.14f + side)
+}
+
 private class GenreTarget(val songs: List<Song>, val onSaved: (String?) -> Unit)
 
 private inline fun <reified T : ViewModel> factory(crossinline create: () -> T): ViewModelProvider.Factory =

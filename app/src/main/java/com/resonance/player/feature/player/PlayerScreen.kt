@@ -1,5 +1,9 @@
 package com.resonance.player.feature.player
 
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.geometry.Rect
 import android.content.Context
 import android.content.Intent
 import android.media.MediaRouter2
@@ -147,7 +151,14 @@ private val ArtworkShape = RoundedCornerShape(28.dp)
 fun PlayerScreen(
     viewModel: PlayerViewModel,
     onOpenQueue: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    /** Vertical drag on the screen: shrinks Now Playing back into the mini player (down is positive). */
+    onCollapseDrag: (Float) -> Unit = {},
+    onCollapseDragStopped: suspend (velocity: Float) -> Unit = {},
+    /** Where the big cover sits, for the cover flying in from the mini player. */
+    onArtworkBounds: (Rect) -> Unit = {},
+    /** 0 while the flying cover stands in for the real one. Read in the draw phase. */
+    coverAlpha: () -> Float = { 1f }
 ) {
     val colors = ResonanceTheme.colors
     val motion = ResonanceTheme.motion
@@ -167,36 +178,17 @@ fun PlayerScreen(
     val palette = rememberArtworkPalette(song?.artworkUri, look.artworkColors)
     var techSheetOpen by remember { mutableStateOf(false) }
 
-    // Pull-down-to-close follows the finger.
-    val density = LocalDensity.current
-    val dismissPx = with(density) { 160.dp.toPx() }
-    val flickPx = with(density) { 40.dp.toPx() }
-    var pullY by remember { mutableFloatStateOf(0f) }
-    val pullState = rememberDraggableState { delta -> pullY = (pullY + delta).coerceAtLeast(0f) }
+    // Pulling down shrinks the player back into the mini player, following the finger (NowPlayingSheet).
+    val collapseDrag by rememberUpdatedState(onCollapseDrag)
+    val pullState = rememberDraggableState { delta -> collapseDrag(delta) }
 
     Box(
         Modifier
             .fillMaxSize()
-            .graphicsLayer {
-                translationY = pullY
-                val progress = (pullY / size.height.coerceAtLeast(1f)).coerceIn(0f, 1f)
-                val scale = 1f - progress * 0.08f
-                scaleX = scale
-                scaleY = scale
-                shape = RoundedCornerShape(36.dp * (progress * 4f).coerceAtMost(1f))
-                clip = pullY > 0f
-            }
             .draggable(
                 state = pullState,
                 orientation = Orientation.Vertical,
-                onDragStopped = { velocity ->
-                    if (shouldDismiss(pullY, velocity, dismissPx, flickPx, 1200f)) {
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onBack()
-                    } else {
-                        animate(pullY, 0f, animationSpec = motion.spatial()) { value, _ -> pullY = value }
-                    }
-                }
+                onDragStopped = { velocity -> onCollapseDragStopped(velocity) }
             )
             .background(palette.background)
     ) {
@@ -221,6 +213,8 @@ fun PlayerScreen(
                 playing = snapshot.isPlaying,
                 onNext = viewModel::onNext,
                 onPrevious = viewModel::onPrevious,
+                onBounds = onArtworkBounds,
+                coverAlpha = coverAlpha,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Spacer(Modifier.weight(0.7f))
@@ -387,6 +381,8 @@ private fun Artwork(
     playing: Boolean,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
+    onBounds: (Rect) -> Unit,
+    coverAlpha: () -> Float,
     modifier: Modifier = Modifier
 ) {
     val motion = ResonanceTheme.motion
@@ -428,6 +424,7 @@ private fun Artwork(
             .widthIn(max = 440.dp)
             .aspectRatio(1f)
             .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
+            .onGloballyPositioned { onBounds(it.boundsInRoot()) }
             .graphicsLayer {
                 translationX = dragX
                 rotationZ = dragX / widthPx * 5f
@@ -496,6 +493,7 @@ private fun Artwork(
                 .graphicsLayer {
                     scaleX = pausedScale.value
                     scaleY = pausedScale.value
+                    alpha = coverAlpha()
                 }
                 .shadow(28.dp, ArtworkShape, ambientColor = palette.glow, spotColor = palette.glow)
                 .clip(ArtworkShape)

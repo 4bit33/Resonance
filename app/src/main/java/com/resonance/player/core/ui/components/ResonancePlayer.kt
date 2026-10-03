@@ -23,6 +23,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -85,7 +88,12 @@ fun ResonanceMiniPlayer(
     modifier: Modifier = Modifier,
     onPrevious: (() -> Unit)? = null,
     containerColor: Color = ResonanceTheme.colors.surfaceHigh,
-    accent: Color = ResonanceTheme.colors.accent
+    accent: Color = ResonanceTheme.colors.accent,
+    /** Vertical drag drives the Now Playing expansion (delta px, up is negative). */
+    onExpandDrag: (Float) -> Unit = {},
+    onExpandDragStopped: suspend (velocity: Float) -> Unit = {},
+    /** Where the cover thumbnail is on screen, so Now Playing can grow it into the big cover. */
+    onArtworkBounds: (Rect) -> Unit = {}
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
@@ -95,14 +103,12 @@ fun ResonanceMiniPlayer(
     val haptics = LocalHapticFeedback.current
     val next by rememberUpdatedState(onNext)
     val previous by rememberUpdatedState(onPrevious)
-    val open by rememberUpdatedState(onOpenPlayer)
 
-    val openThresholdPx = with(LocalDensity.current) { 48.dp.toPx() }
     var widthPx by remember { mutableFloatStateOf(1f) }
     var dragX by remember { mutableFloatStateOf(0f) }
-    var dragUp by remember { mutableFloatStateOf(0f) }
+    val expandDrag by rememberUpdatedState(onExpandDrag)
     val horizontal = rememberDraggableState { dragX += it }
-    val vertical = rememberDraggableState { dragUp = (dragUp + it).coerceAtMost(0f) }
+    val vertical = rememberDraggableState { expandDrag(it) }
 
     val shownProgress = remember { Animatable(progress.coerceIn(0f, 1f)) }
     LaunchedEffect(progress) {
@@ -120,14 +126,10 @@ fun ResonanceMiniPlayer(
             .fillMaxWidth()
             .height(dimensions.miniPlayerHeight)
             .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
-            .graphicsLayer { translationY = dragUp * 0.4f }
             .draggable(
                 state = vertical,
                 orientation = Orientation.Vertical,
-                onDragStopped = { velocity ->
-                    if (dragUp < -openThresholdPx || velocity < -900f) open()
-                    animate(dragUp, 0f, animationSpec = motion.spatial()) { v, _ -> dragUp = v }
-                }
+                onDragStopped = { velocity -> onExpandDragStopped(velocity) }
             )
             .draggable(
                 state = horizontal,
@@ -162,6 +164,7 @@ fun ResonanceMiniPlayer(
             Box(
                 modifier = Modifier
                     .size(44.dp)
+                    .onGloballyPositioned { onArtworkBounds(it.boundsInRoot()) }
                     .clip(RoundedCornerShape(12.dp))
             ) {
                 artwork()
