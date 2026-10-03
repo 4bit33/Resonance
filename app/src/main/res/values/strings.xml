@@ -160,7 +160,7 @@
     <string name="home_stats_top_artist">top artist</string>
     <string name="home_stats_empty">Nothing played this week yet. Stats appear as you listen.</string>
     <string name="home_import_title">Add music</string>
-    <string name="home_import_body">A folder or single songs. Import from YouTube Music is coming.</string>
+    <string name="home_import_body">Download from YouTube Music and other sites, or add a folder from your phone.</string>
     <string name="home_shuffle_all">Shuffle all</string>
     <string name="home_customize">Customize home</string>
     <string name="home_section_greeting">Greeting</string>
@@ -193,5 +193,33 @@
     <plurals name="album_count">
         <item quantity="one">%1$d album</item>
         <item quantity="other">%1$d albums</item>
+    </plurals>
+    <string name="import_title">Import</string>
+    <string name="import_channel">Import</string>
+    <string name="import_item_of">%1$d of %2$d</string>
+    <string name="import_queued_count">%1$d queued</string>
+    <string name="import_hint">Link to a song, album or playlist</string>
+    <string name="import_sources">YouTube, YouTube Music, SoundCloud, Bandcamp and many more.</string>
+    <string name="import_paste">Paste</string>
+    <string name="import_download">Download</string>
+    <string name="import_folder">Save to</string>
+    <string name="import_folder_pick">Choose a folder</string>
+    <string name="import_folder_change">Change</string>
+    <string name="import_folder_needed">Choose where imported music goes, for example a new folder Music/Crate.</string>
+    <string name="import_queued">Waiting</string>
+    <string name="import_starting">Getting ready…</string>
+    <string name="import_done_none">Already in your library</string>
+    <string name="import_failed">Failed: %1$s</string>
+    <string name="import_failed_folder">Choose a folder first</string>
+    <string name="import_canceled">Canceled</string>
+    <string name="import_warning">Some items were skipped</string>
+    <string name="import_clear">Clear finished</string>
+    <string name="cd_cancel">Cancel</string>
+    <string name="import_note">Downloaded songs appear in your library by themselves. Songs you imported before are skipped.</string>
+    <string name="import_share_hint">Tip: in YouTube or YouTube Music tap Share, then Crate.</string>
+    <string name="home_import_youtube">From YouTube</string>
+    <plurals name="import_done_count">
+        <item quantity="one">%1$d song added</item>
+        <item quantity="other">%1$d songs added</item>
     </plurals>
 </resources>

@@ -55,6 +55,14 @@ class DataStoreSettingsRepository(private val context: Context) : UserPreference
         }
     }
 
+    override val importTreeUri: Flow<String?> = context.settingsStore.data.map { it[Keys.IMPORT_TREE] }
+
+    override suspend fun setImportTreeUri(uri: String?) {
+        context.settingsStore.edit { prefs ->
+            if (uri == null) prefs.remove(Keys.IMPORT_TREE) else prefs[Keys.IMPORT_TREE] = uri
+        }
+    }
+
     override val homeLayout: Flow<HomeLayout> =
         context.settingsStore.data.map { decodeHomeLayout(it[Keys.HOME_LAYOUT]) }
 
@@ -82,5 +90,6 @@ class DataStoreSettingsRepository(private val context: Context) : UserPreference
         val ARTWORK_COLORS = booleanPreferencesKey("look_artwork_colors")
         val MOTION_SPEED = floatPreferencesKey("look_motion_speed")
         val HOME_LAYOUT = stringPreferencesKey("home_layout")
+        val IMPORT_TREE = stringPreferencesKey("import_tree_uri")
     }
 }

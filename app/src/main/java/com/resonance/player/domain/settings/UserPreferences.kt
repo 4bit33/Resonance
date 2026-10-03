@@ -31,6 +31,10 @@ interface UserPreferencesRepository {
     val look: Flow<LookPreferences>
     suspend fun updateLook(transform: (LookPreferences) -> LookPreferences)
 
+    /** The folder imports are saved into (a tree URI with a write grant), or null until picked. */
+    val importTreeUri: Flow<String?>
+    suspend fun setImportTreeUri(uri: String?)
+
     val homeLayout: Flow<HomeLayout>
     suspend fun updateHomeLayout(transform: (HomeLayout) -> HomeLayout)
 }

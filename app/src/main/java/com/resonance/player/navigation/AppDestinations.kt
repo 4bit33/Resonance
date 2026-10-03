@@ -16,6 +16,7 @@ sealed class AppDestination(val route: String) {
     data object Search : AppDestination("search")
     data object Settings : AppDestination("settings")
     data object HomeEditor : AppDestination("home/edit")
+    data object Import : AppDestination("import")
 
     /** An album, artist, genre or folder page. Values are URI-encoded by the caller-facing builder. */
     data object Collection : AppDestination("collection/{kind}?key={key}&extra={extra}") {

@@ -162,7 +162,7 @@
     <string name="home_stats_hours">%1$d год %2$d хв</string>
     <string name="home_stats_minutes">%1$d хв</string>
     <string name="home_import_title">Додати музику</string>
-    <string name="home_import_body">Папку або окремі пісні. Імпорт з YouTube Music — скоро.</string>
+    <string name="home_import_body">Завантажуйте з YouTube Music та інших сайтів або додайте папку з телефона.</string>
     <string name="home_shuffle_all">Перемішати все</string>
     <string name="home_customize">Налаштувати головну</string>
     <string name="home_section_greeting">Привітання</string>
@@ -195,5 +195,35 @@
         <item quantity="few">%1$d альбоми</item>
         <item quantity="many">%1$d альбомів</item>
         <item quantity="other">%1$d альбому</item>
+    </plurals>
+    <string name="import_title">Імпорт</string>
+    <string name="import_channel">Імпорт музики</string>
+    <string name="import_item_of">%1$d з %2$d</string>
+    <string name="import_queued_count">у черзі: %1$d</string>
+    <string name="import_hint">Посилання на пісню, альбом або плейлист</string>
+    <string name="import_sources">YouTube, YouTube Music, SoundCloud, Bandcamp та багато інших.</string>
+    <string name="import_paste">Вставити</string>
+    <string name="import_download">Завантажити</string>
+    <string name="import_folder">Куди зберігати</string>
+    <string name="import_folder_pick">Вибрати папку</string>
+    <string name="import_folder_change">Змінити</string>
+    <string name="import_folder_needed">Виберіть, куди зберігати музику, наприклад нову папку Music/Crate.</string>
+    <string name="import_queued">У черзі</string>
+    <string name="import_starting">Готуємось…</string>
+    <string name="import_done_none">Уже є в бібліотеці</string>
+    <string name="import_failed">Не вдалося: %1$s</string>
+    <string name="import_failed_folder">Спершу виберіть папку</string>
+    <string name="import_canceled">Скасовано</string>
+    <string name="import_warning">Деякі пропущено</string>
+    <string name="import_clear">Прибрати завершені</string>
+    <string name="cd_cancel">Скасувати</string>
+    <string name="import_note">Завантажені пісні самі з\'являються в бібліотеці. Те, що ви вже імпортували, пропускається.</string>
+    <string name="import_share_hint">Порада: у YouTube чи YouTube Music натисніть «Поділитися», потім Crate.</string>
+    <string name="home_import_youtube">З YouTube</string>
+    <plurals name="import_done_count">
+        <item quantity="one">Додано %1$d пісню</item>
+        <item quantity="few">Додано %1$d пісні</item>
+        <item quantity="many">Додано %1$d пісень</item>
+        <item quantity="other">Додано %1$d пісні</item>
     </plurals>
 </resources>

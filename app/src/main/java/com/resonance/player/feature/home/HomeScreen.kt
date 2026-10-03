@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.CreateNewFolder
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.LibraryAdd
 import androidx.compose.material.icons.rounded.Pause
@@ -101,6 +102,7 @@ fun HomeScreen(
     onOpenFavorites: () -> Unit,
     onOpenLibrary: (Int) -> Unit,
     onOpenCollection: (CollectionRef) -> Unit,
+    onOpenImport: () -> Unit,
     onCustomize: () -> Unit
 ) {
     val layout by viewModel.layout.collectAsStateWithLifecycle()
@@ -163,7 +165,7 @@ fun HomeScreen(
                             val stats by viewModel.stats.collectAsStateWithLifecycle()
                             StatsCard(stats)
                         }
-                        HomeSection.IMPORT -> ImportCard()
+                        HomeSection.IMPORT -> ImportCard(onOpenImport)
                         HomeSection.QUICK_ACTIONS -> QuickActions(onShuffle = viewModel::shuffleAll, onFavorites = onOpenFavorites)
                         HomeSection.MOST_PLAYED -> {
                             val songs by viewModel.mostPlayed.collectAsStateWithLifecycle()
@@ -515,9 +517,9 @@ private fun StatCell(value: String, label: String, valueColor: Color, modifier: 
     }
 }
 
-/** Adding music. YouTube Music import will land here once it exists; for now folders and files. */
+/** Adding music: download from YouTube (Music) and other sites, or add a folder / files from the phone. */
 @Composable
-private fun ImportCard() {
+private fun ImportCard(onOpenImport: () -> Unit) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val actions = LocalMusicActions.current
@@ -532,9 +534,10 @@ private fun ImportCard() {
         Text(stringResource(R.string.home_import_title), style = typography.titleMd, color = colors.textPrimary)
         Text(stringResource(R.string.home_import_body), style = typography.bodySm, color = colors.textSecondary)
         Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Pill(Icons.Rounded.CreateNewFolder, stringResource(R.string.music_add_folder)) { actions.addFolder(null) }
-            Pill(Icons.Rounded.LibraryAdd, stringResource(R.string.music_add_songs)) { actions.addSongs() }
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item { Pill(Icons.Rounded.Download, stringResource(R.string.home_import_youtube), onOpenImport) }
+            item { Pill(Icons.Rounded.CreateNewFolder, stringResource(R.string.music_add_folder)) { actions.addFolder(null) } }
+            item { Pill(Icons.Rounded.LibraryAdd, stringResource(R.string.music_add_songs)) { actions.addSongs() } }
         }
     }
 }

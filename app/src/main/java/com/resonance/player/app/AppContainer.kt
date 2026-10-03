@@ -64,6 +64,9 @@ import com.resonance.player.domain.playlists.RenamePlaylistUseCase
 import com.resonance.player.domain.playlists.SetPlaylistCoverUseCase
 import com.resonance.player.domain.library.ObserveListeningStatsUseCase
 import com.resonance.player.data.media.FilePlaylistCoverStore
+import com.resonance.player.data.importer.ImportDestination
+import com.resonance.player.data.importer.YtDlpEngine
+import com.resonance.player.importer.ImportManager
 import com.resonance.player.domain.playback.RemoveQueueItemUseCase
 import com.resonance.player.domain.playback.SkipToQueueItemUseCase
 import com.resonance.player.domain.playback.SeekToUseCase
@@ -216,6 +219,26 @@ class AppContainer(context: Context) {
     val rescanLibrary = RescanLibraryUseCase(musicRepository)
     val observeSources = ObserveSourcesUseCase(sourceRepository)
     val addSources = AddSourcesUseCase(sourceRepository, musicRepository)
+
+    /** Downloads with yt-dlp into the user's music folder (ADR-013). Lazy: nothing unpacks until the first import. */
+    val importManager: ImportManager by lazy {
+        ImportManager(
+            appContext,
+            applicationScope,
+            YtDlpEngine(appContext),
+            ImportDestination(appContext),
+            settingsRepository,
+            addSources
+        )
+    }
+
+    /** Takes a lasting read+write grant on the picked folder and makes it the import destination. */
+    suspend fun setImportFolder(treeUri: String) {
+        val uri = android.net.Uri.parse(treeUri)
+        val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        runCatching { appContext.contentResolver.takePersistableUriPermission(uri, flags) }
+        settingsRepository.setImportTreeUri(treeUri)
+    }
     val removeSources = RemoveSourcesUseCase(sourceRepository, musicRepository)
     val removeSong = RemoveSongUseCase(sourceRepository)
     val getLibraryStats = GetLibraryStatsUseCase(musicRepository)

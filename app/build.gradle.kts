@@ -74,6 +74,19 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    // youtubedl-android runs its bundled Python/ffmpeg from extracted native libs.
+    packaging {
+        jniLibs.useLegacyPackaging = true
+    }
+    // One APK per CPU: the bundled Python + ffmpeg are large, a universal APK would carry all of them.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
 }
 
 dependencies {
@@ -95,6 +108,11 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
     implementation(libs.androidx.palette)
+    implementation(libs.androidx.documentfile)
+
+    // Import (ADR-013): yt-dlp + ffmpeg packaged for Android (GPL-3.0, same as Seal / YTDLnis).
+    implementation(libs.youtubedl.android)
+    implementation(libs.youtubedl.ffmpeg)
 
     // Room (local library database). KSP processor, no KAPT.
     implementation(libs.androidx.room.runtime)

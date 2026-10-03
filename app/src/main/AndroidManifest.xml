@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Crate manifest.
-  Privacy: NO INTERNET permission by design. Local-first, offline-first.
-  No storage/audio permission either: music comes from the folders and files
-  the user picks with the system picker (persisted read grants, ADR-010).
+  Network only for what the user starts: import, tag lookups, own server
+  (ADR-013). No storage/audio permission: music comes from the folders and
+  files the user picks with the system picker (persisted grants, ADR-010).
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Import and metadata lookups, only when the user starts them (ADR-013). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- Foreground playback service. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
@@ -31,6 +34,11 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name=".importer.ImportService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -38,6 +46,12 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- "Share > Crate" from YouTube / YouTube Music / a browser opens the import. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
     </application>

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.remember
@@ -74,6 +75,7 @@ import com.resonance.player.feature.favorites.FavoritesScreen
 import com.resonance.player.feature.favorites.FavoritesViewModel
 import com.resonance.player.domain.library.CollectionRef
 import com.resonance.player.feature.home.HomeDependencies
+import com.resonance.player.feature.importer.ImportScreen
 import com.resonance.player.feature.library.CollectionScreen
 import com.resonance.player.feature.library.CollectionViewModel
 import com.resonance.player.feature.home.HomeEditorScreen
@@ -175,6 +177,12 @@ fun ResonanceAppShell(container: AppContainer) {
         navController.navigate(route) { launchSingleTop = true }
     }
 
+    // "Share > Crate" from another app: open the import with the shared link filled in.
+    val pendingShare by container.importManager.pendingShare.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingShare) {
+        if (pendingShare != null && currentRoute != AppDestination.Import.route) navigate(AppDestination.Import.route)
+    }
+
     fun openCollection(ref: CollectionRef) {
         navigate(AppDestination.Collection.routeFor(ref, Uri::encode))
     }
@@ -270,6 +278,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     onOpenFavorites = { navigate(AppDestination.Favorites.route) },
                     onOpenLibrary = { navigate(AppDestination.Library.routeFor(it)) },
                     onOpenCollection = ::openCollection,
+                    onOpenImport = { navigate(AppDestination.Import.route) },
                     onCustomize = { navigate(AppDestination.HomeEditor.route) }
                 )
             }
@@ -308,6 +317,9 @@ fun ResonanceAppShell(container: AppContainer) {
                     onBack = { navController.popBackStack() },
                     onSongClick = { navigate(AppDestination.Player.routeFor(it)) }
                 )
+            }
+            screen(AppDestination.Import.route) {
+                ImportScreen(container, onBack = { navController.popBackStack() })
             }
             screen(AppDestination.HomeEditor.route) {
                 val vm: HomeEditorViewModel = viewModel(factory = factory { HomeEditorViewModel(container.settingsRepository) })
