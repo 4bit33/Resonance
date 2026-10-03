@@ -152,6 +152,7 @@ fun ResonanceAppShell(container: AppContainer) {
     // 0 = mini player, 1 = full Now Playing; fingers drive it directly (NowPlayingSheet).
     val sheet = remember { Animatable(0f) }
     val sheetVisible by remember { derivedStateOf { sheet.value > 0f } }
+    val sheetExpanded by remember { derivedStateOf { sheet.value >= 0.999f } }
     var rootHeight by remember { mutableFloatStateOf(2000f) }
     var rootWidth by remember { mutableFloatStateOf(1000f) }
     var miniBounds by remember { mutableStateOf<Rect?>(null) }
@@ -605,7 +606,9 @@ fun ResonanceAppShell(container: AppContainer) {
         } else {
             0.dp
         }
-        if (sheetVisible) {
+        // Composed as soon as something is loaded (hidden off-screen while collapsed), so
+        // opening never pays for building Now Playing on its first frame.
+        if (snapshot.song != null || sheetVisible) {
             val song = snapshot.song
             val sheetPalette = rememberArtworkPalette(song?.artworkUri, ResonanceTheme.look.artworkColors)
             NowPlayingSheet(
@@ -647,9 +650,17 @@ fun ResonanceAppShell(container: AppContainer) {
                     onCollapseDragStopped = { velocity ->
                         settleSheet(if (velocity > 800f || sheet.value < 0.85f) 0f else 1f, velocity)
                     },
-                    // Only taken at rest, so the target does not chase the rising content.
-                    onArtworkBounds = { if (sheet.value >= 0.999f) bigArtBounds = it },
-                    coverAlpha = { if (sheet.value >= 0.999f) 1f else 0f }
+                    // Taken only at rest (open, or hidden while collapsed), so it never chases the moving content.
+                    onArtworkBounds = { bounds ->
+                        val p = sheet.value
+                        when {
+                            p >= 0.999f -> bigArtBounds = bounds
+                            // Hidden while collapsed: undo the off-screen offset and the 8% rise.
+                            p <= 0f -> bigArtBounds = bounds.translate(0f, -(1_000_000f + rootHeight * 0.08f))
+                        }
+                    },
+                    coverAlpha = { if (sheet.value >= 0.999f) 1f else 0f },
+                    expanded = sheetExpanded
                 )
             }
         }

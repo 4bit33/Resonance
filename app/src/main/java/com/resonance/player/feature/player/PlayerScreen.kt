@@ -158,7 +158,10 @@ fun PlayerScreen(
     /** Where the big cover sits, for the cover flying in from the mini player. */
     onArtworkBounds: (Rect) -> Unit = {},
     /** 0 while the flying cover stands in for the real one. Read in the draw phase. */
-    coverAlpha: () -> Float = { 1f }
+    coverAlpha: () -> Float = { 1f },
+    /** Fully open. The screen stays composed (hidden) under the mini player so opening has
+     *  no heavy first frame; the costly glow only runs while this is true. */
+    expanded: Boolean = true
 ) {
     val colors = ResonanceTheme.colors
     val motion = ResonanceTheme.motion
@@ -215,6 +218,7 @@ fun PlayerScreen(
                 onPrevious = viewModel::onPrevious,
                 onBounds = onArtworkBounds,
                 coverAlpha = coverAlpha,
+                expanded = expanded,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Spacer(Modifier.weight(0.7f))
@@ -383,6 +387,7 @@ private fun Artwork(
     onPrevious: () -> Unit,
     onBounds: (Rect) -> Unit,
     coverAlpha: () -> Float,
+    expanded: Boolean,
     modifier: Modifier = Modifier
 ) {
     val motion = ResonanceTheme.motion
@@ -395,15 +400,11 @@ private fun Artwork(
     // Animated values below are read only inside graphicsLayer {} blocks: they
     // re-draw the layer each frame without recomposing (which made opening lag).
     val pausedScale = animateFloatAsState(if (playing) 1f else 0.86f, motion.expressive(), label = "art-scale")
-    // The glow blooms in once Now Playing has slid up: the blur is not computed during the open animation.
-    var bloomed by remember { mutableStateOf(!motion.enabled) }
-    LaunchedEffect(Unit) {
-        delay(motion.millis(280).toLong())
-        bloomed = true
-    }
-    val glowTarget = if (bloomed) look.glowStrength * if (playing) 1f else 0.55f else 0f
-    val glowAlpha = animateFloatAsState(glowTarget, motion.duration(if (bloomed) 700 else 0), label = "glow-alpha")
-    val breathing = look.glowBreathing && playing && motion.enabled
+    // The glow blooms in once Now Playing is fully open and fades out quickly when it
+    // starts to close: the blur is never computed during the open/close motion.
+    val glowTarget = if (expanded) look.glowStrength * if (playing) 1f else 0.55f else 0f
+    val glowAlpha = animateFloatAsState(glowTarget, motion.duration(if (expanded) 700 else 120), label = "glow-alpha")
+    val breathing = expanded && look.glowBreathing && playing && motion.enabled
     val breath = if (breathing) {
         rememberInfiniteTransition(label = "glow-breath").animateFloat(
             initialValue = 1f,

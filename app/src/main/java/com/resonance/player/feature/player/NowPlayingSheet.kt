@@ -57,6 +57,9 @@ fun NowPlayingSheet(
     Box(
         Modifier
             .fillMaxSize()
+            // Fully collapsed: placed off-screen, so it neither draws nor takes touches
+            // (it stays composed to make opening smooth).
+            .offset { IntOffset(0, if (progress() <= 0f) 1_000_000 else 0) }
             // Dim the app behind as the player rises.
             .drawBehind { drawRect(Color.Black.copy(alpha = 0.45f * progress().coerceIn(0f, 1f))) }
     ) {
