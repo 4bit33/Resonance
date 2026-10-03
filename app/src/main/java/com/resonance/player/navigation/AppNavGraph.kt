@@ -1,7 +1,9 @@
 package com.resonance.player.navigation
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContentScope
@@ -136,9 +138,11 @@ fun ResonanceAppShell(container: AppContainer) {
     val selectedTab = AppDestination.tabForRoute(currentRoute)?.route
     val scope = rememberCoroutineScope()
     val snapshot by container.playbackController.snapshot.collectAsStateWithLifecycle()
-    val onPlayer = currentRoute == AppDestination.Player.route
-    val onPlayerOrQueue = onPlayer || currentRoute == AppDestination.Queue.route
-    val showMiniPlayer = shouldShowMiniPlayer(snapshot) && !onPlayerOrQueue
+    // Now Playing is a layer over the whole app (dock and mini player included), not a
+    // page inside the content area: it slides up whole instead of being clipped above the bars.
+    var playerOpen by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(snapshot.song == null) { if (snapshot.song == null) playerOpen = false }
+    val showMiniPlayer = shouldShowMiniPlayer(snapshot) && currentRoute != AppDestination.Queue.route
     val dockDestinations = dockDestinations()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -199,8 +203,7 @@ fun ResonanceAppShell(container: AppContainer) {
     }
 
     fun openPlayerForCurrentTrack() {
-        val song = snapshot.song ?: return
-        navigate(AppDestination.Player.routeFor(song.id))
+        if (snapshot.song != null) playerOpen = true
     }
 
     @Composable
@@ -283,7 +286,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     snapshot,
                     onOpenSearch = { navigate(AppDestination.Search.route) },
                     onOpenSettings = { navigate(AppDestination.Settings.route) },
-                    onOpenPlayer = { navigate(AppDestination.Player.routeFor(it)) },
+                    onOpenPlayer = { playerOpen = true },
                     onOpenPlaylist = { navigate(AppDestination.PlaylistDetail.routeFor(it)) },
                     onOpenPlaylists = { navigateToTab(AppDestination.Playlists.route) },
                     onOpenFavorites = { navigate(AppDestination.Favorites.route) },
@@ -423,43 +426,6 @@ fun ResonanceAppShell(container: AppContainer) {
                     onOpenHomeEditor = { navigate(AppDestination.HomeEditor.route) }
                 )
             }
-            composable(
-                route = AppDestination.Player.route,
-                arguments = listOf(navArgument(AppDestination.Player.ARG_SONG_ID) {
-                    type = NavType.LongType
-                }),
-                // Now Playing rises from the mini player and is pulled back down to close.
-                enterTransition = { slideInVertically(motion.spatial()) { it } },
-                exitTransition = { fadeOut(motion.duration(150)) },
-                popEnterTransition = { fadeIn(motion.duration(150)) },
-                popExitTransition = { slideOutVertically(motion.spatial()) { it } }
-            ) { entry ->
-                val songId = entry.arguments?.getLong(AppDestination.Player.ARG_SONG_ID) ?: -1L
-                val vm: PlayerViewModel = viewModel(
-                    key = "player-$songId",
-                    factory = factory {
-                        PlayerViewModel(
-                            songId,
-                            container.getSong,
-                            container.playbackController,
-                            container.togglePlayPause,
-                            container.seekTo,
-                            container.skipToNext,
-                            container.skipToPrevious,
-                            container.setShuffleMode,
-                            container.setRepeatMode,
-                            container.toggleFavorite,
-                            container.observeFavoriteIds,
-                            container.playbackSources
-                        )
-                    }
-                )
-                PlayerScreen(
-                    vm,
-                    onOpenQueue = { navigate(AppDestination.Queue.route) },
-                    onBack = { navController.popBackStack() }
-                )
-            }
             screen(AppDestination.Queue.route) {
                 val vm: QueueViewModel = viewModel(
                     factory = factory {
@@ -577,7 +543,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     }
                 }
                 AnimatedVisibility(
-                    visible = widthSize != WindowWidthSize.EXPANDED && !onPlayer,
+                    visible = widthSize != WindowWidthSize.EXPANDED,
                     enter = slideInVertically(ResonanceTheme.motion.spatial()) { it },
                     exit = slideOutVertically(ResonanceTheme.motion.spatial()) { it }
                 ) {
@@ -590,7 +556,7 @@ fun ResonanceAppShell(container: AppContainer) {
                 }
             }
         }
-        val snackbarBottomInset = if (widthSize != WindowWidthSize.EXPANDED && !onPlayer) {
+        val snackbarBottomInset = if (widthSize != WindowWidthSize.EXPANDED) {
             ResonanceTheme.dimensions.navigationDockHeight + if (showMiniPlayer) {
                 ResonanceTheme.dimensions.miniPlayerHeight
             } else {
@@ -599,6 +565,40 @@ fun ResonanceAppShell(container: AppContainer) {
         } else {
             0.dp
         }
+        AnimatedVisibility(
+            visible = playerOpen,
+            enter = slideInVertically(ResonanceTheme.motion.spatial()) { it },
+            exit = slideOutVertically(ResonanceTheme.motion.spatial()) { it }
+        ) {
+            val vm: PlayerViewModel = viewModel(
+                key = "now-playing",
+                factory = factory {
+                    PlayerViewModel(
+                        -1L,
+                        container.getSong,
+                        container.playbackController,
+                        container.togglePlayPause,
+                        container.seekTo,
+                        container.skipToNext,
+                        container.skipToPrevious,
+                        container.setShuffleMode,
+                        container.setRepeatMode,
+                        container.toggleFavorite,
+                        container.observeFavoriteIds,
+                        container.playbackSources
+                    )
+                }
+            )
+            PlayerScreen(
+                vm,
+                onOpenQueue = {
+                    playerOpen = false
+                    navigate(AppDestination.Queue.route)
+                },
+                onBack = { playerOpen = false }
+            )
+        }
+        BackHandler(enabled = playerOpen) { playerOpen = false }
         genreTarget?.let { target ->
             val genresFlow = remember { container.observeGenres() }
             val genres by genresFlow.collectAsStateWithLifecycle(initialValue = emptyList())
