@@ -75,6 +75,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -122,6 +123,7 @@ import com.resonance.player.core.model.RepeatMode
 import com.resonance.player.core.model.ShuffleMode
 import com.resonance.player.core.model.Song
 import com.resonance.player.core.ui.components.ArtworkImage
+import com.resonance.player.core.ui.components.LocalMusicActions
 import com.resonance.player.core.ui.components.ResonanceBottomSheet
 import com.resonance.player.core.ui.components.ResonanceMetric
 import com.resonance.player.core.ui.components.shouldDismiss
@@ -130,6 +132,7 @@ import com.resonance.player.core.ui.theme.ResonanceTheme
 import com.resonance.player.core.ui.theme.rememberArtworkPalette
 import com.resonance.player.domain.playback.PlaybackSource
 import kotlin.math.abs
+import kotlinx.coroutines.delay
 
 private val ArtworkShape = RoundedCornerShape(28.dp)
 
@@ -306,7 +309,14 @@ fun PlayerScreen(
         }
     }
     if (techSheetOpen && song != null) {
+        val actions = LocalMusicActions.current
         ResonanceBottomSheet(onDismiss = { techSheetOpen = false }) {
+            TextButton(onClick = {
+                techSheetOpen = false
+                actions.editGenre(listOf(song)) {}
+            }) {
+                Text(stringResource(R.string.genre_edit_action), color = palette.accent)
+            }
             TechSheetContent(title = song.title, rows = techRows(song))
         }
     }
@@ -386,16 +396,20 @@ private fun Artwork(
     var dragX by remember { mutableFloatStateOf(0f) }
     val dragState = rememberDraggableState { delta -> dragX += delta }
 
-    val pausedScale by animateFloatAsState(if (playing) 1f else 0.86f, motion.expressive(), label = "art-scale")
-    val glowAlpha by animateFloatAsState(
-        look.glowStrength * if (playing) 1f else 0.55f,
-        motion.effects(),
-        label = "glow-alpha"
-    )
+    // Animated values below are read only inside graphicsLayer {} blocks: they
+    // re-draw the layer each frame without recomposing (which made opening lag).
+    val pausedScale = animateFloatAsState(if (playing) 1f else 0.86f, motion.expressive(), label = "art-scale")
+    // The glow blooms in once Now Playing has slid up: the blur is not computed during the open animation.
+    var bloomed by remember { mutableStateOf(!motion.enabled) }
+    LaunchedEffect(Unit) {
+        delay(motion.millis(280).toLong())
+        bloomed = true
+    }
+    val glowTarget = if (bloomed) look.glowStrength * if (playing) 1f else 0.55f else 0f
+    val glowAlpha = animateFloatAsState(glowTarget, motion.duration(if (bloomed) 700 else 0), label = "glow-alpha")
     val breathing = look.glowBreathing && playing && motion.enabled
     val breath = if (breathing) {
-        val transition = rememberInfiniteTransition(label = "glow-breath")
-        transition.animateFloat(
+        rememberInfiniteTransition(label = "glow-breath").animateFloat(
             initialValue = 1f,
             targetValue = 1.07f,
             animationSpec = infiniteRepeatable(
@@ -403,9 +417,9 @@ private fun Artwork(
                 AnimationRepeatMode.Reverse
             ),
             label = "glow-breath-scale"
-        ).value
+        )
     } else {
-        1f
+        null
     }
 
     Box(
@@ -438,15 +452,15 @@ private fun Artwork(
                 }
             )
     ) {
-        if (glowAlpha > 0.01f) {
+        if (glowTarget > 0f || glowAlpha.value > 0.01f) {
             Box(
                 Modifier
                     .matchParentSize()
                     .graphicsLayer {
-                        val s = pausedScale * breath * 1.1f
+                        val s = pausedScale.value * (breath?.value ?: 1f) * 1.1f
                         scaleX = s
                         scaleY = s
-                        alpha = glowAlpha
+                        alpha = glowAlpha.value
                         compositingStrategy = CompositingStrategy.ModulateAlpha
                     }
             ) {
@@ -480,8 +494,8 @@ private fun Artwork(
             Modifier
                 .matchParentSize()
                 .graphicsLayer {
-                    scaleX = pausedScale
-                    scaleY = pausedScale
+                    scaleX = pausedScale.value
+                    scaleY = pausedScale.value
                 }
                 .shadow(28.dp, ArtworkShape, ambientColor = palette.glow, spotColor = palette.glow)
                 .clip(ArtworkShape)
@@ -581,10 +595,15 @@ private fun Scrubber(
             }
         }
     }
-    val baseMs = if (playing) shownMs else anchorMs
+    fun currentMs(): Long = if (playing) shownMs else anchorMs
     var dragFraction by remember { mutableStateOf<Float?>(null) }
     val duration = durationMs.coerceAtLeast(1L)
-    val fraction = dragFraction ?: (baseMs.toFloat() / duration).coerceIn(0f, 1f)
+    fun currentFraction(): Float = dragFraction ?: (currentMs().toFloat() / duration).coerceIn(0f, 1f)
+    // The bar is drawn every frame from the states above, read only while drawing;
+    // the time labels recompose once per second.
+    val shownSeconds by remember(playing, duration) {
+        derivedStateOf { (dragFraction?.let { (it * duration).toLong() } ?: currentMs()) / 1000L }
+    }
     val active = dragFraction != null
     val trackHeight by animateDpAsState(if (active) 8.dp else 5.dp, motion.spatialFast(), label = "track-h")
     val thumbRadius by animateDpAsState(if (active) 10.dp else 7.dp, motion.spatialFast(), label = "thumb-r")
@@ -606,7 +625,7 @@ private fun Scrubber(
                 .height(32.dp)
                 .semantics {
                     contentDescription = seekDescription
-                    stateDescription = formatDurationMs(baseMs) + " / " + formatDurationMs(durationMs)
+                    stateDescription = formatDurationMs(shownSeconds * 1000L) + " / " + formatDurationMs(durationMs)
                 }
                 .pointerInput(enabled, duration) {
                     if (!enabled) return@pointerInput
@@ -634,6 +653,7 @@ private fun Scrubber(
                 val top = (size.height - h) / 2f
                 val radius = CornerRadius(h / 2f, h / 2f)
                 drawRoundRect(trackColor, Offset(0f, top), Size(size.width, h), radius)
+                val fraction = currentFraction()
                 drawRoundRect(accent, Offset(0f, top), Size(size.width * fraction, h), radius)
                 if (enabled) {
                     drawCircle(thumbColor, thumbRadius.toPx(), Offset(size.width * fraction, size.height / 2f))
@@ -641,8 +661,7 @@ private fun Scrubber(
             }
         }
         Row {
-            val shown = dragFraction?.let { (it * duration).toLong() } ?: baseMs
-            ResonanceMetric(text = formatDurationMs(shown))
+            ResonanceMetric(text = formatDurationMs(shownSeconds * 1000L))
             Spacer(Modifier.weight(1f))
             ResonanceMetric(text = formatDurationMs(durationMs))
         }

@@ -20,6 +20,9 @@ enum class SongSort { TITLE, ARTIST, ALBUM, DATE_ADDED, LAST_PLAYED, PLAY_COUNT 
 interface MusicRepository {
     fun observeSongs(sort: SongSort = SongSort.TITLE): Flow<List<Song>>
 
+    /** Sets (or with null clears) the genre of [songIds]; kept across rescans. */
+    suspend fun setGenre(songIds: List<Long>, genre: String?)
+
     /** Plays recorded since [sinceSec] (epoch seconds), for listening stats. */
     fun observeHistorySince(sinceSec: Long): Flow<List<HistoryPlay>>
     suspend fun getSong(id: Long): Result<Song>

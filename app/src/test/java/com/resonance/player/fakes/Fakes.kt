@@ -112,6 +112,8 @@ class FakeMusicRepository(songs: List<Song> = listOf(testSong(1L), testSong(2L))
     override fun observeRecentlyPlayed(limit: Int): Flow<List<Song>> =
         flowOf(backing.take(limit))
 
+    override suspend fun setGenre(songIds: List<Long>, genre: String?) = Unit
+
     override fun observeHistorySince(sinceSec: Long): Flow<List<com.resonance.player.domain.library.HistoryPlay>> =
         flowOf(emptyList())
 

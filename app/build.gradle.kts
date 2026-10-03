@@ -109,6 +109,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.androidx.palette)
     implementation(libs.androidx.documentfile)
+    // Drag-to-reorder for lazy lists (Apache-2.0).
+    implementation(libs.reorderable)
 
     // Import (ADR-013): yt-dlp + ffmpeg packaged for Android (GPL-3.0, same as Seal / YTDLnis).
     implementation(libs.youtubedl.android)

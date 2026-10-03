@@ -176,7 +176,7 @@
     <string name="home_section_import">Додати музику</string>
     <string name="home_section_quick_actions">Швидкі кнопки</string>
     <string name="home_section_most_played">Найчастіше слухаєте</string>
-    <string name="home_editor_body">Вмикайте й вимикайте блоки, стрілками міняйте порядок. Головна оновлюється одразу.</string>
+    <string name="home_editor_body">Вмикайте й вимикайте блоки. Затисніть рядок і перетягніть, щоб змінити порядок. Головна оновлюється одразу.</string>
     <string name="home_editor_cards">Розмір карток</string>
     <string name="home_editor_compact">Компактні</string>
     <string name="home_editor_large">Великі</string>
@@ -229,4 +229,14 @@
     <string name="source_album">Альбом</string>
     <string name="source_artist">Виконавець</string>
     <string name="source_playlist">Плейлист</string>
+    <string name="action_done">Готово</string>
+    <string name="playlist_edit">Редагувати</string>
+    <string name="cd_drag_named">Перетягнути: %1$s</string>
+    <string name="genre_edit_title">Жанр</string>
+    <string name="genre_edit_hint">Жанр, наприклад Synthwave</string>
+    <string name="genre_edit_save">Зберегти</string>
+    <string name="genre_edit_action">Змінити жанр</string>
+    <string name="genre_edit_all">Жанр для всіх</string>
+    <string name="genre_rename">Перейменувати жанр</string>
+    <string name="playlist_delete_action">Видалити плейлист</string>
 </resources>

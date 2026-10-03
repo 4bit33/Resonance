@@ -8,6 +8,7 @@ import com.resonance.player.core.database.MIGRATION_1_2
 import com.resonance.player.core.database.MIGRATION_2_3
 import com.resonance.player.core.database.MIGRATION_3_4
 import com.resonance.player.core.database.MIGRATION_4_5
+import com.resonance.player.core.database.MIGRATION_5_6
 import com.resonance.player.core.database.ResonanceDatabase
 import com.resonance.player.core.playback.PlaybackController
 import com.resonance.player.data.local.DataStoreSettingsRepository
@@ -64,6 +65,7 @@ import com.resonance.player.domain.playlists.RemoveSongFromPlaylistUseCase
 import com.resonance.player.domain.playlists.RenamePlaylistUseCase
 import com.resonance.player.domain.playlists.SetPlaylistCoverUseCase
 import com.resonance.player.domain.library.ObserveListeningStatsUseCase
+import com.resonance.player.domain.library.SetGenreUseCase
 import com.resonance.player.data.media.FilePlaylistCoverStore
 import com.resonance.player.data.importer.ImportDestination
 import com.resonance.player.data.importer.YtDlpEngine
@@ -112,7 +114,7 @@ class AppContainer(context: Context) {
 
     val database: ResonanceDatabase by lazy {
         Room.databaseBuilder(appContext, ResonanceDatabase::class.java, "resonance.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
             .build()
     }
@@ -213,6 +215,10 @@ class AppContainer(context: Context) {
     val observeArtists = ObserveArtistsUseCase(musicRepository)
     val observeGenres = ObserveGenresUseCase(musicRepository)
     val observeListeningStats = ObserveListeningStatsUseCase(musicRepository)
+    val setGenre = SetGenreUseCase(musicRepository)
+
+    /** Ticks after the user edits tags, so pages that loaded songs once can reload. */
+    val libraryEdits = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val observeFolders = ObserveFoldersUseCase(musicRepository)
     val getAlbumSongs = GetAlbumSongsUseCase(musicRepository)
     val getFolderSongs = GetFolderSongsUseCase(musicRepository)

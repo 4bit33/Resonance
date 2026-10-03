@@ -63,6 +63,10 @@ import com.resonance.player.core.ui.adaptive.WindowWidthSize
 import com.resonance.player.core.model.SourceKind
 import com.resonance.player.core.ui.adaptive.rememberWindowWidthSize
 import com.resonance.player.core.ui.components.ArtworkImage
+import com.resonance.player.core.ui.components.GenreDialog
+import com.resonance.player.core.model.Song
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.resonance.player.core.ui.components.LocalMusicActions
 import com.resonance.player.core.ui.components.MusicActions
 import com.resonance.player.core.ui.components.NavDockDestination
@@ -151,11 +155,13 @@ fun ResonanceAppShell(container: AppContainer) {
     val addSongsPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) scope.launch { container.addSources(SourceKind.FILE, uris.map { it.toString() }) }
     }
+    var genreTarget by remember { mutableStateOf<GenreTarget?>(null) }
     val musicActions = remember {
         MusicActions(
             addFolder = { initialUri -> addFolderPicker.launch(initialUri?.let(Uri::parse)) },
             addSongs = { addSongsPicker.launch(arrayOf("audio/*")) },
-            removeSong = { song -> scope.launch { container.removeSong(song.id) } }
+            removeSong = { song -> scope.launch { container.removeSong(song.id) } },
+            editGenre = { songs, onSaved -> genreTarget = GenreTarget(songs, onSaved) }
         )
     }
 
@@ -312,7 +318,8 @@ fun ResonanceAppShell(container: AppContainer) {
                             container.getGenreSongs,
                             container.getFolderSongs,
                             container.playSongs,
-                            container.setShuffleMode
+                            container.setShuffleMode,
+                            container.libraryEdits
                         )
                     }
                 )
@@ -592,6 +599,25 @@ fun ResonanceAppShell(container: AppContainer) {
         } else {
             0.dp
         }
+        genreTarget?.let { target ->
+            val genresFlow = remember { container.observeGenres() }
+            val genres by genresFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+            GenreDialog(
+                songCount = target.songs.size,
+                current = target.songs.map { it.genreName }.distinct().singleOrNull(),
+                genres = genres,
+                onSave = { genre ->
+                    val clean = genre?.trim()?.takeIf { it.isNotEmpty() }
+                    genreTarget = null
+                    scope.launch {
+                        container.setGenre(target.songs.map { it.id }, clean)
+                        container.libraryEdits.tryEmit(Unit)
+                        target.onSaved(clean)
+                    }
+                },
+                onDismiss = { genreTarget = null }
+            )
+        }
         SnackbarHost(
             hostState = snackbarHostState,
             snackbar = { data -> ResonanceSnackbar(data) },
@@ -652,6 +678,9 @@ private fun NavGraphBuilder.screen(
         Box(Modifier.fillMaxSize().statusBarsPadding()) { scope.content(entry) }
     }
 }
+
+/** Songs waiting in the genre dialog, and what to do once a genre is saved. */
+private class GenreTarget(val songs: List<Song>, val onSaved: (String?) -> Unit)
 
 private inline fun <reified T : ViewModel> factory(crossinline create: () -> T): ViewModelProvider.Factory =
     object : ViewModelProvider.Factory {

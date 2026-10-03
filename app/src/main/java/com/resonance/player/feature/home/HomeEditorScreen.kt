@@ -1,5 +1,18 @@
 package com.resonance.player.feature.home
 
+import sh.calvin.reorderable.rememberReorderableLazyListState
+import sh.calvin.reorderable.ReorderableItem
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,13 +24,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -69,19 +81,38 @@ fun homeSectionName(section: HomeSection): String = stringResource(
     }
 )
 
-/** Turn Home blocks on/off, reorder them, pick the card size. Saved on every change. */
+/** Turn Home blocks on/off and drag them into order (long-press a row, or the handle). Saved on every change. */
 @Composable
 fun HomeEditorScreen(viewModel: HomeEditorViewModel, onBack: () -> Unit) {
     val layout by viewModel.layout.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
+    val haptics = LocalHapticFeedback.current
+    var order by remember { mutableStateOf(layout.sections) }
+    var dragging by remember { mutableStateOf(false) }
+    LaunchedEffect(layout) { if (!dragging) order = layout.sections }
+    val listState = rememberLazyListState()
+    val reorder = rememberReorderableLazyListState(listState) { from, to ->
+        val fromIndex = order.indexOfFirst { it.section.name == from.key }
+        val toIndex = order.indexOfFirst { it.section.name == to.key }
+        if (fromIndex >= 0 && toIndex >= 0) {
+            order = order.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+    fun commit() {
+        dragging = false
+        val sections = order.map { it.section }
+        viewModel.update { it.reordered(sections) }
+    }
     Column(Modifier.fillMaxSize()) {
         ResonanceTopBar(title = stringResource(R.string.home_customize), onBack = onBack)
         LazyColumn(
+            state = listState,
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item {
+            item(key = "intro") {
                 Text(
                     stringResource(R.string.home_editor_body),
                     style = typography.bodyMd,
@@ -101,43 +132,66 @@ fun HomeEditorScreen(viewModel: HomeEditorViewModel, onBack: () -> Unit) {
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
             }
-            itemsIndexed(layout.sections, key = { _, setting -> setting.section.name }) { index, setting ->
-                val name = homeSectionName(setting.section)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .animateItem()
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(if (setting.enabled) colors.surfaceContainer else colors.surfaceLow)
-                        .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)
-                ) {
-                    Text(
-                        name,
-                        style = typography.titleMd,
-                        color = if (setting.enabled) colors.textPrimary else colors.textSecondary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    ResonanceSwitch(
-                        checked = setting.enabled,
-                        onCheckedChange = { viewModel.update { it.toggled(setting.section) } }
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    IconButton(
-                        onClick = { viewModel.update { it.moved(setting.section, -1) } },
-                        enabled = index > 0
+            items(order, key = { it.section.name }) { setting ->
+                ReorderableItem(reorder, key = setting.section.name) { isDragging ->
+                    val name = homeSectionName(setting.section)
+                    val lift by animateDpAsState(if (isDragging) 12.dp else 0.dp, ResonanceTheme.motion.spatialFast(), label = "lift")
+                    val scale by animateFloatAsState(if (isDragging) 1.04f else 1f, ResonanceTheme.motion.expressive(), label = "scale")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                            .shadow(lift, RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                when {
+                                    isDragging -> colors.surfaceHighest
+                                    setting.enabled -> colors.surfaceContainer
+                                    else -> colors.surfaceLow
+                                }
+                            )
+                            .longPressDraggableHandle(
+                                onDragStarted = {
+                                    dragging = true
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                },
+                                onDragStopped = { commit() }
+                            )
+                            .padding(start = 4.dp, end = 12.dp, top = 6.dp, bottom = 6.dp)
                     ) {
-                        Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = stringResource(R.string.cd_move_up, name))
-                    }
-                    IconButton(
-                        onClick = { viewModel.update { it.moved(setting.section, 1) } },
-                        enabled = index < layout.sections.lastIndex
-                    ) {
-                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_move_down, name))
+                        Icon(
+                            Icons.Rounded.DragIndicator,
+                            contentDescription = stringResource(R.string.cd_drag_named, name),
+                            tint = colors.textSecondary,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .padding(12.dp)
+                                .draggableHandle(
+                                    onDragStarted = {
+                                        dragging = true
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    },
+                                    onDragStopped = { commit() }
+                                )
+                        )
+                        Text(
+                            name,
+                            style = typography.titleMd,
+                            color = if (setting.enabled) colors.textPrimary else colors.textSecondary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ResonanceSwitch(
+                            checked = setting.enabled,
+                            onCheckedChange = { viewModel.update { it.toggled(setting.section) } }
+                        )
                     }
                 }
             }
-            item {
+            item(key = "reset") {
                 TextButton(onClick = { viewModel.update { HomeLayout.Default } }) {
                     Text(stringResource(R.string.home_editor_reset))
                 }

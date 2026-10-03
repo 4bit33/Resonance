@@ -217,6 +217,13 @@ class RoomMusicRepository(
     override fun observeRecentlyPlayed(limit: Int): Flow<List<Song>> =
         withFavorites(database.songDao().observeRecentlyPlayedLimited(limit))
 
+    override suspend fun setGenre(songIds: List<Long>, genre: String?) {
+        if (songIds.isEmpty()) return
+        withContext(dispatchers.io) {
+            songIds.chunked(500).forEach { database.genreOverrideDao().override(it, genre) }
+        }
+    }
+
     override fun observeHistorySince(sinceSec: Long): Flow<List<HistoryPlay>> =
         database.historyDao().observePlaysSince(sinceSec).map { rows ->
             rows.map { HistoryPlay(it.durationMs, it.genreName, it.artistName) }

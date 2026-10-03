@@ -174,7 +174,7 @@
     <string name="home_section_import">Add music</string>
     <string name="home_section_quick_actions">Quick buttons</string>
     <string name="home_section_most_played">Most played</string>
-    <string name="home_editor_body">Turn blocks on or off and move them with the arrows. Home changes right away.</string>
+    <string name="home_editor_body">Turn blocks on or off. Hold a row and drag it to move it. Home changes right away.</string>
     <string name="home_editor_cards">Card size</string>
     <string name="home_editor_compact">Compact</string>
     <string name="home_editor_large">Large</string>
@@ -225,4 +225,14 @@
     <string name="source_album">Album</string>
     <string name="source_artist">Artist</string>
     <string name="source_playlist">Playlist</string>
+    <string name="action_done">Done</string>
+    <string name="playlist_edit">Edit</string>
+    <string name="cd_drag_named">Drag: %1$s</string>
+    <string name="genre_edit_title">Genre</string>
+    <string name="genre_edit_hint">Genre, e.g. Synthwave</string>
+    <string name="genre_edit_save">Save</string>
+    <string name="genre_edit_action">Change genre</string>
+    <string name="genre_edit_all">Genre for all</string>
+    <string name="genre_rename">Rename genre</string>
+    <string name="playlist_delete_action">Delete playlist</string>
 </resources>

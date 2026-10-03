@@ -1,5 +1,7 @@
 package com.resonance.player.core.database
 
+import com.resonance.player.core.database.dao.GenreOverrideDao
+import com.resonance.player.core.database.entity.GenreOverrideEntity
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.resonance.player.core.database.dao.ExcludedSongDao
@@ -22,7 +24,7 @@ import com.resonance.player.core.database.entity.SourceEntity
  * scan; songs carry a stable id and belong to a source (ADR-010). Upgrade
  * from v2 is the hand-written [MIGRATION_2_3] (clean start for songs); v3 -> v4
  * ([MIGRATION_3_4]) adds the excluded-songs table and keeps all data; v4 -> v5
- * ([MIGRATION_4_5]) adds playlist covers.
+ * ([MIGRATION_4_5]) adds playlist covers; v5 -> v6 ([MIGRATION_5_6]) adds genre overrides.
  */
 @Database(
     entities = [
@@ -32,9 +34,10 @@ import com.resonance.player.core.database.entity.SourceEntity
         PlaylistEntity::class,
         PlaylistItemEntity::class,
         FavoriteEntity::class,
-        HistoryEntryEntity::class
+        HistoryEntryEntity::class,
+        GenreOverrideEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class ResonanceDatabase : RoomDatabase() {
@@ -44,4 +47,5 @@ abstract class ResonanceDatabase : RoomDatabase() {
     abstract fun playlistDao(): PlaylistDao
     abstract fun favoriteDao(): FavoriteDao
     abstract fun historyDao(): HistoryDao
+    abstract fun genreOverrideDao(): GenreOverrideDao
 }

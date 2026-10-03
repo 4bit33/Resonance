@@ -1,5 +1,10 @@
 package com.resonance.player.feature.library
 
+import kotlinx.coroutines.flow.Flow
+import com.resonance.player.core.ui.components.LocalMusicActions
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.rounded.Sell
+import androidx.compose.foundation.combinedClickable
 import com.resonance.player.domain.playback.PlaybackSource
 import android.os.Build
 import androidx.compose.foundation.background
@@ -74,35 +79,55 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class CollectionViewModel(
-    val ref: CollectionRef,
+    initialRef: CollectionRef,
     private val getAlbumSongs: GetAlbumSongsUseCase,
     private val getArtistSongs: GetArtistSongsUseCase,
     private val getGenreSongs: GetGenreSongsUseCase,
     private val getFolderSongs: GetFolderSongsUseCase,
     private val playSongs: PlaySongsUseCase,
-    private val setShuffleMode: SetShuffleModeUseCase
+    private val setShuffleMode: SetShuffleModeUseCase,
+    libraryEdits: Flow<Unit>
 ) : ViewModel() {
+    /** A genre page follows its genre when it is renamed. */
+    private val refMutable = MutableStateFlow(initialRef)
+    val refState: StateFlow<CollectionRef> = refMutable.asStateFlow()
+    val ref: CollectionRef get() = refMutable.value
+
     /** null while loading. */
     private val songsMutable = MutableStateFlow<List<Song>?>(null)
     val songs: StateFlow<List<Song>?> = songsMutable.asStateFlow()
 
     init {
+        reload()
+        viewModelScope.launch { libraryEdits.collect { reload() } }
+    }
+
+    private fun reload() {
         viewModelScope.launch {
-            val result = when (ref) {
-                is CollectionRef.Album -> getAlbumSongs(ref.name, ref.albumArtist)
-                is CollectionRef.Artist -> getArtistSongs(ref.name)
-                is CollectionRef.Genre -> getGenreSongs(ref.name)
-                is CollectionRef.Folder -> getFolderSongs(ref.path.ifBlank { null })
+            val current = ref
+            val result = when (current) {
+                is CollectionRef.Album -> getAlbumSongs(current.name, current.albumArtist)
+                is CollectionRef.Artist -> getArtistSongs(current.name)
+                is CollectionRef.Genre -> getGenreSongs(current.name)
+                is CollectionRef.Folder -> getFolderSongs(current.path.ifBlank { null })
             }
             songsMutable.value = (result as? Result.Success)?.value.orEmpty()
         }
     }
 
-    private val source: PlaybackSource = when (ref) {
-        is CollectionRef.Album -> PlaybackSource(PlaybackSource.Kind.ALBUM, ref.name)
-        is CollectionRef.Artist -> PlaybackSource(PlaybackSource.Kind.ARTIST, ref.name)
-        is CollectionRef.Genre -> PlaybackSource(PlaybackSource.Kind.GENRE, ref.name)
-        is CollectionRef.Folder -> PlaybackSource(PlaybackSource.Kind.FOLDER, ref.name)
+    /** After the genre of a whole genre page was changed, show the new genre. */
+    fun genreRenamed(newGenre: String?) {
+        if (ref is CollectionRef.Genre && newGenre != null) {
+            refMutable.value = CollectionRef.Genre(newGenre)
+            reload()
+        }
+    }
+
+    private val source: PlaybackSource get() = when (val r = ref) {
+        is CollectionRef.Album -> PlaybackSource(PlaybackSource.Kind.ALBUM, r.name)
+        is CollectionRef.Artist -> PlaybackSource(PlaybackSource.Kind.ARTIST, r.name)
+        is CollectionRef.Genre -> PlaybackSource(PlaybackSource.Kind.GENRE, r.name)
+        is CollectionRef.Folder -> PlaybackSource(PlaybackSource.Kind.FOLDER, r.name)
     }
 
     fun playFrom(index: Int) {
@@ -132,7 +157,8 @@ fun CollectionScreen(
     onSongClick: (Long) -> Unit
 ) {
     val songs by viewModel.songs.collectAsStateWithLifecycle()
-    val ref = viewModel.ref
+    val ref by viewModel.refState.collectAsStateWithLifecycle()
+    val actions = LocalMusicActions.current
     val list = songs.orEmpty()
     val cover = list.firstNotNullOfOrNull { it.artworkUri }
     val palette = rememberArtworkPalette(cover, ResonanceTheme.look.artworkColors)
@@ -157,9 +183,23 @@ fun CollectionScreen(
     ) {
         LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), modifier = Modifier.fillMaxSize()) {
             item(key = "top") {
-                Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 4.dp, top = 4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(start = 4.dp, end = 8.dp, top = 4.dp)
+                ) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.cd_back), tint = colors.textPrimary)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    if (list.isNotEmpty()) {
+                        TextButton(onClick = { actions.editGenre(list) { viewModel.genreRenamed(it) } }) {
+                            Icon(Icons.Rounded.Sell, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textPrimary)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                stringResource(if (ref is CollectionRef.Genre) R.string.genre_rename else R.string.genre_edit_all),
+                                color = colors.textPrimary
+                            )
+                        }
                     }
                 }
             }
@@ -210,7 +250,8 @@ fun CollectionScreen(
                     leadingNumber = if (isAlbum) (song.trackNumber ?: (index + 1)) else null,
                     isCurrent = song.id == currentSongId,
                     accent = palette.accent,
-                    showArtist = ref !is CollectionRef.Artist
+                    showArtist = ref !is CollectionRef.Artist,
+                    onLongClick = { actions.editGenre(listOf(song)) {} }
                 ) {
                     viewModel.playFrom(index)
                     onSongClick(song.id)
@@ -323,6 +364,7 @@ private fun ActionPill(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun CollectionSongRow(
     song: Song,
@@ -330,6 +372,7 @@ private fun CollectionSongRow(
     isCurrent: Boolean,
     accent: Color,
     showArtist: Boolean,
+    onLongClick: () -> Unit,
     onClick: () -> Unit
 ) {
     val colors = ResonanceTheme.colors
@@ -338,7 +381,7 @@ private fun CollectionSongRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .pressClickable(pressedScale = 0.98f, onClickLabel = song.title, onClick = onClick)
+            .combinedClickable(onClickLabel = song.title, onLongClick = onLongClick, onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 8.dp)
     ) {
         if (leadingNumber != null) {

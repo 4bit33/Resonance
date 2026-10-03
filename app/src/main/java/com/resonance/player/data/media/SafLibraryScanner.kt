@@ -167,6 +167,14 @@ class SafLibraryScanner(
                 Log.w(TAG, "Post-scan housekeeping failed", e)
             }
 
+            // Genres the user set by hand win over the tags just read.
+            try {
+                database.genreOverrideDao().applyAll()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Genre overrides failed", e)
+            }
+
             val report = ScanReport(added, updated, removed, failed, seen.size)
             Log.i(
                 TAG,

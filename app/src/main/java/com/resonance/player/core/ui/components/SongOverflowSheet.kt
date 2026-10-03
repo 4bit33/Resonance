@@ -1,4 +1,4 @@
-﻿package com.resonance.player.core.ui.components
+package com.resonance.player.core.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.AddToQueue
 import androidx.compose.material.icons.filled.RemoveCircleOutline
+import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -95,6 +96,14 @@ fun SongOverflowSheet(
                 onClick = onAddToPlaylist
             )
         }
+        OverflowAction(
+            icon = Icons.Filled.Sell,
+            label = stringResource(R.string.genre_edit_action),
+            onClick = {
+                musicActions.editGenre(listOf(song)) {}
+                onDismiss()
+            }
+        )
         OverflowAction(
             icon = Icons.Filled.RemoveCircleOutline,
             label = stringResource(R.string.action_remove_from_library),

@@ -92,17 +92,25 @@ private fun decodeSmall(context: Context, uri: Uri): Bitmap? {
 /**
  * The palette for [artworkUri], animated: when the song changes, every color
  * flows to the new cover's colors instead of jumping.
+ *
+ * A cover seen before starts on its cached colors right away, and an unseen
+ * one starts from the last palette shown anywhere, so a screen that opens
+ * (Now Playing, a page, the mini player coming back) never flashes the plain
+ * accent before turning into the artwork's colors.
  */
 @Composable
 fun rememberArtworkPalette(artworkUri: String?, enabled: Boolean = true): ArtworkPalette {
     val context = LocalContext.current
     val fallback = ArtworkPalette.fromAccent(ResonanceTheme.colors.accent)
-    val target by produceState(fallback, artworkUri, enabled, fallback) {
+    val known = if (enabled && !artworkUri.isNullOrBlank()) paletteCache.get(artworkUri) else null
+    val initial = known ?: if (enabled) lastShownPalette ?: fallback else fallback
+    val target by produceState(initial, artworkUri, enabled, fallback) {
         value = if (enabled && !artworkUri.isNullOrBlank()) {
             extractPalette(context.applicationContext, artworkUri) ?: fallback
         } else {
             fallback
         }
+        if (enabled) lastShownPalette = value
     }
     val motion = ResonanceTheme.motion
     val accent by animateColorAsState(target.accent, motion.colorChange(), label = "palette-accent")
@@ -111,3 +119,6 @@ fun rememberArtworkPalette(artworkUri: String?, enabled: Boolean = true): Artwor
     val surface by animateColorAsState(target.surface, motion.colorChange(), label = "palette-surface")
     return ArtworkPalette(accent, glow, background, surface)
 }
+
+/** The most recent artwork palette any screen settled on (process-wide, main thread). */
+private var lastShownPalette: ArtworkPalette? = null

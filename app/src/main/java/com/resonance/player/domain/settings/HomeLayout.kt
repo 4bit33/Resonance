@@ -38,6 +38,13 @@ data class HomeLayout(
         return copy(sections = list)
     }
 
+    /** The same settings in the given section order (sections missing from [order] keep their place at the end). */
+    fun reordered(order: List<HomeSection>): HomeLayout {
+        val byId = sections.associateBy { it.section }
+        val front = order.mapNotNull { byId[it] }
+        return copy(sections = front + sections.filter { it.section !in order })
+    }
+
     companion object {
         private val defaultOn = listOf(
             HomeSection.GREETING,
