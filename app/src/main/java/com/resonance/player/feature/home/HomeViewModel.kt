@@ -1,5 +1,6 @@
 package com.resonance.player.feature.home
 
+import com.resonance.player.domain.playback.PlaybackSource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.common.Result
@@ -103,8 +104,8 @@ class HomeViewModel(private val deps: HomeDependencies) : ViewModel() {
 
     val scanState: StateFlow<ScanState> = deps.observeScanState().state(ScanState.Idle)
 
-    fun playFrom(songs: List<Song>, index: Int) {
-        viewModelScope.launch { deps.playSongs(songs, index) }
+    fun playFrom(songs: List<Song>, index: Int, source: PlaybackSource? = null) {
+        viewModelScope.launch { deps.playSongs(songs, index, source) }
     }
 
     fun togglePlayPause() {
@@ -117,7 +118,7 @@ class HomeViewModel(private val deps: HomeDependencies) : ViewModel() {
 
     private suspend fun shuffle(songs: List<Song>) {
         if (songs.isEmpty()) return
-        deps.playSongs(songs, songs.indices.random())
+        deps.playSongs(songs, songs.indices.random(), PlaybackSource(PlaybackSource.Kind.SHUFFLE_ALL))
         deps.setShuffleMode(ShuffleMode.ON)
     }
 

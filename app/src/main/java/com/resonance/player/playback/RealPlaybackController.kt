@@ -403,7 +403,9 @@ class RealPlaybackController(
         }
         mutable.value = SnapshotMapper.build(
             PlayerSnapshotInput(
-                isPlaying = c.isPlaying,
+                // A seek or a slow file makes the player buffer for a moment; the user
+                // did not pause, so the UI must not flash "paused" (play icon, shrink, glow dip).
+                isPlaying = c.isPlaying || (c.playWhenReady && c.playbackState == Player.STATE_BUFFERING),
                 isBuffering = c.playbackState == Player.STATE_BUFFERING,
                 positionMs = c.currentPosition,
                 durationMs = c.duration,

@@ -1,5 +1,7 @@
 package com.resonance.player.feature.player
 
+import com.resonance.player.domain.playback.PlaybackSource
+import com.resonance.player.domain.playback.PlaybackSourceStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.common.AppError
@@ -44,8 +46,12 @@ class PlayerViewModel(
     private val setShuffleMode: SetShuffleModeUseCase,
     private val setRepeatMode: SetRepeatModeUseCase,
     private val toggleFavorite: ToggleFavoriteUseCase,
-    observeFavoriteIds: ObserveFavoriteIdsUseCase
+    observeFavoriteIds: ObserveFavoriteIdsUseCase,
+    playbackSources: PlaybackSourceStore
 ) : ViewModel() {
+
+    /** What the queue was started from (playlist, album...), for the header. */
+    val source: StateFlow<PlaybackSource?> = playbackSources.current
 
     val snapshot: StateFlow<PlaybackSnapshot> = playback.snapshot
 

@@ -72,6 +72,7 @@ import com.resonance.player.core.ui.theme.ResonanceTheme
 import com.resonance.player.core.ui.theme.rememberArtworkPalette
 import com.resonance.player.domain.library.CollectionRef
 import com.resonance.player.domain.library.ListeningStats
+import com.resonance.player.domain.playback.PlaybackSource
 import com.resonance.player.domain.settings.HomeSection
 import java.util.Calendar
 
@@ -170,8 +171,7 @@ fun HomeScreen(
                         HomeSection.MOST_PLAYED -> {
                             val songs by viewModel.mostPlayed.collectAsStateWithLifecycle()
                             MostPlayed(songs) { index ->
-                                viewModel.playFrom(songs, index)
-                                onOpenPlayer(songs[index].id)
+                                viewModel.playFrom(songs, index, PlaybackSource(PlaybackSource.Kind.MOST_PLAYED))
                             }
                         }
                         HomeSection.GREETING -> Unit

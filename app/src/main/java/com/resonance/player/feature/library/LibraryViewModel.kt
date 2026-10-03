@@ -1,5 +1,6 @@
 package com.resonance.player.feature.library
 
+import com.resonance.player.domain.playback.PlaybackSource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.common.Result
@@ -104,7 +105,7 @@ class LibraryViewModel(
     val playlistError: StateFlow<String?> = playlistErrorMutable.asStateFlow()
 
     fun playFrom(songs: List<Song>, index: Int) {
-        viewModelScope.launch { playSongs(songs, index) }
+        viewModelScope.launch { playSongs(songs, index, PlaybackSource(PlaybackSource.Kind.LIBRARY)) }
     }
 
     /** Shuffle-all: play the visible list from the head, engine shuffles. */
@@ -112,7 +113,7 @@ class LibraryViewModel(
         val songs = (uiState.value as? LibraryUiState.Content)?.songs ?: return
         if (songs.isEmpty()) return
         viewModelScope.launch {
-            playSongs(songs, 0)
+            playSongs(songs, songs.indices.random(), PlaybackSource(PlaybackSource.Kind.SHUFFLE_ALL))
             setShuffleMode(ShuffleMode.ON)
         }
     }

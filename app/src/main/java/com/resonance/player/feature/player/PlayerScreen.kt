@@ -128,6 +128,7 @@ import com.resonance.player.core.ui.components.shouldDismiss
 import com.resonance.player.core.ui.theme.ArtworkPalette
 import com.resonance.player.core.ui.theme.ResonanceTheme
 import com.resonance.player.core.ui.theme.rememberArtworkPalette
+import com.resonance.player.domain.playback.PlaybackSource
 import kotlin.math.abs
 
 private val ArtworkShape = RoundedCornerShape(28.dp)
@@ -152,6 +153,7 @@ fun PlayerScreen(
     val details by viewModel.details.collectAsStateWithLifecycle()
     val commandError by viewModel.commandError.collectAsStateWithLifecycle()
     val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
+    val source by viewModel.source.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val output by remember(context) { observeAudioOutput(context.applicationContext) }
         .collectAsStateWithLifecycle(initialValue = null)
@@ -203,7 +205,8 @@ fun PlayerScreen(
                 .padding(horizontal = 24.dp)
         ) {
             PlayerTopBar(
-                albumName = song?.albumName,
+                label = sourceLabel(source),
+                name = source?.name ?: song?.albumName,
                 onClose = onBack,
                 onMore = { techSheetOpen = true },
                 moreEnabled = song != null
@@ -228,7 +231,8 @@ fun PlayerScreen(
             Scrubber(
                 positionMs = snapshot.positionMs,
                 durationMs = snapshot.durationMs,
-                playing = snapshot.isPlaying,
+                // While buffering the position is not moving: do not extrapolate it.
+                playing = snapshot.isPlaying && !snapshot.isBuffering,
                 enabled = hasQueue && snapshot.durationMs > 0L,
                 accent = palette.accent,
                 onSeek = viewModel::onSeek
@@ -309,7 +313,7 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun PlayerTopBar(albumName: String?, onClose: () -> Unit, onMore: () -> Unit, moreEnabled: Boolean) {
+private fun PlayerTopBar(label: String, name: String?, onClose: () -> Unit, onMore: () -> Unit, moreEnabled: Boolean) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(56.dp)) {
@@ -323,14 +327,14 @@ private fun PlayerTopBar(albumName: String?, onClose: () -> Unit, onMore: () -> 
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
             Text(
-                stringResource(R.string.now_playing_from_queue).uppercase(),
+                label.uppercase(),
                 style = typography.labelSm,
                 color = colors.textSecondary,
                 maxLines = 1
             )
-            if (!albumName.isNullOrBlank()) {
+            if (!name.isNullOrBlank()) {
                 Text(
-                    albumName,
+                    name,
                     style = typography.labelLg,
                     color = colors.textPrimary,
                     maxLines = 1,
@@ -343,6 +347,23 @@ private fun PlayerTopBar(albumName: String?, onClose: () -> Unit, onMore: () -> 
         }
     }
 }
+
+@Composable
+private fun sourceLabel(source: PlaybackSource?): String = stringResource(
+    when (source?.kind) {
+        null -> R.string.nav_player
+        PlaybackSource.Kind.LIBRARY -> R.string.nav_library
+        PlaybackSource.Kind.ALBUM -> R.string.source_album
+        PlaybackSource.Kind.ARTIST -> R.string.source_artist
+        PlaybackSource.Kind.GENRE -> R.string.collection_genre
+        PlaybackSource.Kind.FOLDER -> R.string.collection_folder
+        PlaybackSource.Kind.PLAYLIST -> R.string.source_playlist
+        PlaybackSource.Kind.FAVORITES -> R.string.home_favorites
+        PlaybackSource.Kind.SEARCH -> R.string.nav_search
+        PlaybackSource.Kind.MOST_PLAYED -> R.string.home_most_played
+        PlaybackSource.Kind.SHUFFLE_ALL -> R.string.home_shuffle_all
+    }
+)
 
 /**
  * The cover with its glow. The glow is the cover itself, blurred (Android 12+),

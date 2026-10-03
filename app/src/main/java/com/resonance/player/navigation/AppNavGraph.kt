@@ -161,10 +161,15 @@ fun ResonanceAppShell(container: AppContainer) {
 
     /** Bottom-nav/rail tab switches only: single-top with saved/restored tab state. */
     fun navigateToTab(route: String) {
-        navController.navigate(route) {
-            popUpTo(AppDestination.Home.route) { saveState = true }
+        // A tab always opens on its own first page: if it is already in the back
+        // stack, drop everything above it (a playlist, settings...), else push it
+        // right above Home. No saved/restored state: that is what left people
+        // stuck inside an old page when they tapped a tab.
+        if (navController.popBackStack(route, inclusive = false)) return
+        val target = if (route == AppDestination.Library.route) AppDestination.Library.routeFor(0) else route
+        navController.navigate(target) {
+            popUpTo(AppDestination.Home.route)
             launchSingleTop = true
-            restoreState = true
         }
     }
 
@@ -235,11 +240,11 @@ fun ResonanceAppShell(container: AppContainer) {
             navController = navController,
             startDestination = AppDestination.Home.route,
             modifier = modifier,
-            // Fade-through: the old screen leaves quickly, the new one settles in from 96%.
-            enterTransition = { fadeIn(motion.duration(220)) + scaleIn(motion.spatial(), initialScale = 0.96f) },
-            exitTransition = { fadeOut(motion.duration(90)) },
-            popEnterTransition = { fadeIn(motion.duration(220)) + scaleIn(motion.spatial(), initialScale = 0.96f) },
-            popExitTransition = { fadeOut(motion.duration(90)) }
+            // Quick fade-through: the old screen is gone in 70 ms, the new one settles in.
+            enterTransition = { fadeIn(motion.duration(150)) + scaleIn(motion.spatialFast(), initialScale = 0.985f) },
+            exitTransition = { fadeOut(motion.duration(70)) },
+            popEnterTransition = { fadeIn(motion.duration(150)) + scaleIn(motion.spatialFast(), initialScale = 0.985f) },
+            popExitTransition = { fadeOut(motion.duration(70)) }
         ) {
             screen(AppDestination.Home.route) {
                 val vm: HomeViewModel = viewModel(
@@ -315,7 +320,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     vm,
                     snapshot.song?.id,
                     onBack = { navController.popBackStack() },
-                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) }
+                    onSongClick = { /* a tap just plays; the mini player opens Now Playing */ }
                 )
             }
             screen(AppDestination.Import.route) {
@@ -357,7 +362,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     vm,
                     initialTab,
                     snapshot.song?.id,
-                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) },
+                    onSongClick = { /* a tap just plays; the mini player opens Now Playing */ },
                     onOpenSearch = { navigate(AppDestination.Search.route) },
                     onOpenCollection = ::openCollection,
                     onOpenFavorites = { navigate(AppDestination.Favorites.route) }
@@ -385,8 +390,8 @@ fun ResonanceAppShell(container: AppContainer) {
                     vm,
                     snapshot.song?.id,
                     onBack = { navController.popBackStack() },
-                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) },
-                    onOpenQueue = { navigate(AppDestination.Queue.route) },
+                    onSongClick = { /* a tap just plays; the mini player opens Now Playing */ },
+                    onOpenCollection = ::openCollection,
                     onOpenPlaylist = { navigate(AppDestination.PlaylistDetail.routeFor(it)) }
                 )
             }
@@ -437,7 +442,8 @@ fun ResonanceAppShell(container: AppContainer) {
                             container.setShuffleMode,
                             container.setRepeatMode,
                             container.toggleFavorite,
-                            container.observeFavoriteIds
+                            container.observeFavoriteIds,
+                            container.playbackSources
                         )
                     }
                 )
@@ -513,7 +519,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     vm,
                     playlists.firstOrNull { it.id == playlistId },
                     onBack = { navController.popBackStack() },
-                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) },
+                    onSongClick = { /* a tap just plays; the mini player opens Now Playing */ },
                     onDeleted = { navController.popBackStack() }
                 )
             }
@@ -535,7 +541,7 @@ fun ResonanceAppShell(container: AppContainer) {
                     vm,
                     snapshot.song?.id,
                     onBack = { navController.popBackStack() },
-                    onSongClick = { navigate(AppDestination.Player.routeFor(it)) }
+                    onSongClick = { /* a tap just plays; the mini player opens Now Playing */ }
                 )
             }
         }

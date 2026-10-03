@@ -1,5 +1,6 @@
 package com.resonance.player.app
 
+import com.resonance.player.domain.playback.PlaybackSourceStore
 import android.content.Context
 import androidx.room.Room
 import com.resonance.player.core.common.DefaultAppDispatchers
@@ -260,7 +261,8 @@ class AppContainer(context: Context) {
     val addSongToPlaylist = AddSongToPlaylistUseCase(playlistRepository)
     val removeSongFromPlaylist = RemoveSongFromPlaylistUseCase(playlistRepository)
     val movePlaylistItem = MovePlaylistItemUseCase(playlistRepository)
-    val playSongs = PlaySongsUseCase(playbackController)
+    val playbackSources = PlaybackSourceStore()
+    val playSongs = PlaySongsUseCase(playbackController, playbackSources)
     val playNext = PlayNextUseCase(playbackController)
     val togglePlayPause = TogglePlayPauseUseCase(playbackController)
     val seekTo = SeekToUseCase(playbackController)

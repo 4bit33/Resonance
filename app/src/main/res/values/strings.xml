@@ -7,7 +7,7 @@
     <string name="nav_search">Search</string>
     <string name="nav_settings">Settings</string>
     <string name="nav_player">Now Playing</string>
-    <string name="nav_queue">Queue</string>
+    <string name="nav_queue">Up next</string>
     <string name="nav_playlists">Playlists</string>
     <string name="empty_library_title">No music yet</string>
     <string name="empty_library_body">Add a folder with your music, or pick single songs. Your files stay where they are and never leave this device.</string>
@@ -222,4 +222,7 @@
         <item quantity="one">%1$d song added</item>
         <item quantity="other">%1$d songs added</item>
     </plurals>
+    <string name="source_album">Album</string>
+    <string name="source_artist">Artist</string>
+    <string name="source_playlist">Playlist</string>
 </resources>

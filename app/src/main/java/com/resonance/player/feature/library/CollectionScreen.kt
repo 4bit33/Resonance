@@ -1,5 +1,6 @@
 package com.resonance.player.feature.library
 
+import com.resonance.player.domain.playback.PlaybackSource
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -97,16 +98,23 @@ class CollectionViewModel(
         }
     }
 
+    private val source: PlaybackSource = when (ref) {
+        is CollectionRef.Album -> PlaybackSource(PlaybackSource.Kind.ALBUM, ref.name)
+        is CollectionRef.Artist -> PlaybackSource(PlaybackSource.Kind.ARTIST, ref.name)
+        is CollectionRef.Genre -> PlaybackSource(PlaybackSource.Kind.GENRE, ref.name)
+        is CollectionRef.Folder -> PlaybackSource(PlaybackSource.Kind.FOLDER, ref.name)
+    }
+
     fun playFrom(index: Int) {
         val list = songs.value ?: return
-        viewModelScope.launch { playSongs(list, index) }
+        viewModelScope.launch { playSongs(list, index, source) }
     }
 
     fun playAll(shuffled: Boolean) {
         val list = songs.value.orEmpty()
         if (list.isEmpty()) return
         viewModelScope.launch {
-            playSongs(list, if (shuffled) list.indices.random() else 0)
+            playSongs(list, if (shuffled) list.indices.random() else 0, source)
             setShuffleMode(if (shuffled) ShuffleMode.ON else ShuffleMode.OFF)
         }
     }

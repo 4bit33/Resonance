@@ -131,7 +131,7 @@ fun PlaylistsScreen(
             onPlay = {
                 viewModel.play(
                     playlist.id,
-                    onPlaying = { onOpenQueue() },
+                    playlist.name,
                     onEmpty = { onShowMessage(emptyPlaylistMessage) }
                 )
                 overflowPlaylist = null

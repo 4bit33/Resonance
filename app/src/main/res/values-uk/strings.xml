@@ -6,7 +6,7 @@
     <string name="nav_search">Пошук</string>
     <string name="nav_settings">Налаштування</string>
     <string name="nav_player">Зараз грає</string>
-    <string name="nav_queue">Черга</string>
+    <string name="nav_queue">Далі грає</string>
     <string name="nav_playlists">Плейлисти</string>
     <string name="empty_library_title">Музики ще немає</string>
     <string name="empty_library_body">Додайте папку з музикою або виберіть окремі пісні. Файли лишаються на своїх місцях і нікуди не передаються.</string>
@@ -226,4 +226,7 @@
         <item quantity="many">Додано %1$d пісень</item>
         <item quantity="other">Додано %1$d пісні</item>
     </plurals>
+    <string name="source_album">Альбом</string>
+    <string name="source_artist">Виконавець</string>
+    <string name="source_playlist">Плейлист</string>
 </resources>

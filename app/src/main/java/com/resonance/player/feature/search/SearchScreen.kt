@@ -1,5 +1,6 @@
 ﻿package com.resonance.player.feature.search
 
+import com.resonance.player.domain.library.CollectionRef
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,8 +43,8 @@ import androidx.compose.material.icons.filled.Search
 
 /**
  * Global search: debounced categorized results over the local index.
- * Songs play from the result list; albums/artists/genres play their
- * songs; playlists open their detail. Blank queries hit no database.
+ * Songs play from the result list; albums/artists/genres/playlists open
+ * their page. Blank queries hit no database.
  */
 @Composable
 fun SearchScreen(
@@ -51,7 +52,7 @@ fun SearchScreen(
     currentSongId: Long?,
     onBack: () -> Unit,
     onSongClick: (Long) -> Unit,
-    onOpenQueue: () -> Unit,
+    onOpenCollection: (CollectionRef) -> Unit,
     onOpenPlaylist: (Long) -> Unit
 ) {
     val query by viewModel.currentQuery.collectAsStateWithLifecycle()
@@ -131,10 +132,7 @@ fun SearchScreen(
                         title = album.name,
                         subtitle = album.artistName,
                         artUri = album.artUri,
-                        onClick = {
-                            viewModel.playAlbum(album.name, album.albumArtist)
-                            onOpenQueue()
-                        },
+                        onClick = { onOpenCollection(CollectionRef.Album(album.name, album.albumArtist)) },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -147,11 +145,8 @@ fun SearchScreen(
                     CategoryRow(
                         title = artist.name,
                         subtitle = artist.songCount.toString(),
-                        artUri = null,
-                        onClick = {
-                            viewModel.playArtist(artist.name)
-                            onOpenQueue()
-                        },
+                        artUri = artist.artUri,
+                        onClick = { onOpenCollection(CollectionRef.Artist(artist.name)) },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -178,11 +173,8 @@ fun SearchScreen(
                     CategoryRow(
                         title = genre.name,
                         subtitle = genre.songCount.toString(),
-                        artUri = null,
-                        onClick = {
-                            viewModel.playGenre(genre.name)
-                            onOpenQueue()
-                        },
+                        artUri = genre.artUri,
+                        onClick = { onOpenCollection(CollectionRef.Genre(genre.name)) },
                         modifier = Modifier.animateItem()
                     )
                 }

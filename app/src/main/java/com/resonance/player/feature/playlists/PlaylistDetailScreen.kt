@@ -150,13 +150,13 @@ fun PlaylistDetailScreen(
                 modifier = Modifier.weight(1f)
             )
             ResonanceIconButton(
-                onClick = { viewModel.playAll(shuffled = false) },
+                onClick = { viewModel.playAll(playlist?.name, shuffled = false) },
                 icon = Icons.Filled.PlayArrow,
                 contentDescription = stringResource(R.string.cd_play),
                 enabled = songs.isNotEmpty()
             )
             ResonanceIconButton(
-                onClick = { viewModel.playAll(shuffled = true) },
+                onClick = { viewModel.playAll(playlist?.name, shuffled = true) },
                 icon = Icons.Filled.Shuffle,
                 contentDescription = stringResource(R.string.cd_shuffle),
                 enabled = songs.isNotEmpty()
@@ -201,7 +201,7 @@ fun PlaylistDetailScreen(
                         )
                     },
                     onClick = {
-                        viewModel.playFrom(index)
+                        viewModel.playFrom(index, playlist?.name)
                         onSongClick(song.id)
                     },
                     modifier = Modifier.dragged(index),

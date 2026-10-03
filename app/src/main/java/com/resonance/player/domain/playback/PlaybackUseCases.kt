@@ -8,13 +8,18 @@ import com.resonance.player.core.model.Song
 import com.resonance.player.core.playback.PlaybackController
 
 /** Starts playback of an explicit queue. ViewModels call this, never ExoPlayer. */
-class PlaySongsUseCase(private val controller: PlaybackController) {
-    suspend operator fun invoke(queue: List<Song>, startIndex: Int = 0): Result<Unit> {
+class PlaySongsUseCase(
+    private val controller: PlaybackController,
+    private val sources: PlaybackSourceStore? = null
+) {
+    suspend operator fun invoke(queue: List<Song>, startIndex: Int = 0, source: PlaybackSource? = null): Result<Unit> {
         if (queue.isEmpty()) return Result.Failure(AppError.EmptyLibrary)
         if (startIndex !in queue.indices) {
             return Result.Failure(AppError.Unknown("Invalid queue position"))
         }
-        return controller.play(queue, startIndex)
+        val result = controller.play(queue, startIndex)
+        if (result is Result.Success) sources?.set(source)
+        return result
     }
 }
 
