@@ -93,8 +93,10 @@ fun ResonanceMiniPlayer(
     /** Vertical drag drives the Now Playing expansion (delta px, up is negative). */
     onExpandDrag: (Float) -> Unit = {},
     onExpandDragStopped: suspend (velocity: Float) -> Unit = {},
-    /** Where the cover thumbnail is on screen, so Now Playing can grow it into the big cover. */
-    onArtworkBounds: (Rect) -> Unit = {}
+    /** Where the cover, title, artist, play and next sit, so Now Playing can grow them into place. */
+    onAnchor: (PlayerAnchor, Rect) -> Unit = { _, _ -> },
+    /** 0 while their flying copies stand in for them (Now Playing opening). Read in the draw phase. */
+    anchorAlpha: () -> Float = { 1f }
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
@@ -165,7 +167,8 @@ fun ResonanceMiniPlayer(
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .onGloballyPositioned { onArtworkBounds(it.boundsInRoot()) }
+                    .playerAnchor(PlayerAnchor.Art, onAnchor)
+                    .graphicsLayer { alpha = anchorAlpha() }
                     .clip(RoundedCornerShape(12.dp))
             ) {
                 artwork()
@@ -177,21 +180,30 @@ fun ResonanceMiniPlayer(
                     style = typography.titleMd,
                     color = colors.textPrimary,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .playerAnchor(PlayerAnchor.Title, onAnchor)
+                        .graphicsLayer { alpha = anchorAlpha() }
                 )
                 Text(
                     artist,
                     style = typography.bodySm,
                     color = colors.textSecondary,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .playerAnchor(PlayerAnchor.Artist, onAnchor)
+                        .graphicsLayer { alpha = anchorAlpha() }
                 )
             }
             MiniPlayButton(
                 playing = isPlaying,
                 accent = accent,
                 description = if (isPlaying) pauseDescription else playDescription,
-                onClick = onToggle
+                onClick = onToggle,
+                shapeModifier = Modifier
+                    .playerAnchor(PlayerAnchor.Play, onAnchor)
+                    .graphicsLayer { alpha = anchorAlpha() }
             )
             if (onNext != null) {
                 IconButton(
@@ -201,7 +213,10 @@ fun ResonanceMiniPlayer(
                     Icon(
                         Icons.Rounded.SkipNext,
                         contentDescription = nextDescription,
-                        tint = colors.textPrimary
+                        tint = colors.textPrimary,
+                        modifier = Modifier
+                            .playerAnchor(PlayerAnchor.Next, onAnchor)
+                            .graphicsLayer { alpha = anchorAlpha() }
                     )
                 }
             }
@@ -218,9 +233,15 @@ fun ResonanceMiniPlayer(
     }
 }
 
-/** 40dp accent button: circle when paused, rounded square while playing. */
+/** 40dp accent button: circle when paused, the playing "cookie" while playing. */
 @Composable
-private fun MiniPlayButton(playing: Boolean, accent: Color, description: String, onClick: () -> Unit) {
+private fun MiniPlayButton(
+    playing: Boolean,
+    accent: Color,
+    description: String,
+    onClick: () -> Unit,
+    shapeModifier: Modifier = Modifier
+) {
     val colors = ResonanceTheme.colors
     val motion = ResonanceTheme.motion
     val morph = animateFloatAsState(if (playing) 1f else 0f, motion.spatial(), label = "mini-play-morph")
@@ -239,7 +260,7 @@ private fun MiniPlayButton(playing: Boolean, accent: Color, description: String,
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier
+            modifier = shapeModifier
                 .size(40.dp)
                 .graphicsLayer {
                     shape = MorphShape(PlayShapes.playPause, morph.value)

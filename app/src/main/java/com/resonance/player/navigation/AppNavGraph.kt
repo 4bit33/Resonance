@@ -1,5 +1,6 @@
 package com.resonance.player.navigation
 
+import com.resonance.player.core.ui.components.PlayerAnchors
 import com.resonance.player.feature.player.NowPlayingSheet
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -156,8 +157,7 @@ fun ResonanceAppShell(container: AppContainer) {
     var rootHeight by remember { mutableFloatStateOf(2000f) }
     var rootWidth by remember { mutableFloatStateOf(1000f) }
     var miniBounds by remember { mutableStateOf<Rect?>(null) }
-    var miniArtBounds by remember { mutableStateOf<Rect?>(null) }
-    var bigArtBounds by remember { mutableStateOf<Rect?>(null) }
+    val anchors = remember { PlayerAnchors() }
     val sheetMotion = ResonanceTheme.motion
     fun settleSheet(target: Float, velocity: Float = 0f) {
         scope.launch {
@@ -271,7 +271,8 @@ fun ResonanceAppShell(container: AppContainer) {
             onExpandDragStopped = { velocity ->
                 settleSheet(if (velocity < -800f || sheet.value > 0.3f) 1f else 0f, velocity)
             },
-            onArtworkBounds = { miniArtBounds = it }
+            onAnchor = { anchor, bounds -> if (anchors.mini[anchor] != bounds) anchors.mini[anchor] = bounds },
+            anchorAlpha = { if (sheet.value > 0f) 0f else 1f }
         )
     }
 
@@ -614,9 +615,12 @@ fun ResonanceAppShell(container: AppContainer) {
             NowPlayingSheet(
                 progress = { sheet.value },
                 miniBounds = miniBounds,
-                miniArtBounds = miniArtBounds,
-                bigArtBounds = bigArtBounds ?: estimatedCoverBounds(rootWidth, rootHeight),
+                anchors = anchors,
+                fallbackArt = estimatedCoverBounds(rootWidth, rootHeight),
                 artworkUri = song?.artworkUri,
+                title = song?.title.orEmpty(),
+                artist = song?.artistName.orEmpty(),
+                playing = snapshot.isPlaying,
                 palette = sheetPalette,
                 coverScale = if (snapshot.isPlaying) 1f else 0.86f
             ) {
@@ -651,15 +655,17 @@ fun ResonanceAppShell(container: AppContainer) {
                         settleSheet(if (velocity > 800f || sheet.value < 0.85f) 0f else 1f, velocity)
                     },
                     // Taken only at rest (open, or hidden while collapsed), so it never chases the moving content.
-                    onArtworkBounds = { bounds ->
+                    onAnchor = { anchor, bounds ->
                         val p = sheet.value
-                        when {
-                            p >= 0.999f -> bigArtBounds = bounds
+                        val resting = when {
+                            p >= 0.999f -> bounds
                             // Hidden while collapsed: undo the off-screen offset and the 8% rise.
-                            p <= 0f -> bigArtBounds = bounds.translate(0f, -(1_000_000f + rootHeight * 0.08f))
+                            p <= 0f -> bounds.translate(0f, -(1_000_000f + rootHeight * 0.08f))
+                            else -> null
                         }
+                        if (resting != null && anchors.big[anchor] != resting) anchors.big[anchor] = resting
                     },
-                    coverAlpha = { if (sheet.value >= 0.999f) 1f else 0f },
+                    anchorAlpha = { if (sheet.value >= 0.999f) 1f else 0f },
                     expanded = sheetExpanded
                 )
             }

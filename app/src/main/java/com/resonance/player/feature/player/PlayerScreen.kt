@@ -1,5 +1,7 @@
 package com.resonance.player.feature.player
 
+import com.resonance.player.core.ui.components.playerAnchor
+import com.resonance.player.core.ui.components.PlayerAnchor
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
 import com.resonance.player.core.ui.components.PlayShapes
@@ -161,10 +163,10 @@ fun PlayerScreen(
     /** Vertical drag on the screen: shrinks Now Playing back into the mini player (down is positive). */
     onCollapseDrag: (Float) -> Unit = {},
     onCollapseDragStopped: suspend (velocity: Float) -> Unit = {},
-    /** Where the big cover sits, for the cover flying in from the mini player. */
-    onArtworkBounds: (Rect) -> Unit = {},
-    /** 0 while the flying cover stands in for the real one. Read in the draw phase. */
-    coverAlpha: () -> Float = { 1f },
+    /** Where the cover, title, artist, play and next sit, for the pieces flying in from the mini player. */
+    onAnchor: (PlayerAnchor, Rect) -> Unit = { _, _ -> },
+    /** 0 while the flying copies stand in for those pieces. Read in the draw phase. */
+    anchorAlpha: () -> Float = { 1f },
     /** Fully open. The screen stays composed (hidden) under the mini player so opening has
      *  no heavy first frame; the costly glow only runs while this is true. */
     expanded: Boolean = true
@@ -222,8 +224,8 @@ fun PlayerScreen(
                 playing = snapshot.isPlaying,
                 onNext = viewModel::onNext,
                 onPrevious = viewModel::onPrevious,
-                onBounds = onArtworkBounds,
-                coverAlpha = coverAlpha,
+                onBounds = { onAnchor(PlayerAnchor.Art, it) },
+                coverAlpha = anchorAlpha,
                 expanded = expanded,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
@@ -232,7 +234,9 @@ fun PlayerScreen(
                 song = song,
                 isFavorite = isFavorite,
                 accent = palette.accent,
-                onToggleFavorite = viewModel::onToggleFavorite
+                onToggleFavorite = viewModel::onToggleFavorite,
+                onAnchor = onAnchor,
+                anchorAlpha = anchorAlpha
             )
             Spacer(Modifier.height(20.dp))
             Scrubber(
@@ -267,13 +271,19 @@ fun PlayerScreen(
                     playing = snapshot.isPlaying,
                     enabled = hasQueue,
                     accent = palette.accent,
-                    onClick = viewModel::onTogglePlayPause
+                    onClick = viewModel::onTogglePlayPause,
+                    anchorModifier = Modifier
+                        .playerAnchor(PlayerAnchor.Play, onAnchor)
+                        .graphicsLayer { alpha = anchorAlpha() }
                 )
                 TransportButton(
                     icon = Icons.Rounded.SkipNext,
                     contentDescription = stringResource(R.string.cd_next),
                     enabled = hasQueue,
-                    onClick = viewModel::onNext
+                    onClick = viewModel::onNext,
+                    iconModifier = Modifier
+                        .playerAnchor(PlayerAnchor.Next, onAnchor)
+                        .graphicsLayer { alpha = anchorAlpha() }
                 )
                 ToggleButton(
                     icon = if (snapshot.repeat == RepeatMode.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
@@ -516,7 +526,14 @@ private fun Artwork(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TitleRow(song: Song?, isFavorite: Boolean, accent: Color, onToggleFavorite: () -> Unit) {
+private fun TitleRow(
+    song: Song?,
+    isFavorite: Boolean,
+    accent: Color,
+    onToggleFavorite: () -> Unit,
+    onAnchor: (PlayerAnchor, Rect) -> Unit,
+    anchorAlpha: () -> Float
+) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val motion = ResonanceTheme.motion
@@ -529,7 +546,9 @@ private fun TitleRow(song: Song?, isFavorite: Boolean, accent: Color, onToggleFa
                     fadeOut(motion.duration(120))
             },
             label = "title",
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .graphicsLayer { alpha = anchorAlpha() }
         ) { shown ->
             Column {
                 Text(
@@ -537,7 +556,9 @@ private fun TitleRow(song: Song?, isFavorite: Boolean, accent: Color, onToggleFa
                     style = typography.headlineLg,
                     color = colors.textPrimary,
                     maxLines = 1,
-                    modifier = Modifier.basicMarquee(initialDelayMillis = 2000)
+                    modifier = Modifier
+                        .playerAnchor(PlayerAnchor.Title, onAnchor)
+                        .basicMarquee(initialDelayMillis = 2000)
                 )
                 if (shown != null) {
                     Text(
@@ -545,7 +566,8 @@ private fun TitleRow(song: Song?, isFavorite: Boolean, accent: Color, onToggleFa
                         style = typography.bodyLg,
                         color = colors.textSecondary,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.playerAnchor(PlayerAnchor.Artist, onAnchor)
                     )
                 }
             }
@@ -711,7 +733,13 @@ private fun Scrubber(
  * read in the layer, so none of it recomposes.
  */
 @Composable
-private fun PlayPauseButton(playing: Boolean, enabled: Boolean, accent: Color, onClick: () -> Unit) {
+private fun PlayPauseButton(
+    playing: Boolean,
+    enabled: Boolean,
+    accent: Color,
+    onClick: () -> Unit,
+    anchorModifier: Modifier = Modifier
+) {
     val colors = ResonanceTheme.colors
     val motion = ResonanceTheme.motion
     val haptics = LocalHapticFeedback.current
@@ -729,7 +757,7 @@ private fun PlayPauseButton(playing: Boolean, enabled: Boolean, accent: Color, o
     val label = stringResource(if (playing) R.string.cd_pause else R.string.cd_play)
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = anchorModifier
             .size(84.dp)
             .graphicsLayer {
                 scaleX = scale.value
@@ -769,7 +797,13 @@ private fun PlayPauseButton(playing: Boolean, enabled: Boolean, accent: Color, o
 }
 
 @Composable
-private fun TransportButton(icon: ImageVector, contentDescription: String, enabled: Boolean, onClick: () -> Unit) {
+private fun TransportButton(
+    icon: ImageVector,
+    contentDescription: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    iconModifier: Modifier = Modifier
+) {
     val colors = ResonanceTheme.colors
     val motion = ResonanceTheme.motion
     val interaction = remember { MutableInteractionSource() }
@@ -797,7 +831,7 @@ private fun TransportButton(icon: ImageVector, contentDescription: String, enabl
             icon,
             contentDescription = null,
             tint = if (enabled) colors.textPrimary else colors.textMuted,
-            modifier = Modifier.size(40.dp)
+            modifier = iconModifier.size(40.dp)
         )
     }
 }
