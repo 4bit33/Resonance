@@ -170,6 +170,7 @@ class SafLibraryScanner(
             // Genres the user set by hand win over the tags just read.
             try {
                 database.genreOverrideDao().applyAll()
+                database.tagOverrideDao().applyAll()
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Genre overrides failed", e)

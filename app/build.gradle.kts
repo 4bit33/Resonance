@@ -107,6 +107,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
+    // Cover thumbnails in the tag lookup results (ADR-013: only when the user searches).
+    implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.palette)
     implementation(libs.androidx.documentfile)
     // Drag-to-reorder for lazy lists (Apache-2.0).
@@ -129,6 +131,8 @@ dependencies {
     implementation(libs.androidx.media3.session)
 
     testImplementation(libs.junit)
+    // Android's org.json is a stub on the JVM; the real one for parser tests.
+    testImplementation(libs.org.json)
     testImplementation(libs.kotlinx.coroutines.test)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)

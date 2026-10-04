@@ -86,3 +86,14 @@ val MIGRATION_5_6: Migration = object : Migration(5, 6) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `genre_overrides` (`songId` INTEGER NOT NULL, `genre` TEXT, PRIMARY KEY(`songId`))")
     }
 }
+
+/** Schema v6 -> v7: tags fixed by hand or from an online lookup (laid over the file's tags after every scan). Additive. */
+val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `tag_overrides` (`songId` INTEGER NOT NULL, `title` TEXT, `artist` TEXT, " +
+                "`album` TEXT, `albumArtist` TEXT, `year` INTEGER, `trackNumber` INTEGER, `artworkKey` TEXT, " +
+                "`artworkUri` TEXT, PRIMARY KEY(`songId`))"
+        )
+    }
+}

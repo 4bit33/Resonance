@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.AddToQueue
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Sell
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -96,6 +97,14 @@ fun SongOverflowSheet(
                 onClick = onAddToPlaylist
             )
         }
+        OverflowAction(
+            icon = Icons.Filled.EditNote,
+            label = stringResource(R.string.tags_action),
+            onClick = {
+                onDismiss()
+                musicActions.editTags(song)
+            }
+        )
         OverflowAction(
             icon = Icons.Filled.Sell,
             label = stringResource(R.string.genre_edit_action),

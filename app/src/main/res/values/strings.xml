@@ -238,4 +238,18 @@
     <string name="tile_shuffle">Shuffle</string>
     <string name="tile_most_played">Top</string>
     <string name="cd_clear">Clear</string>
+    <string name="tags_title">Tags</string>
+    <string name="tags_action">Edit tags</string>
+    <string name="tags_search">Find online</string>
+    <string name="tags_matches">Matches — tap one to fill in the fields</string>
+    <string name="tags_no_matches">Nothing found. Fix the title or artist and search again.</string>
+    <string name="tags_cover_pick">Pick a cover</string>
+    <string name="tags_field_title">Title</string>
+    <string name="tags_field_artist">Artist</string>
+    <string name="tags_field_album">Album</string>
+    <string name="tags_field_album_artist">Album artist</string>
+    <string name="tags_field_year">Year</string>
+    <string name="tags_field_track">Track</string>
+    <string name="tags_note">Your file is not changed: fixes are kept in the app and survive library refreshes.</string>
+    <string name="tags_reset">Back to the file\'s tags</string>
 </resources>

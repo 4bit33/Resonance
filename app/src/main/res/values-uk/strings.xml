@@ -242,4 +242,18 @@
     <string name="tile_shuffle">Перемішати</string>
     <string name="tile_most_played">Найчастіше</string>
     <string name="cd_clear">Очистити</string>
+    <string name="tags_title">Теги</string>
+    <string name="tags_action">Редагувати теги</string>
+    <string name="tags_search">Знайти в інтернеті</string>
+    <string name="tags_matches">Знайдено — натисніть варіант, щоб заповнити поля</string>
+    <string name="tags_no_matches">Нічого не знайдено. Виправте назву чи виконавця й пошукайте ще раз.</string>
+    <string name="tags_cover_pick">Вибрати обкладинку</string>
+    <string name="tags_field_title">Назва</string>
+    <string name="tags_field_artist">Виконавець</string>
+    <string name="tags_field_album">Альбом</string>
+    <string name="tags_field_album_artist">Виконавець альбому</string>
+    <string name="tags_field_year">Рік</string>
+    <string name="tags_field_track">Трек</string>
+    <string name="tags_note">Файл не змінюється: виправлення зберігаються в застосунку й переживають оновлення бібліотеки.</string>
+    <string name="tags_reset">Повернути теги з файлу</string>
 </resources>

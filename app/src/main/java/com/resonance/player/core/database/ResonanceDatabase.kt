@@ -1,5 +1,7 @@
 package com.resonance.player.core.database
 
+import com.resonance.player.core.database.dao.TagOverrideDao
+import com.resonance.player.core.database.entity.TagOverrideEntity
 import com.resonance.player.core.database.dao.GenreOverrideDao
 import com.resonance.player.core.database.entity.GenreOverrideEntity
 import androidx.room.Database
@@ -24,7 +26,7 @@ import com.resonance.player.core.database.entity.SourceEntity
  * scan; songs carry a stable id and belong to a source (ADR-010). Upgrade
  * from v2 is the hand-written [MIGRATION_2_3] (clean start for songs); v3 -> v4
  * ([MIGRATION_3_4]) adds the excluded-songs table and keeps all data; v4 -> v5
- * ([MIGRATION_4_5]) adds playlist covers; v5 -> v6 ([MIGRATION_5_6]) adds genre overrides.
+ * ([MIGRATION_4_5]) adds playlist covers; v5 -> v6 ([MIGRATION_5_6]) adds genre overrides; v6 -> v7 ([MIGRATION_6_7]) adds tag overrides.
  */
 @Database(
     entities = [
@@ -35,9 +37,10 @@ import com.resonance.player.core.database.entity.SourceEntity
         PlaylistItemEntity::class,
         FavoriteEntity::class,
         HistoryEntryEntity::class,
-        GenreOverrideEntity::class
+        GenreOverrideEntity::class,
+        TagOverrideEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class ResonanceDatabase : RoomDatabase() {
@@ -48,4 +51,5 @@ abstract class ResonanceDatabase : RoomDatabase() {
     abstract fun favoriteDao(): FavoriteDao
     abstract fun historyDao(): HistoryDao
     abstract fun genreOverrideDao(): GenreOverrideDao
+    abstract fun tagOverrideDao(): TagOverrideDao
 }

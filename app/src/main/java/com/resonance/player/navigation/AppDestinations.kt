@@ -17,6 +17,10 @@ sealed class AppDestination(val route: String) {
     data object Settings : AppDestination("settings")
     data object HomeEditor : AppDestination("home/edit")
     data object Import : AppDestination("import")
+    data object Tags : AppDestination("tags/{songId}") {
+        const val ARG_SONG_ID = "songId"
+        fun routeFor(songId: Long) = "tags/$songId"
+    }
 
     /** An album, artist, genre or folder page. Values are URI-encoded by the caller-facing builder. */
     data object Collection : AppDestination("collection/{kind}?key={key}&extra={extra}") {

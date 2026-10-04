@@ -1,5 +1,7 @@
 package com.resonance.player.navigation
 
+import com.resonance.player.feature.tags.TagEditorViewModel
+import com.resonance.player.feature.tags.TagEditorScreen
 import com.resonance.player.core.ui.components.PlayerAnchors
 import com.resonance.player.feature.player.NowPlayingSheet
 import androidx.compose.ui.layout.onSizeChanged
@@ -186,12 +188,14 @@ fun ResonanceAppShell(container: AppContainer) {
         if (uris.isNotEmpty()) scope.launch { container.addSources(SourceKind.FILE, uris.map { it.toString() }) }
     }
     var genreTarget by remember { mutableStateOf<GenreTarget?>(null) }
+    var tagsRequest by remember { mutableStateOf<Long?>(null) }
     val musicActions = remember {
         MusicActions(
             addFolder = { initialUri -> addFolderPicker.launch(initialUri?.let(Uri::parse)) },
             addSongs = { addSongsPicker.launch(arrayOf("audio/*")) },
             removeSong = { song -> scope.launch { container.removeSong(song.id) } },
-            editGenre = { songs, onSaved -> genreTarget = GenreTarget(songs, onSaved) }
+            editGenre = { songs, onSaved -> genreTarget = GenreTarget(songs, onSaved) },
+            editTags = { song -> tagsRequest = song.id }
         )
     }
 
@@ -222,6 +226,17 @@ fun ResonanceAppShell(container: AppContainer) {
     val pendingShare by container.importManager.pendingShare.collectAsStateWithLifecycle()
     LaunchedEffect(pendingShare) {
         if (pendingShare != null && currentRoute != AppDestination.Import.route) navigate(AppDestination.Import.route)
+    }
+
+    fun openTags(songId: Long) {
+        scope.launch { sheet.snapTo(0f) }
+        navigate(AppDestination.Tags.routeFor(songId))
+    }
+    LaunchedEffect(tagsRequest) {
+        tagsRequest?.let {
+            tagsRequest = null
+            openTags(it)
+        }
     }
 
     fun openCollection(ref: CollectionRef) {
@@ -366,6 +381,26 @@ fun ResonanceAppShell(container: AppContainer) {
                     onBack = { navController.popBackStack() },
                     onSongClick = { /* a tap just plays; the mini player opens Now Playing */ }
                 )
+            }
+            screen(
+                route = AppDestination.Tags.route,
+                arguments = listOf(navArgument(AppDestination.Tags.ARG_SONG_ID) { type = NavType.LongType })
+            ) { entry ->
+                val songId = entry.arguments?.getLong(AppDestination.Tags.ARG_SONG_ID) ?: -1L
+                val vm: TagEditorViewModel = viewModel(
+                    key = "tags-$songId",
+                    factory = factory {
+                        TagEditorViewModel(
+                            songId,
+                            container.getSong,
+                            container.metadataLookup,
+                            container.tagRepository,
+                            container.rescanLibrary,
+                            container.libraryEdits
+                        )
+                    }
+                )
+                TagEditorScreen(vm, onBack = { navController.popBackStack() })
             }
             screen(AppDestination.Import.route) {
                 ImportScreen(container, onBack = { navController.popBackStack() })

@@ -325,11 +325,19 @@ fun PlayerScreen(
     if (techSheetOpen && song != null) {
         val actions = LocalMusicActions.current
         ResonanceBottomSheet(onDismiss = { techSheetOpen = false }) {
-            TextButton(onClick = {
-                techSheetOpen = false
-                actions.editGenre(listOf(song)) {}
-            }) {
-                Text(stringResource(R.string.genre_edit_action), color = palette.accent)
+            Row {
+                TextButton(onClick = {
+                    techSheetOpen = false
+                    actions.editTags(song)
+                }) {
+                    Text(stringResource(R.string.tags_action), color = palette.accent)
+                }
+                TextButton(onClick = {
+                    techSheetOpen = false
+                    actions.editGenre(listOf(song)) {}
+                }) {
+                    Text(stringResource(R.string.genre_edit_action), color = palette.accent)
+                }
             }
             TechSheetContent(title = song.title, rows = techRows(song))
         }

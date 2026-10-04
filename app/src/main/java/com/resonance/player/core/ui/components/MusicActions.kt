@@ -15,7 +15,9 @@ class MusicActions(
     val addFolder: (initialUri: String?) -> Unit,
     val addSongs: () -> Unit,
     val removeSong: (Song) -> Unit,
-    val editGenre: (songs: List<Song>, onSaved: (String?) -> Unit) -> Unit = { _, _ -> }
+    val editGenre: (songs: List<Song>, onSaved: (String?) -> Unit) -> Unit = { _, _ -> },
+    /** Opens the tag editor for one song. */
+    val editTags: (Song) -> Unit = {}
 )
 
 val LocalMusicActions = staticCompositionLocalOf {
