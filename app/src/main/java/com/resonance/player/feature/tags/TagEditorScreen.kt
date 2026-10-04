@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -179,7 +179,8 @@ fun TagEditorScreen(viewModel: TagEditorViewModel, onBack: () -> Unit) {
                         color = colors.accent
                     )
                 }
-                items(results.take(12), key = { it.source.name + it.id }) { candidate ->
+                // Distinct already; the index keeps keys unique even if a source repeats itself.
+                itemsIndexed(results.take(12), key = { i, c -> "${c.source.name}${c.id}#$i" }) { _, candidate ->
                     CandidateRow(candidate, state.song?.durationMs ?: 0L, selected = candidate == state.applied) { viewModel.apply(candidate) }
                 }
             }

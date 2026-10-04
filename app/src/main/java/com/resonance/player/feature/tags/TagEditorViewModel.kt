@@ -119,7 +119,7 @@ class TagEditorViewModel(
                 is Result.Success -> {
                     val durationMs = current.song?.durationMs ?: 0L
                     val ranked = rankCandidates(result.value, durationMs)
-                    mutable.update { it.copy(searching = false, results = ranked) }
+                    mutable.update { it.copy(searching = false, results = ranked.distinctBy { c -> c.source to c.id }) }
                     val plausible = ranked.filter { isPlausible(it, title, durationMs) }
                     val mb = plausible.firstOrNull { it.source == TagCandidate.Source.MUSICBRAINZ }
                     val dz = plausible.firstOrNull { it.source == TagCandidate.Source.DEEZER }?.let { lookup.details(it) }
@@ -166,7 +166,7 @@ class TagEditorViewModel(
                     val dz = rankCandidates(more, durationMs)
                         .firstOrNull { it.source == TagCandidate.Source.DEEZER && isPlausible(it, best.title, durationMs) }
                         ?.let { lookup.details(it) }
-                    mutable.update { it.copy(recognizing = false, results = found.value + rankCandidates(more.filter { c -> c.id != best.id }, durationMs)) }
+                    mutable.update { it.copy(recognizing = false, results = (found.value + rankCandidates(more, durationMs)).distinctBy { c -> c.source to c.id }) }
                     applyAndSave(merge(best, dz)!!, listOfNotNull("AcoustID", dz?.let { "Deezer" }).joinToString(" + "), highlight = best)
                 }
                 Result.Loading -> Unit
