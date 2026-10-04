@@ -21,7 +21,10 @@ import java.net.URLEncoder
  * request per second; requests to it are spaced accordingly. Deezer needs no
  * key. Any source failing just drops out; both failing is an error.
  */
-class OnlineMetadataLookup(private val userAgent: String) : MetadataLookup {
+class OnlineMetadataLookup(
+    private val userAgent: String,
+    private val acoustIdKey: String
+) : MetadataLookup {
 
     private val musicBrainzGate = Mutex()
     private var lastMusicBrainzAt = 0L
@@ -47,13 +50,34 @@ class OnlineMetadataLookup(private val userAgent: String) : MetadataLookup {
         }.getOrDefault(candidate)
     }
 
+    override suspend fun identify(fingerprint: String, durationSec: Int): Result<List<TagCandidate>> {
+        if (acoustIdKey.isBlank()) return Result.Failure(AppError.FeatureUnavailable("AcoustID"))
+        return try {
+            val body = "client=" + encode(acoustIdKey) + "&meta=recordings&duration=" + durationSec + "&fingerprint=" + encode(fingerprint)
+            val ids = LookupParsers.acoustIdRecordings(post("https://api.acoustid.org/v2/lookup", body)).take(3)
+            if (ids.isEmpty()) return Result.Success(emptyList())
+            val query = ids.joinToString(" OR ") { "rid:$it" }
+            val json = musicBrainz("https://musicbrainz.org/ws/2/recording?fmt=json&limit=8&query=" + encode(query))
+            // Keep AcoustID's order (best match first).
+            val found = LookupParsers.musicBrainz(json)
+            Result.Success(found.sortedBy { c -> ids.indexOf(c.id).let { if (it < 0) Int.MAX_VALUE else it } })
+        } catch (e: Exception) {
+            Result.Failure(AppError.Unknown(e.message ?: "AcoustID lookup failed"))
+        }
+    }
+
     private suspend fun searchMusicBrainz(title: String, artist: String?): List<TagCandidate> {
         val query = buildString {
             append("recording:\"").append(title.replace("\"", "")).append('"')
             if (!artist.isNullOrBlank()) append(" AND artist:\"").append(artist.replace("\"", "")).append('"')
         }
         val url = "https://musicbrainz.org/ws/2/recording?fmt=json&limit=8&query=" + encode(query)
-        val json = musicBrainzGate.withLock {
+        return LookupParsers.musicBrainz(musicBrainz(url))
+    }
+
+    /** One request to MusicBrainz, spaced at least 1.1 s from the previous one. */
+    private suspend fun musicBrainz(url: String): String =
+        musicBrainzGate.withLock {
             val wait = 1_100L - (System.currentTimeMillis() - lastMusicBrainzAt)
             if (wait > 0) delay(wait)
             try {
@@ -62,13 +86,33 @@ class OnlineMetadataLookup(private val userAgent: String) : MetadataLookup {
                 lastMusicBrainzAt = System.currentTimeMillis()
             }
         }
-        return LookupParsers.musicBrainz(json)
-    }
 
     private suspend fun searchDeezer(title: String, artist: String?): List<TagCandidate> {
         // Plain "artist title": Deezer's advanced artist:"" track:"" syntax misses many tracks.
         val q = listOfNotNull(artist?.takeIf { it.isNotBlank() }, title).joinToString(" ")
         return LookupParsers.deezerSearch(get("https://api.deezer.com/search?limit=8&q=" + encode(q)))
+    }
+
+    private suspend fun post(url: String, body: String): String = withContext(Dispatchers.IO) {
+        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 10_000
+            readTimeout = 15_000
+            requestMethod = "POST"
+            doOutput = true
+            setRequestProperty("User-Agent", userAgent)
+            setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+        }
+        try {
+            connection.outputStream.use { it.write(body.toByteArray()) }
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            // AcoustID explains errors (e.g. a bad key) in a JSON body; let the parser report it.
+            if (code !in 200..299 && !text.startsWith("{")) throw IllegalStateException("HTTP $code from ${URL(url).host}")
+            text
+        } finally {
+            connection.disconnect()
+        }
     }
 
     private fun encode(s: String): String = URLEncoder.encode(s, "UTF-8")

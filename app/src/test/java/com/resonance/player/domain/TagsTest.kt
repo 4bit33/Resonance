@@ -127,4 +127,14 @@ class TagsTest {
         assertEquals(near, bestMerged(listOf(far, near), "Naughty", 174_000))
         assertEquals(null, bestMerged(listOf(far), "Naughty", 174_000))
     }
+
+    @Test
+    fun parsesAcoustId_bestScoreFirstWithoutWeakOnes() {
+        val json = """{"status":"ok","results":[
+            {"id":"a","score":0.62,"recordings":[{"id":"r2"},{"id":"r1"}]},
+            {"id":"b","score":0.97,"recordings":[{"id":"r1"}]},
+            {"id":"c","score":0.2,"recordings":[{"id":"r9"}]}]}"""
+        assertEquals(listOf("r1", "r2"), LookupParsers.acoustIdRecordings(json))
+        assertEquals(emptyList<String>(), LookupParsers.acoustIdRecordings("""{"status":"ok","results":[]}"""))
+    }
 }

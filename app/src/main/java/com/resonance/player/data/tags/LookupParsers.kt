@@ -8,6 +8,27 @@ import org.json.JSONObject
 object LookupParsers {
 
     /**
+     * AcoustID /v2/lookup with meta=recordings: MusicBrainz recording ids of
+     * results scoring at least [minScore], best score first, without repeats.
+     */
+    fun acoustIdRecordings(json: String, minScore: Double = 0.5): List<String> {
+        val root = JSONObject(json)
+        if (root.optString("status") != "ok") {
+            error(root.optJSONObject("error")?.optString("message") ?: "AcoustID error")
+        }
+        val results = root.optJSONArray("results") ?: return emptyList()
+        val scored = (0 until results.length()).map { results.getJSONObject(it) }
+            .filter { it.optDouble("score", 0.0) >= minScore }
+            .sortedByDescending { it.optDouble("score", 0.0) }
+        val ids = LinkedHashSet<String>()
+        scored.forEach { r ->
+            val recordings = r.optJSONArray("recordings") ?: return@forEach
+            for (k in 0 until recordings.length()) recordings.getJSONObject(k).optString("id").takeIf { it.isNotBlank() }?.let(ids::add)
+        }
+        return ids.toList()
+    }
+
+    /**
      * MusicBrainz /ws/2/recording search. For each recording the release
      * picked is the earliest official one (else the earliest of any kind);
      * its track number comes from its medium, its cover from the Cover Art

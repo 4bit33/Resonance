@@ -37,6 +37,12 @@ interface MetadataLookup {
 
     /** Fills what a search result leaves out (e.g. year / track / genre for Deezer). */
     suspend fun details(candidate: TagCandidate): TagCandidate
+
+    /**
+     * Recognises a song by its sound: an AcoustID lookup of a Chromaprint
+     * [fingerprint], then the matching MusicBrainz recordings, best first.
+     */
+    suspend fun identify(fingerprint: String, durationSec: Int): Result<List<TagCandidate>>
 }
 
 /** Where fixed tags are kept (overrides laid over the file's tags; files are not rewritten). */

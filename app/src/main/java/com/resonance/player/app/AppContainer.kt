@@ -1,5 +1,6 @@
 package com.resonance.player.app
 
+import com.resonance.player.data.fingerprint.AudioFingerprinter
 import com.resonance.player.domain.playback.PlaybackSourceStore
 import android.content.Context
 import androidx.room.Room
@@ -224,7 +225,8 @@ class AppContainer(context: Context) {
 
     /** Identifies the app to MusicBrainz / Cover Art Archive, as their rules ask. */
     private val lookupUserAgent = "Crate/${com.resonance.player.BuildConfig.VERSION_NAME} ( https://github.com/4bit33/Resonance )"
-    val metadataLookup: MetadataLookup by lazy { OnlineMetadataLookup(lookupUserAgent) }
+    val metadataLookup: MetadataLookup by lazy { OnlineMetadataLookup(lookupUserAgent, com.resonance.player.BuildConfig.ACOUSTID_KEY) }
+    val audioFingerprinter: AudioFingerprinter by lazy { AudioFingerprinter(appContext, dispatchers.io) }
     val tagRepository: TagRepository by lazy {
         RoomTagRepository(
             appContext,

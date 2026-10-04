@@ -396,7 +396,8 @@ fun ResonanceAppShell(container: AppContainer) {
                             container.metadataLookup,
                             container.tagRepository,
                             container.rescanLibrary,
-                            container.libraryEdits
+                            container.libraryEdits,
+                            container.audioFingerprinter
                         )
                     }
                 )

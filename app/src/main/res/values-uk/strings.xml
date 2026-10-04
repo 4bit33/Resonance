@@ -260,4 +260,7 @@
     <string name="tags_undo">Скасувати</string>
     <string name="tags_pick_one">Точного збігу немає. Натисніть потрібний варіант нижче — він одразу застосується.</string>
     <string name="tags_other_matches">Варіанти — натисніть, щоб застосувати інший</string>
+    <string name="tags_recognize">Розпізнати за звуком</string>
+    <string name="tags_recognize_off">Розпізнавання за звуком вимкнене в цій збірці (немає ключа AcoustID).</string>
+    <string name="tags_not_recognized">AcoustID не знає цього запису. Спробуйте пошук за назвою.</string>
 </resources>

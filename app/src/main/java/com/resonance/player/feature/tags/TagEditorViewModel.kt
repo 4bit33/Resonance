@@ -1,5 +1,10 @@
 package com.resonance.player.feature.tags
 
+import com.resonance.player.data.fingerprint.AudioFingerprinter
+import com.resonance.player.core.common.AppError
+import com.resonance.player.BuildConfig
+import android.util.Log
+import android.net.Uri
 import com.resonance.player.domain.tags.merge
 import com.resonance.player.domain.tags.isPlausible
 import com.resonance.player.domain.tags.TagSnapshot
@@ -31,6 +36,12 @@ data class TagEditorState(
     /** The picture to save as the cover, or null to keep the current one. */
     val coverSource: String? = null,
     val searching: Boolean = false,
+    /** Fingerprinting + AcoustID in progress. */
+    val recognizing: Boolean = false,
+    /** AcoustID knew nothing about this recording. */
+    val notRecognized: Boolean = false,
+    /** This build has no AcoustID key, so recognising by sound is off. */
+    val recognitionOff: Boolean = false,
     /** null = not searched yet. */
     val results: List<TagCandidate>? = null,
     val applied: TagCandidate? = null,
@@ -51,7 +62,8 @@ class TagEditorViewModel(
     private val lookup: MetadataLookup,
     private val repository: TagRepository,
     private val rescan: RescanLibraryUseCase,
-    private val libraryEdits: MutableSharedFlow<Unit>
+    private val libraryEdits: MutableSharedFlow<Unit>,
+    private val fingerprinter: AudioFingerprinter
 ) : ViewModel() {
     private val mutable = MutableStateFlow(TagEditorState())
     val state: StateFlow<TagEditorState> = mutable.asStateFlow()
@@ -119,6 +131,44 @@ class TagEditorViewModel(
                     }
                 }
                 is Result.Failure -> mutable.update { it.copy(searching = false, error = result.error.userMessage()) }
+                Result.Loading -> Unit
+            }
+        }
+    }
+
+    /**
+     * Recognises the song by its sound (Chromaprint + AcoustID), for files whose
+     * tags say nothing useful. The recognised MusicBrainz recording leads; a
+     * Deezer match for it fills gaps and brings the big cover. Saved at once.
+     */
+    fun recognize() {
+        val song = mutable.value.song ?: return
+        mutable.update { it.copy(recognizing = true, error = null, notRecognized = false, noSafeMatch = false) }
+        viewModelScope.launch {
+            val print = fingerprinter.fingerprint(Uri.parse(song.contentUri)).getOrElse { e ->
+                mutable.update { it.copy(recognizing = false, error = e.message) }
+                return@launch
+            }
+            if (BuildConfig.DEBUG) Log.d("CrateFingerprint", "${song.title}: ${print.durationSec}s ${print.fingerprint}")
+            when (val found = lookup.identify(print.fingerprint, print.durationSec)) {
+                is Result.Failure -> mutable.update {
+                    if (found.error is AppError.FeatureUnavailable) it.copy(recognizing = false, recognitionOff = true)
+                    else it.copy(recognizing = false, error = found.error.userMessage())
+                }
+                is Result.Success -> {
+                    val best = found.value.firstOrNull()
+                    if (best == null) {
+                        mutable.update { it.copy(recognizing = false, notRecognized = true) }
+                        return@launch
+                    }
+                    val durationMs = song.durationMs
+                    val more = (lookup.search(best.title, best.artist) as? Result.Success)?.value.orEmpty()
+                    val dz = rankCandidates(more, durationMs)
+                        .firstOrNull { it.source == TagCandidate.Source.DEEZER && isPlausible(it, best.title, durationMs) }
+                        ?.let { lookup.details(it) }
+                    mutable.update { it.copy(recognizing = false, results = found.value + rankCandidates(more.filter { c -> c.id != best.id }, durationMs)) }
+                    applyAndSave(merge(best, dz)!!, listOfNotNull("AcoustID", dz?.let { "Deezer" }).joinToString(" + "), highlight = best)
+                }
                 Result.Loading -> Unit
             }
         }

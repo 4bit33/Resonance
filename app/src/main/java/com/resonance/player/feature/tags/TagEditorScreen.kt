@@ -1,5 +1,6 @@
 package com.resonance.player.feature.tags
 
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -121,6 +122,16 @@ fun TagEditorScreen(viewModel: TagEditorViewModel, onBack: () -> Unit) {
                             Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                             Text(stringResource(R.string.tags_search))
                         }
+                        Spacer(Modifier.height(6.dp))
+                        FilledTonalButton(onClick = viewModel::recognize, enabled = !state.recognizing && state.song != null) {
+                            if (state.recognizing) {
+                                CircularProgressIndicator(modifier = Modifier.size(ButtonDefaults.IconSize), strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Rounded.GraphicEq, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                            }
+                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(stringResource(R.string.tags_recognize))
+                        }
                     }
                 }
             }
@@ -141,6 +152,15 @@ fun TagEditorScreen(viewModel: TagEditorViewModel, onBack: () -> Unit) {
                             TextButton(onClick = viewModel::undo, enabled = !state.busy) { Text(stringResource(R.string.tags_undo)) }
                         }
                     }
+                }
+            }
+            if (state.recognitionOff || state.notRecognized) {
+                item(key = "recognize-info") {
+                    Text(
+                        stringResource(if (state.recognitionOff) R.string.tags_recognize_off else R.string.tags_not_recognized),
+                        style = typography.bodyMd,
+                        color = colors.textSecondary
+                    )
                 }
             }
             if (state.noSafeMatch) {

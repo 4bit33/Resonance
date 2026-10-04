@@ -18,6 +18,17 @@ val crateSigning: Properties? = (findProperty("crateSigning") as String? ?: "${S
     .takeIf { it.isFile }
     ?.let { f -> Properties().apply { f.inputStream().use(::load) } }
 
+/**
+ * AcoustID application key (free, https://acoustid.org/new-application) for
+ * "Recognise by sound". Kept out of the repo: acoustid.key in local.properties,
+ * or -PacoustidKey=... / ACOUSTID_KEY. Without it that button explains it is off.
+ */
+val acoustidKey: String = (findProperty("acoustidKey") as String?)
+    ?: System.getenv("ACOUSTID_KEY")
+    ?: rootProject.file("local.properties").takeIf { it.isFile }
+        ?.let { f -> Properties().apply { f.inputStream().use(::load) }.getProperty("acoustid.key") }
+    ?: ""
+
 /** Grows with every commit, so a newer build is always an update, never a downgrade. */
 val gitCommitCount: Int = providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
     .standardOutput.asText.get().trim().toIntOrNull() ?: 1
@@ -25,6 +36,7 @@ val gitCommitCount: Int = providers.exec { commandLine("git", "rev-list", "--cou
 android {
     namespace = "com.resonance.player"
     compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     signingConfigs {
         if (crateSigning != null) {
@@ -47,8 +59,22 @@ android {
         targetSdk = 35
         versionCode = gitCommitCount
         versionName = "0.2.$gitCommitCount"
+        buildConfigField("String", "ACOUSTID_KEY", "\"$acoustidKey\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            cmake {
+                arguments += "-DANDROID_STL=c++_static"
+            }
+        }
+    }
+
+    // Chromaprint (audio fingerprints for AcoustID), see src/main/cpp.
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildTypes {
@@ -77,6 +103,8 @@ android {
     // youtubedl-android runs its bundled Python/ffmpeg from extracted native libs.
     packaging {
         jniLibs.useLegacyPackaging = true
+        // Zip archives named .so (yt-dlp's Python / ffmpeg): nothing to strip.
+        jniLibs.keepDebugSymbols += "**/*.zip.so"
     }
     // One APK per CPU: the bundled Python + ffmpeg are large, a universal APK would carry all of them.
     splits {
