@@ -540,7 +540,8 @@ fun ResonanceAppShell(container: AppContainer) {
                             container.appendToQueue,
                             container.observePlaylists,
                             container.addSongToPlaylist,
-                            container.createPlaylist
+                            container.createPlaylist,
+                            container.setShuffleMode
                         )
                     }
                 )

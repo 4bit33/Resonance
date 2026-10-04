@@ -1,5 +1,14 @@
 package com.resonance.player.core.ui.components
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TextField
 import com.resonance.player.R
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
@@ -89,7 +98,7 @@ fun ResonanceTopBar(
     )
 }
 
-/** Section header: title-md + optional copper action (View all / Sort). */
+/** Section title in Material 3 style (sentence case), with an optional text action. */
 @Composable
 fun ResonanceSectionHeader(
     title: String,
@@ -98,33 +107,31 @@ fun ResonanceSectionHeader(
     onAction: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = ResonanceTheme.spacing.lg)
+            .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 4.dp)
+            .heightIn(min = 40.dp)
     ) {
         Text(
             title,
-            style = typography.titleMd,
-            color = colors.textPrimary,
+            style = ResonanceTheme.typography.headlineMd,
+            color = ResonanceTheme.colors.textPrimary,
             modifier = Modifier.weight(1f)
         )
         if (actionLabel != null && onAction != null) {
-            Text(
-                actionLabel,
-                style = typography.labelMd,
-                color = colors.accent,
-                modifier = Modifier.clickable(onClick = onAction)
-            )
+            TextButton(onClick = onAction) { Text(actionLabel) }
         }
         trailing?.invoke()
     }
 }
 
-/** 48dp filled search field (container-high, 8dp radius, clear action). */
+/**
+ * Search field as a Material 3 search pill: optional [leading] (e.g. back),
+ * a clear button once there is text, and [autoFocus] to open the keyboard
+ * straight away.
+ */
 @Composable
 fun ResonanceSearchField(
     value: String,
@@ -132,50 +139,43 @@ fun ResonanceSearchField(
     modifier: Modifier = Modifier,
     label: String = "",
     searchIcon: ImageVector? = null,
-    clearIcon: ImageVector? = null,
+    clearIcon: ImageVector? = Icons.Rounded.Close,
     clearDescription: String? = null,
-    onSearch: (() -> Unit)? = null
+    onSearch: (() -> Unit)? = null,
+    leading: (@Composable () -> Unit)? = null,
+    autoFocus: Boolean = false
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    OutlinedTextField(
+    val focus = remember { FocusRequester() }
+    if (autoFocus) LaunchedEffect(Unit) { focus.requestFocus() }
+    TextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, style = typography.bodyMd) },
+        placeholder = { Text(label, maxLines = 1) },
         singleLine = true,
-        shape = ResonanceTheme.radii.control,
-        textStyle = typography.bodyLg.copy(color = colors.textPrimary),
-        colors = OutlinedTextFieldDefaults.colors(
-            unfocusedContainerColor = colors.surfaceHigh,
-            focusedContainerColor = colors.surfaceHigh,
-            unfocusedBorderColor = colors.outlineSubtle,
-            focusedBorderColor = colors.accent,
-            unfocusedLabelColor = colors.textMuted,
-            focusedLabelColor = colors.textSecondary,
-            cursorColor = colors.accent
-        ),
-        leadingIcon = if (searchIcon != null) {
-            { Icon(searchIcon, contentDescription = null, tint = colors.textSecondary) }
-        } else {
-            null
-        },
+        shape = CircleShape,
+        leadingIcon = leading ?: searchIcon?.let { icon -> { Icon(icon, contentDescription = null) } },
         trailingIcon = if (value.isNotEmpty() && clearIcon != null) {
             {
-                IconButton(
-                    onClick = { onValueChange("") },
-                    modifier = Modifier.size(ResonanceTheme.spacing.touchMin)
-                ) {
-                    Icon(clearIcon, contentDescription = clearDescription, tint = colors.textSecondary)
+                IconButton(onClick = { onValueChange("") }) {
+                    Icon(clearIcon, contentDescription = clearDescription ?: stringResource(R.string.cd_clear))
                 }
             }
         } else {
             null
         },
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = ResonanceTheme.colors.surfaceHigh,
+            unfocusedContainerColor = ResonanceTheme.colors.surfaceHigh,
+            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            cursorColor = ResonanceTheme.colors.accent
+        ),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { onSearch?.invoke() }),
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(56.dp)
+            .focusRequester(focus)
     )
 }
 

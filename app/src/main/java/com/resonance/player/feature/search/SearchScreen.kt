@@ -1,5 +1,17 @@
 ﻿package com.resonance.player.feature.search
 
+import com.resonance.player.core.ui.components.pressClickable
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import com.resonance.player.domain.library.CollectionRef
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -60,22 +72,23 @@ fun SearchScreen(
     val spacing = ResonanceTheme.spacing
     var overflowSong by remember { mutableStateOf<Song?>(null) }
     Column(Modifier.fillMaxSize()) {
-        ResonanceTopBar(
-            title = stringResource(R.string.nav_search),
-            onBack = onBack
-        )
         ResonanceSearchField(
             value = query,
             onValueChange = viewModel::onQueryChange,
             label = stringResource(R.string.search_hint),
-            searchIcon = Icons.Filled.Search,
-            modifier = Modifier.padding(horizontal = spacing.lg)
+            leading = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.cd_back))
+                }
+            },
+            autoFocus = true,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)
         )
-        Spacer(Modifier.height(spacing.sm))
         if (query.isBlank()) {
             ResonanceEmptyState(
                 title = stringResource(R.string.search_empty_title),
-                body = stringResource(R.string.search_empty_body)
+                body = stringResource(R.string.search_empty_body),
+                icon = Icons.Rounded.Search
             )
             return@Column
         }
@@ -84,7 +97,8 @@ fun SearchScreen(
             // result set with a non-blank query is the no-results state.
             ResonanceEmptyState(
                 title = stringResource(R.string.search_no_results_title),
-                body = stringResource(R.string.search_no_results_body)
+                body = stringResource(R.string.search_no_results_body),
+                icon = Icons.Rounded.SearchOff
             )
             return@Column
         }
@@ -117,7 +131,6 @@ fun SearchScreen(
                             isLoading = false
                         ),
                         isPlayingAnimation = isCurrent,
-                        badge = { SongFormatBadge(song) },
                         onLongClick = { overflowSong = song },
                         modifier = Modifier.animateItem()
                     )
@@ -130,7 +143,7 @@ fun SearchScreen(
                 items(results.albums, key = { "album-${it.id}" }) { album ->
                     CategoryRow(
                         title = album.name,
-                        subtitle = album.artistName,
+                        subtitle = stringResource(R.string.source_album) + " · " + album.artistName,
                         artUri = album.artUri,
                         onClick = { onOpenCollection(CollectionRef.Album(album.name, album.albumArtist)) },
                         modifier = Modifier.animateItem()
@@ -144,7 +157,9 @@ fun SearchScreen(
                 items(results.artists, key = { "artist-${it.id}" }) { artist ->
                     CategoryRow(
                         title = artist.name,
-                        subtitle = artist.songCount.toString(),
+                        subtitle = stringResource(R.string.source_artist) + " · " +
+                            pluralStringResource(R.plurals.music_song_count, artist.songCount, artist.songCount),
+                        round = true,
                         artUri = artist.artUri,
                         onClick = { onOpenCollection(CollectionRef.Artist(artist.name)) },
                         modifier = Modifier.animateItem()
@@ -158,7 +173,8 @@ fun SearchScreen(
                 items(results.playlists, key = { "playlist-${it.id}" }) { playlist ->
                     CategoryRow(
                         title = playlist.name,
-                        subtitle = playlist.itemCount.toString(),
+                        subtitle = stringResource(R.string.source_playlist) + " · " +
+                            pluralStringResource(R.plurals.music_song_count, playlist.itemCount, playlist.itemCount),
                         artUri = null,
                         onClick = { onOpenPlaylist(playlist.id) },
                         modifier = Modifier.animateItem()
@@ -172,7 +188,8 @@ fun SearchScreen(
                 items(results.genres, key = { "genre-${it.name}" }) { genre ->
                     CategoryRow(
                         title = genre.name,
-                        subtitle = genre.songCount.toString(),
+                        subtitle = stringResource(R.string.collection_genre) + " · " +
+                            pluralStringResource(R.plurals.music_song_count, genre.songCount, genre.songCount),
                         artUri = genre.artUri,
                         onClick = { onOpenCollection(CollectionRef.Genre(genre.name)) },
                         modifier = Modifier.animateItem()
@@ -225,46 +242,32 @@ fun SearchScreen(
     }
 }
 
+/** An album / artist / playlist / genre result, styled like a song row (artists get a round picture). */
 @Composable
 private fun CategoryRow(
     title: String,
     subtitle: String,
     artUri: String?,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    round: Boolean = false
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .height(ResonanceTheme.dimensions.songRowHeight)
-            .padding(horizontal = spacing.lg)
-            .clickable(onClick = onClick)
+            .pressClickable(pressedScale = 0.98f, onClickLabel = title, onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 8.dp)
     ) {
-        ArtworkImage(
-            artworkUri = artUri,
-            contentDescription = title,
-            modifier = Modifier.size(ResonanceTheme.dimensions.songArtwork)
-        )
-        Spacer(Modifier.width(spacing.md))
+        Box(Modifier.size(52.dp).clip(if (round) CircleShape else RoundedCornerShape(12.dp))) {
+            ArtworkImage(artworkUri = artUri, contentDescription = null, modifier = Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                title,
-                style = typography.titleMd,
-                color = colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                subtitle,
-                style = typography.bodySm,
-                color = colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Text(title, style = typography.titleMd, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = typography.bodySm, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

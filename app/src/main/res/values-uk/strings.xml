@@ -75,8 +75,8 @@
     <string name="settings_theme_light">Світла</string>
     <string name="settings_theme_dark">Темна</string>
     <string name="settings_privacy_title">Приватність за замовчуванням</string>
-    <string name="settings_privacy_body">Без акаунта. Без реклами. Без стеження. Без мережі.</string>
-    <string name="settings_about_body">Локальний музичний плеєр</string>
+    <string name="settings_privacy_body">Без акаунта. Без реклами. Без стеження. Мережа — лише коли ви щось завантажуєте або шукаєте.</string>
+    <string name="settings_about_body">Локальний музичний плеєр · відкритий код, GPL-3.0</string>
     <string name="search_hint">Пісні, альбоми, виконавці…</string>
     <string name="search_empty_title">Пошук у бібліотеці</string>
     <string name="search_empty_body">Шукайте пісні, альбоми, виконавців, плейлисти й жанри на цьому пристрої.</string>
@@ -241,4 +241,5 @@
     <string name="playlist_delete_action">Видалити плейлист</string>
     <string name="tile_shuffle">Перемішати</string>
     <string name="tile_most_played">Найчастіше</string>
+    <string name="cd_clear">Очистити</string>
 </resources>

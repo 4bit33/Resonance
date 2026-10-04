@@ -1,5 +1,8 @@
 package com.resonance.player.feature.settings
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.BlurOn
@@ -108,7 +111,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenHomeE
             Spacer(Modifier.height(spacing.sectionSpacing))
             SettingsGroupLabel(stringResource(R.string.settings_group_library))
             Surface(
-                shape = ResonanceTheme.radii.card,
+                shape = SettingsCardShape,
                 color = colors.surfaceContainer,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -173,12 +176,13 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenHomeE
                             )
                         },
                         trailing = {
-                            ResonancePrimaryButton(
-                                label = stringResource(R.string.settings_rescan),
-                                onClick = viewModel::rescan,
-                                enabled = scanState !is ScanState.Scanning
-                            )
-                        }
+                            if (scanState is ScanState.Scanning) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
+                            } else {
+                                Icon(Icons.Rounded.Refresh, contentDescription = null, tint = colors.accent)
+                            }
+                        },
+                        onClick = { if (scanState !is ScanState.Scanning) viewModel.rescan() }
                     )
                     ResonanceSettingsRow(
                         title = stringResource(R.string.settings_ignore_short),
@@ -211,7 +215,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenHomeE
             }
             Spacer(Modifier.height(spacing.sectionSpacing))
             Surface(
-                shape = ResonanceTheme.radii.card,
+                shape = SettingsCardShape,
                 color = colors.surfaceContainer,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -231,7 +235,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenHomeE
             Spacer(Modifier.height(spacing.sectionSpacing))
             SettingsGroupLabel(stringResource(R.string.settings_group_about))
             Surface(
-                shape = ResonanceTheme.radii.card,
+                shape = SettingsCardShape,
                 color = colors.surfaceContainer,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -299,7 +303,7 @@ private fun MusicSourcesCard(sources: List<MusicSource>, onRemove: (List<MusicSo
     val actions = LocalMusicActions.current
     val colors = ResonanceTheme.colors
     Surface(
-        shape = ResonanceTheme.radii.card,
+        shape = SettingsCardShape,
         color = colors.surfaceContainer,
         modifier = Modifier
             .fillMaxWidth()
@@ -419,7 +423,7 @@ private fun PlayerLookCard(look: LookPreferences, onChange: ((LookPreferences) -
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
     Surface(
-        shape = ResonanceTheme.radii.card,
+        shape = SettingsCardShape,
         color = colors.surfaceContainer,
         modifier = Modifier
             .fillMaxWidth()
@@ -495,21 +499,19 @@ private fun PlayerLookCard(look: LookPreferences, onChange: ((LookPreferences) -
     }
 }
 
+/** Group title, Material 3 settings style: sentence case in the accent color. */
 @Composable
 private fun SettingsGroupLabel(text: String) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     Text(
-        text = text.uppercase(),
-        style = typography.labelLg,
-        color = colors.accent,
-        modifier = Modifier.padding(
-            horizontal = spacing.lg,
-            vertical = spacing.sm
-        )
+        text = text,
+        style = ResonanceTheme.typography.labelLg,
+        color = ResonanceTheme.colors.accent,
+        modifier = Modifier.padding(start = 28.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
     )
 }
+
+/** Large, soft cards like the system settings on Android 16. */
+private val SettingsCardShape = RoundedCornerShape(24.dp)
 
 @Composable
 private fun themeName(mode: ThemeMode): String = when (mode) {

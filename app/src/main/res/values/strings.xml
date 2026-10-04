@@ -74,8 +74,8 @@
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_privacy_title">Private by design</string>
-    <string name="settings_privacy_body">No account. No ads. No tracking. No network.</string>
-    <string name="settings_about_body">Local music player</string>
+    <string name="settings_privacy_body">No account. No ads. No tracking. The network is used only when you download or look something up.</string>
+    <string name="settings_about_body">Local music player · open source, GPL-3.0</string>
     <string name="search_hint">Search songs, albums, artists…</string>
     <string name="search_empty_title">Search your library</string>
     <string name="search_empty_body">Find songs, albums, artists, playlists and genres on this device.</string>
@@ -237,4 +237,5 @@
     <string name="playlist_delete_action">Delete playlist</string>
     <string name="tile_shuffle">Shuffle</string>
     <string name="tile_most_played">Top</string>
+    <string name="cd_clear">Clear</string>
 </resources>
