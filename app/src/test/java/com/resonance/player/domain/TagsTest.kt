@@ -2,7 +2,10 @@ package com.resonance.player.domain
 
 import com.resonance.player.data.tags.LookupParsers
 import com.resonance.player.domain.tags.TagCandidate
+import com.resonance.player.domain.tags.bestMerged
 import com.resonance.player.domain.tags.cleanTitle
+import com.resonance.player.domain.tags.isPlausible
+import com.resonance.player.domain.tags.merge
 import com.resonance.player.domain.tags.rankCandidates
 import com.resonance.player.domain.tags.searchTerms
 import com.resonance.player.domain.tags.yearOf
@@ -90,5 +93,38 @@ class TagsTest {
         assertNull(detailed.albumArtist)
         assertEquals(7L, albumId)
         assertEquals("Techno", LookupParsers.deezerAlbumGenre("""{"genres":{"data":[{"name":"Techno"}]}}"""))
+    }
+
+    private fun cand(
+        source: TagCandidate.Source, title: String, ms: Long?, album: String? = null, year: Int? = null,
+        track: Int? = null, genre: String? = null, cover: String? = null
+    ) = TagCandidate(source, source.name + title + ms, title, "A", album, null, year, track, genre, ms, cover, null)
+
+    @Test
+    fun plausible_needsTitleAndLengthToAgree() {
+        assertEquals(true, isPlausible(cand(TagCandidate.Source.DEEZER, "Naughty", 174_000), "Naughty (Official Video)", 174_600))
+        assertEquals(false, isPlausible(cand(TagCandidate.Source.DEEZER, "Naughty", 240_000), "Naughty", 174_600))
+        assertEquals(false, isPlausible(cand(TagCandidate.Source.DEEZER, "Other", 174_000), "Naughty", 174_600))
+        assertEquals(true, isPlausible(cand(TagCandidate.Source.DEEZER, "Naughty", null), "Naughty", 174_600))
+    }
+
+    @Test
+    fun merge_richerLeadsOtherFillsDeezerCoverWins() {
+        val mb = cand(TagCandidate.Source.MUSICBRAINZ, "Naughty", 174_000, album = "Naughty", year = 2026, track = 1, genre = "Techno", cover = "mb.jpg")
+        val dz = cand(TagCandidate.Source.DEEZER, "Naughty", 174_000, album = "Naughty EP", cover = "dz.jpg")
+        val merged = merge(mb, dz)!!
+        assertEquals(TagCandidate.Source.MUSICBRAINZ, merged.source)
+        assertEquals("Naughty", merged.album)
+        assertEquals(2026, merged.year)
+        assertEquals("dz.jpg", merged.coverUrl)
+        assertEquals(dz, merge(null, dz))
+    }
+
+    @Test
+    fun bestMerged_ignoresImplausible() {
+        val far = cand(TagCandidate.Source.MUSICBRAINZ, "Naughty", 300_000, year = 1999)
+        val near = cand(TagCandidate.Source.DEEZER, "Naughty", 174_000, cover = "dz.jpg")
+        assertEquals(near, bestMerged(listOf(far, near), "Naughty", 174_000))
+        assertEquals(null, bestMerged(listOf(far), "Naughty", 174_000))
     }
 }

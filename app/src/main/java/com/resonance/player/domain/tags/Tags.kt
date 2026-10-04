@@ -46,6 +46,12 @@ interface TagRepository {
 
     /** Drops every fix for the song and re-reads its file. */
     suspend fun reset(songId: Long): Result<Unit>
+
+    /** The song's fixes right now (to undo a change later). */
+    suspend fun snapshot(songId: Long): TagSnapshot
+
+    /** Puts the fixes back as they were in [snapshot]; the caller rescans so dropped fixes show the file's tags again. */
+    suspend fun restore(songId: Long, snapshot: TagSnapshot): Result<Unit>
 }
 
 private val noise = listOf(
@@ -90,3 +96,70 @@ fun rankCandidates(candidates: List<TagCandidate>, songDurationMs: Long): List<T
 
 /** "2019-05-01" / "2019" -> 2019. Pure. */
 fun yearOf(date: String?): Int? = date?.take(4)?.toIntOrNull()?.takeIf { it in 1000..2999 }
+
+/** How much a match knows beyond title and artist (album, year, track, genre, cover). Pure. */
+fun infoScore(c: TagCandidate): Int =
+    listOf(c.album, c.albumArtist, c.year, c.trackNumber, c.genre, c.coverUrl).count { it != null }
+
+private fun normalize(s: String): String =
+    cleanTitle(s).lowercase().replace(Regex("""[^\p{L}\p{N}]+"""), " ").trim()
+
+/**
+ * Whether a match is safe to apply without asking: the titles agree (one
+ * contains the other once cleaned) and, when both lengths are known, they
+ * differ by at most [toleranceMs]. Pure.
+ */
+fun isPlausible(c: TagCandidate, songTitle: String, songDurationMs: Long, toleranceMs: Long = 4_000L): Boolean {
+    val a = normalize(c.title)
+    val b = normalize(songTitle)
+    if (a.isEmpty() || b.isEmpty()) return false
+    val titlesAgree = a == b || a.contains(b) || b.contains(a)
+    val d = c.durationMs
+    val lengthsAgree = d == null || songDurationMs <= 0L || kotlin.math.abs(d - songDurationMs) <= toleranceMs
+    return titlesAgree && lengthsAgree
+}
+
+/**
+ * The automatic pick: the best plausible match of each source, then the
+ * one knowing more leads and the other fills its gaps. The bigger cover
+ * (Deezer's 1000 px) is preferred. Null when nothing is plausible. Pure.
+ */
+fun bestMerged(candidates: List<TagCandidate>, songTitle: String, songDurationMs: Long): TagCandidate? {
+    val ranked = rankCandidates(candidates.filter { isPlausible(it, songTitle, songDurationMs) }, songDurationMs)
+    val mb = ranked.firstOrNull { it.source == TagCandidate.Source.MUSICBRAINZ }
+    val dz = ranked.firstOrNull { it.source == TagCandidate.Source.DEEZER }
+    return merge(mb, dz)
+}
+
+/** [a] and [b] merged: the richer leads, the other fills what it lacks; Deezer's cover wins. Pure. */
+fun merge(a: TagCandidate?, b: TagCandidate?): TagCandidate? {
+    if (a == null) return b
+    if (b == null) return a
+    val (lead, other) = if (infoScore(a) >= infoScore(b)) a to b else b to a
+    val deezerCover = listOf(a, b).firstOrNull { it.source == TagCandidate.Source.DEEZER }?.coverUrl
+    return lead.copy(
+        album = lead.album ?: other.album,
+        albumArtist = lead.albumArtist ?: other.albumArtist,
+        year = lead.year ?: other.year,
+        trackNumber = lead.trackNumber ?: other.trackNumber,
+        genre = lead.genre ?: other.genre,
+        durationMs = lead.durationMs ?: other.durationMs,
+        coverUrl = deezerCover ?: lead.coverUrl ?: other.coverUrl,
+        thumbUrl = lead.thumbUrl ?: other.thumbUrl
+    )
+}
+
+/** What a song's fixes looked like before a change, so an automatic fill can be undone. */
+data class TagSnapshot(
+    val hadOverride: Boolean,
+    val title: String?,
+    val artist: String?,
+    val album: String?,
+    val albumArtist: String?,
+    val year: Int?,
+    val trackNumber: Int?,
+    val artworkKey: String?,
+    val artworkUri: String?,
+    val hadGenreOverride: Boolean,
+    val genre: String?
+)

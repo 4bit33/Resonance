@@ -256,4 +256,8 @@
     <string name="tags_field_track">Трек</string>
     <string name="tags_note">Файл не змінюється: виправлення зберігаються в застосунку й переживають оновлення бібліотеки.</string>
     <string name="tags_reset">Повернути теги з файлу</string>
+    <string name="tags_applied">Заповнено з %1$s і збережено</string>
+    <string name="tags_undo">Скасувати</string>
+    <string name="tags_pick_one">Точного збігу немає. Натисніть потрібний варіант нижче — він одразу застосується.</string>
+    <string name="tags_other_matches">Варіанти — натисніть, щоб застосувати інший</string>
 </resources>

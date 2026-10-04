@@ -1,5 +1,7 @@
 package com.resonance.player.data.tags
 
+import com.resonance.player.core.database.entity.GenreOverrideEntity
+import com.resonance.player.domain.tags.TagSnapshot
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -58,6 +60,50 @@ class RoomTagRepository(
     override suspend fun reset(songId: Long): Result<Unit> = withContext(dispatchers.io) {
         try {
             database.tagOverrideDao().reset(songId)
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Failure(AppError.DatabaseError(e.message))
+        }
+    }
+
+    override suspend fun snapshot(songId: Long): TagSnapshot = withContext(dispatchers.io) {
+        val o = database.tagOverrideDao().get(songId)
+        val g = database.genreOverrideDao().get(songId)
+        TagSnapshot(
+            hadOverride = o != null,
+            title = o?.title,
+            artist = o?.artist,
+            album = o?.album,
+            albumArtist = o?.albumArtist,
+            year = o?.year,
+            trackNumber = o?.trackNumber,
+            artworkKey = o?.artworkKey,
+            artworkUri = o?.artworkUri,
+            hadGenreOverride = g != null,
+            genre = g?.genre
+        )
+    }
+
+    override suspend fun restore(songId: Long, snapshot: TagSnapshot): Result<Unit> = withContext(dispatchers.io) {
+        try {
+            val tags = database.tagOverrideDao()
+            if (snapshot.hadOverride) {
+                tags.upsert(
+                    TagOverrideEntity(
+                        songId, snapshot.title, snapshot.artist, snapshot.album, snapshot.albumArtist,
+                        snapshot.year, snapshot.trackNumber, snapshot.artworkKey, snapshot.artworkUri
+                    )
+                )
+            } else {
+                tags.delete(songId)
+            }
+            if (snapshot.hadGenreOverride) {
+                database.genreOverrideDao().upsert(listOf(GenreOverrideEntity(songId, snapshot.genre)))
+            } else {
+                database.genreOverrideDao().delete(songId)
+            }
+            // The next scan re-reads the file, then lays the restored fixes over it.
+            tags.markForReread(songId)
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Failure(AppError.DatabaseError(e.message))

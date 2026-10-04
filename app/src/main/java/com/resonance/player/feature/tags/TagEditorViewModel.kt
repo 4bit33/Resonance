@@ -1,5 +1,8 @@
 package com.resonance.player.feature.tags
 
+import com.resonance.player.domain.tags.merge
+import com.resonance.player.domain.tags.isPlausible
+import com.resonance.player.domain.tags.TagSnapshot
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.common.Result
@@ -31,6 +34,12 @@ data class TagEditorState(
     /** null = not searched yet. */
     val results: List<TagCandidate>? = null,
     val applied: TagCandidate? = null,
+    /** Which sources the applied tags came from, e.g. "MusicBrainz + Deezer"; set once applied and saved. */
+    val appliedFrom: String? = null,
+    /** The search found nothing safe to apply by itself; the user picks from the list. */
+    val noSafeMatch: Boolean = false,
+    /** An automatic / one-tap fill can be undone. */
+    val canUndo: Boolean = false,
     val busy: Boolean = false,
     val error: String? = null
 )
@@ -47,9 +56,16 @@ class TagEditorViewModel(
     private val mutable = MutableStateFlow(TagEditorState())
     val state: StateFlow<TagEditorState> = mutable.asStateFlow()
 
+    /** The fixes before the first automatic / one-tap change on this screen, for Undo. */
+    private var undoSnapshot: TagSnapshot? = null
+
     init {
-        viewModelScope.launch {
-            val song = (getSong(songId) as? Result.Success)?.value ?: return@launch
+        viewModelScope.launch { load() }
+    }
+
+    private suspend fun load() {
+        run {
+            val song = (getSong(songId) as? Result.Success)?.value ?: return
             mutable.update {
                 it.copy(
                     song = song,
@@ -75,16 +91,32 @@ class TagEditorViewModel(
         mutable.update { it.copy(coverPreview = uri, coverSource = uri) }
     }
 
-    /** Searches with the title / artist currently in the fields (cleaned of video-site noise). */
+    /**
+     * Searches both sources with the current title / artist, then applies and
+     * saves at once the best plausible match of each source merged together
+     * (the richer one leads, the other fills its gaps, Deezer's big cover
+     * wins). With nothing plausible, the list is shown to pick from.
+     */
     fun search() {
         val current = mutable.value
         val (artist, title) = searchTerms(current.tags.title, current.tags.artist)
         if (title.isBlank()) return
-        mutable.update { it.copy(searching = true, error = null) }
+        mutable.update { it.copy(searching = true, error = null, noSafeMatch = false) }
         viewModelScope.launch {
             when (val result = lookup.search(title, artist)) {
-                is Result.Success -> mutable.update {
-                    it.copy(searching = false, results = rankCandidates(result.value, current.song?.durationMs ?: 0L))
+                is Result.Success -> {
+                    val durationMs = current.song?.durationMs ?: 0L
+                    val ranked = rankCandidates(result.value, durationMs)
+                    mutable.update { it.copy(searching = false, results = ranked) }
+                    val plausible = ranked.filter { isPlausible(it, title, durationMs) }
+                    val mb = plausible.firstOrNull { it.source == TagCandidate.Source.MUSICBRAINZ }
+                    val dz = plausible.firstOrNull { it.source == TagCandidate.Source.DEEZER }?.let { lookup.details(it) }
+                    val merged = merge(mb, dz)
+                    if (merged == null) {
+                        mutable.update { it.copy(noSafeMatch = ranked.isNotEmpty()) }
+                    } else {
+                        applyAndSave(merged, listOfNotNull(mb, dz).joinToString(" + ") { sourceName(it.source) }, highlight = mb ?: dz)
+                    }
                 }
                 is Result.Failure -> mutable.update { it.copy(searching = false, error = result.error.userMessage()) }
                 Result.Loading -> Unit
@@ -92,30 +124,53 @@ class TagEditorViewModel(
         }
     }
 
-    /** Fills the fields from a match (only what the match knows) and offers its cover. */
+    /** Uses one match from the list: fills the fields and saves straight away (Undo is offered). */
     fun apply(candidate: TagCandidate) {
         viewModelScope.launch {
             mutable.update { it.copy(busy = true) }
-            val c = lookup.details(candidate)
-            mutable.update { s ->
-                s.copy(
-                    busy = false,
-                    applied = candidate,
-                    tags = s.tags.copy(
-                        title = c.title,
-                        artist = c.artist.ifBlank { s.tags.artist },
-                        album = c.album ?: s.tags.album,
-                        albumArtist = c.albumArtist ?: s.tags.albumArtist,
-                        year = c.year?.toString() ?: s.tags.year,
-                        trackNumber = c.trackNumber?.toString() ?: s.tags.trackNumber,
-                        genre = c.genre ?: s.tags.genre
-                    ),
-                    coverPreview = c.coverUrl ?: s.coverPreview,
-                    coverSource = c.coverUrl ?: s.coverSource
-                )
-            }
+            applyAndSave(lookup.details(candidate), sourceName(candidate.source), highlight = candidate)
         }
     }
+
+    private suspend fun applyAndSave(c: TagCandidate, from: String, highlight: TagCandidate?) {
+        if (undoSnapshot == null) undoSnapshot = repository.snapshot(songId)
+        val s = mutable.value
+        val tags = s.tags.copy(
+            title = c.title,
+            artist = c.artist.ifBlank { s.tags.artist },
+            album = c.album ?: s.tags.album,
+            albumArtist = c.albumArtist ?: s.tags.albumArtist,
+            year = c.year?.toString() ?: s.tags.year,
+            trackNumber = c.trackNumber?.toString() ?: s.tags.trackNumber,
+            genre = c.genre ?: s.tags.genre
+        )
+        mutable.update { it.copy(busy = true, tags = tags, applied = highlight, coverPreview = c.coverUrl ?: it.coverPreview) }
+        when (val result = repository.save(songId, tags, c.coverUrl)) {
+            is Result.Success -> {
+                libraryEdits.tryEmit(Unit)
+                mutable.update { it.copy(busy = false, appliedFrom = from, canUndo = true, coverSource = null) }
+            }
+            is Result.Failure -> mutable.update { it.copy(busy = false, error = result.error.userMessage()) }
+            Result.Loading -> Unit
+        }
+    }
+
+    /** Back to how the song was before the automatic / one-tap fill on this screen. */
+    fun undo() {
+        val snapshot = undoSnapshot ?: return
+        mutable.update { it.copy(busy = true) }
+        viewModelScope.launch {
+            repository.restore(songId, snapshot)
+            rescan()
+            libraryEdits.tryEmit(Unit)
+            undoSnapshot = null
+            mutable.update { it.copy(busy = false, canUndo = false, appliedFrom = null, applied = null, coverPreview = null, coverSource = null) }
+            load()
+        }
+    }
+
+    private fun sourceName(source: TagCandidate.Source): String =
+        if (source == TagCandidate.Source.MUSICBRAINZ) "MusicBrainz" else "Deezer"
 
     fun save(onDone: () -> Unit) {
         val s = mutable.value

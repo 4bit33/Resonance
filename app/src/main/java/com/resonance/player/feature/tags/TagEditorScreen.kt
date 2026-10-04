@@ -1,5 +1,6 @@
 package com.resonance.player.feature.tags
 
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -123,13 +124,37 @@ fun TagEditorScreen(viewModel: TagEditorViewModel, onBack: () -> Unit) {
                     }
                 }
             }
+            state.appliedFrom?.let { from ->
+                item(key = "applied") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(colors.accent.copy(alpha = 0.14f))
+                            .padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)
+                    ) {
+                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = colors.accent)
+                        Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.tags_applied, from), style = typography.bodyMd, color = colors.textPrimary, modifier = Modifier.weight(1f))
+                        if (state.canUndo) {
+                            TextButton(onClick = viewModel::undo, enabled = !state.busy) { Text(stringResource(R.string.tags_undo)) }
+                        }
+                    }
+                }
+            }
+            if (state.noSafeMatch) {
+                item(key = "no-safe") {
+                    Text(stringResource(R.string.tags_pick_one), style = typography.bodyMd, color = colors.textSecondary)
+                }
+            }
             state.error?.let { error ->
                 item(key = "error") { Text(error, style = typography.bodyMd, color = colors.error) }
             }
             state.results?.let { results ->
                 item(key = "results-title") {
                     Text(
-                        if (results.isEmpty()) stringResource(R.string.tags_no_matches) else stringResource(R.string.tags_matches),
+                        if (results.isEmpty()) stringResource(R.string.tags_no_matches) else stringResource(R.string.tags_other_matches),
                         style = typography.labelLg,
                         color = colors.accent
                     )

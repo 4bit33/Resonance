@@ -11,6 +11,12 @@ interface GenreOverrideDao {
     @Upsert
     suspend fun upsert(overrides: List<GenreOverrideEntity>)
 
+    @Query("SELECT * FROM genre_overrides WHERE songId = :songId")
+    suspend fun get(songId: Long): GenreOverrideEntity?
+
+    @Query("DELETE FROM genre_overrides WHERE songId = :songId")
+    suspend fun delete(songId: Long)
+
     @Query("UPDATE songs SET genreName = :genre WHERE id IN (:songIds)")
     suspend fun setSongGenre(songIds: List<Long>, genre: String?)
 

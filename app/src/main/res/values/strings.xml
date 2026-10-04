@@ -252,4 +252,8 @@
     <string name="tags_field_track">Track</string>
     <string name="tags_note">Your file is not changed: fixes are kept in the app and survive library refreshes.</string>
     <string name="tags_reset">Back to the file\'s tags</string>
+    <string name="tags_applied">Filled from %1$s and saved</string>
+    <string name="tags_undo">Undo</string>
+    <string name="tags_pick_one">No sure match. Tap the right one below and it is applied right away.</string>
+    <string name="tags_other_matches">Matches — tap one to use it instead</string>
 </resources>
