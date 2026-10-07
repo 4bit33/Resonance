@@ -1,22 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Crate manifest — Phase 1 foundation.
+  Crate manifest.
   Privacy: NO INTERNET permission by design. Local-first, offline-first.
-  Playback service + notification channels land in Phase 2; permissions below
-  are declared now so the manifest does not need restructuring later.
+  No storage/audio permission either: music comes from the folders and files
+  the user picks with the system picker (persisted read grants, ADR-010).
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Android 13+ granular audio permission. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <!-- Pre-13 fallback; never requested on API 33+. -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <!-- Phase 2 foreground playback service. -->
+    <!-- Foreground playback service. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <!-- Phase 2 playback notification (API 33+ only). -->
+    <!-- Playback notification (API 33+ only). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application

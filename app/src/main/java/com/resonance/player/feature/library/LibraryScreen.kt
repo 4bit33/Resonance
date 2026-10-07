@@ -47,9 +47,7 @@ import com.resonance.player.R
 import com.resonance.player.core.common.formatDurationMs
 import com.resonance.player.core.model.Song
 import com.resonance.player.domain.library.SongSort
-import com.resonance.player.core.permissions.AudioPermissionManager
 import com.resonance.player.core.ui.components.ArtworkImage
-import com.resonance.player.core.ui.components.AudioPermissionGate
 import com.resonance.player.core.ui.components.EmptyLibraryView
 import com.resonance.player.core.ui.components.ErrorView
 import com.resonance.player.core.ui.components.LoadingView
@@ -68,32 +66,14 @@ import kotlinx.coroutines.launch
  * Stitch Library: top bar with global search, category chips with counts,
  * sort toolbar + shuffle-all, Stitch song rows with playing state/badges/
  * overflow, alphabet scrubber with HUD. Missing-file rows are intentionally
- * absent (the scanner auto-prunes vanished files; playback-time absence
+ * absent (a library refresh prunes vanished files; playback-time absence
  * surfaces via the player error state).
  */
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
-    permissionManager: AudioPermissionManager,
     initialTab: Int = 0,
     currentSongId: Long? = null,
-    onSongClick: (Long) -> Unit,
-    onOpenQueue: () -> Unit,
-    onOpenSearch: () -> Unit
-) {
-    AudioPermissionGate(
-        manager = permissionManager,
-        onPermissionGranted = viewModel::rescan
-    ) {
-        LibraryTabs(viewModel, initialTab, currentSongId, onSongClick, onOpenQueue, onOpenSearch)
-    }
-}
-
-@Composable
-private fun LibraryTabs(
-    viewModel: LibraryViewModel,
-    initialTab: Int,
-    currentSongId: Long?,
     onSongClick: (Long) -> Unit,
     onOpenQueue: () -> Unit,
     onOpenSearch: () -> Unit

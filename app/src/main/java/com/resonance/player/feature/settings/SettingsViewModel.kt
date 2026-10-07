@@ -4,12 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.media.ScanState
 import com.resonance.player.core.model.LibraryStats
-import com.resonance.player.core.permissions.AudioPermissionManager
-import com.resonance.player.core.permissions.AudioPermissionStatus
+import com.resonance.player.core.model.MusicSource
 import com.resonance.player.data.local.LibraryPreferences
 import com.resonance.player.domain.library.GetLibraryStatsUseCase
 import com.resonance.player.domain.library.ObserveLastScanUseCase
 import com.resonance.player.domain.library.ObserveScanStateUseCase
+import com.resonance.player.domain.library.ObserveSourcesUseCase
+import com.resonance.player.domain.library.RemoveSourcesUseCase
 import com.resonance.player.domain.library.RescanLibraryUseCase
 import com.resonance.player.core.ui.theme.DEFAULT_ACCENT_HUE
 import com.resonance.player.domain.settings.ThemeMode
@@ -21,12 +22,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** Settings: theme (DataStore) + library section (stats, scan, rescan). */
+/** Settings: theme (DataStore) + music sources + library section (stats, refresh). */
 class SettingsViewModel(
     private val repository: UserPreferencesRepository,
-    val permissionManager: AudioPermissionManager,
     observeScanState: ObserveScanStateUseCase,
     private val rescanLibrary: RescanLibraryUseCase,
+    observeSources: ObserveSourcesUseCase,
+    private val removeSourcesUseCase: RemoveSourcesUseCase,
     private val getLibraryStats: GetLibraryStatsUseCase,
     observeLastScan: ObserveLastScanUseCase,
     private val libraryPreferences: LibraryPreferences
@@ -43,7 +45,8 @@ class SettingsViewModel(
     val lastScan: StateFlow<Long?> = observeLastScan()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val permissionStatus: StateFlow<AudioPermissionStatus> = permissionManager.status
+    val sources: StateFlow<List<MusicSource>> = observeSources()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val ignoreShortFiles: StateFlow<Boolean> = libraryPreferences.ignoreShortFiles
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -53,6 +56,10 @@ class SettingsViewModel(
 
     init {
         refreshStats()
+        // Scans are also started by the app shell right after a folder/song is added.
+        viewModelScope.launch {
+            observeScanState().collect { if (it is ScanState.Completed) refreshStats() }
+        }
     }
 
     fun setThemeMode(mode: ThemeMode) {
@@ -74,10 +81,11 @@ class SettingsViewModel(
     }
 
     fun rescan() {
-        viewModelScope.launch {
-            rescanLibrary()
-            refreshStats()
-        }
+        viewModelScope.launch { rescanLibrary() }
+    }
+
+    fun removeSources(ids: List<Long>) {
+        viewModelScope.launch { removeSourcesUseCase(ids) }
     }
 
     fun refreshStats() {

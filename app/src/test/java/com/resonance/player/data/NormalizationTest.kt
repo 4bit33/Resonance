@@ -1,6 +1,6 @@
 package com.resonance.player.data
 
-import com.resonance.player.core.media.MediaItemCandidate
+import com.resonance.player.core.media.AudioCandidate
 import com.resonance.player.core.media.SongMetadata
 import com.resonance.player.core.media.UnknownMetadata
 import com.resonance.player.data.media.FilenameFallback
@@ -11,21 +11,12 @@ import org.junit.Test
 
 private fun candidate(
     displayName: String = "track.mp3",
-    title: String? = null,
-    artist: String? = null,
-    album: String? = null,
-    genre: String? = null,
-    year: Int? = null,
-    track: Int? = null,
-    durationMs: Long = 200_000L,
     relativePath: String? = "Music/"
-) = MediaItemCandidate(
-    mediaStoreId = 1L, volumeName = "external",
-    contentUri = "content://media/external/audio/media/1",
+) = AudioCandidate(
+    id = 1L, sourceId = 1L,
+    contentUri = "content://com.android.externalstorage.documents/tree/x/document/y",
     displayName = displayName, mimeType = "audio/mpeg", sizeBytes = 5_000_000L,
-    dateModifiedSec = 100L, dateAddedSec = 90L, durationMs = durationMs,
-    relativePath = relativePath, title = title, artist = artist, album = album,
-    genre = genre, year = year, track = track, albumId = 10L, artistId = 20L
+    dateModifiedSec = 100L, relativePath = relativePath
 )
 
 private fun tags(
@@ -47,13 +38,19 @@ private fun tags(
 class MetadataNormalizerTest {
 
     @Test
-    fun embeddedTags_winOverColumns() {
+    fun embeddedTags_areUsed() {
         val track = MetadataNormalizer.normalize(
-            candidate(title = "Column Title", artist = "Column Artist"),
-            tags(title = "Tag Title", artist = "Tag Artist")
+            candidate(),
+            tags(title = "Tag Title", artist = "Tag Artist", album = "Tag Album", genre = "Rock", yearRaw = "2020-05-01", trackRaw = "3/12")
         )
         assertEquals("Tag Title", track.title)
         assertEquals("Tag Artist", track.artistName)
+        assertEquals("Tag Album", track.albumName)
+        assertEquals("Rock", track.genreName)
+        assertEquals(2020, track.year)
+        assertEquals(3, track.trackNumber)
+        assertEquals(12, track.totalTracks)
+        assertEquals("Music/track.mp3", track.displayPath)
     }
 
     @Test
@@ -77,19 +74,24 @@ class MetadataNormalizerTest {
     }
 
     @Test
-    fun duration_prefersMediaStore_thenTags_thenZero() {
+    fun duration_comesFromTags_elseZero() {
         assertEquals(
-            200_000L,
-            MetadataNormalizer.normalize(candidate(durationMs = 200_000L), null).durationMs
+            180_000L,
+            MetadataNormalizer.normalize(candidate(), tags().copy(durationMs = 180_000L)).durationMs
         )
-        val fromTags = MetadataNormalizer.normalize(
-            candidate(durationMs = 0L),
-            tags().copy(durationMs = 180_000L)
-        )
-        assertEquals(180_000L, fromTags.durationMs)
+        assertEquals(0L, MetadataNormalizer.normalize(candidate(), null).durationMs)
         assertEquals(
             0L,
-            MetadataNormalizer.normalize(candidate(durationMs = -5L), null).durationMs
+            MetadataNormalizer.normalize(candidate(), tags().copy(durationMs = -5L)).durationMs
+        )
+    }
+
+    @Test
+    fun mimeType_fallsBackToTheCandidate() {
+        assertEquals("audio/mpeg", MetadataNormalizer.normalize(candidate(), null).mimeType)
+        assertEquals(
+            "audio/flac",
+            MetadataNormalizer.normalize(candidate(), tags().copy(mimeType = "audio/flac")).mimeType
         )
     }
 }
