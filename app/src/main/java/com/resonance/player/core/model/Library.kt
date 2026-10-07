@@ -19,11 +19,13 @@ data class Artist(
     val id: Long,
     val name: String,
     val songCount: Int,
-    val albumCount: Int
+    val albumCount: Int,
+    val artUri: String? = null
 )
 
 /** Genre view derived from song tags. */
 data class Genre(
     val name: String,
-    val songCount: Int
+    val songCount: Int,
+    val artUri: String? = null
 )

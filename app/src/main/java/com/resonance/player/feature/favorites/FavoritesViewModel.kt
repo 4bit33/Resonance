@@ -1,5 +1,8 @@
-﻿package com.resonance.player.feature.favorites
+package com.resonance.player.feature.favorites
 
+import com.resonance.player.core.model.ShuffleMode
+import com.resonance.player.domain.playback.SetShuffleModeUseCase
+import com.resonance.player.domain.playback.PlaybackSource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.common.Result
@@ -28,7 +31,8 @@ class FavoritesViewModel(
     private val appendToQueueUseCase: AppendToQueueUseCase,
     observePlaylists: ObservePlaylistsUseCase,
     private val addSongToPlaylist: AddSongToPlaylistUseCase,
-    private val createPlaylist: CreatePlaylistUseCase
+    private val createPlaylist: CreatePlaylistUseCase,
+    private val setShuffleMode: SetShuffleModeUseCase
 ) : ViewModel() {
     val songs: StateFlow<List<Song>> = observeFavorites()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -40,7 +44,16 @@ class FavoritesViewModel(
     val playlistError: StateFlow<String?> = playlistErrorMutable.asStateFlow()
 
     fun playFrom(songs: List<Song>, index: Int) {
-        viewModelScope.launch { playSongs(songs, index) }
+        viewModelScope.launch { playSongs(songs, index, PlaybackSource(PlaybackSource.Kind.FAVORITES)) }
+    }
+
+    fun playAll(shuffled: Boolean) {
+        val list = songs.value
+        if (list.isEmpty()) return
+        viewModelScope.launch {
+            playSongs(list, if (shuffled) list.indices.random() else 0, PlaybackSource(PlaybackSource.Kind.FAVORITES))
+            setShuffleMode(if (shuffled) ShuffleMode.ON else ShuffleMode.OFF)
+        }
     }
 
     fun playNext(song: Song) {

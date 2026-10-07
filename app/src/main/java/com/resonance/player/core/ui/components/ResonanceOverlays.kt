@@ -1,5 +1,7 @@
 package com.resonance.player.core.ui.components
 
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -144,29 +146,38 @@ data class BatchAction(
     val onClick: () -> Unit
 )
 
-/**
- * Compact technical empty state (DESIGN.md: honest explanation, no oversized
- * illustration, single primary CTA). Replaces ad-hoc empty texts in new UI.
- */
+/** Empty / no-results state: an optional tonal icon, a title, a line of help, an optional action. */
 @Composable
 fun ResonanceEmptyState(
     title: String,
     body: String,
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
-    onAction: (() -> Unit)? = null
+    onAction: (() -> Unit)? = null,
+    icon: ImageVector? = null
 ) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .fillMaxWidth()
-            .padding(spacing.xxl)
+            .padding(horizontal = 32.dp, vertical = 40.dp)
     ) {
-        Text(title, style = typography.titleMd, color = colors.textPrimary)
-        Spacer(Modifier.height(spacing.sm))
+        if (icon != null) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(colors.accent.copy(alpha = 0.14f))
+            ) {
+                Icon(icon, contentDescription = null, tint = colors.accent, modifier = Modifier.size(32.dp))
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+        Text(title, style = typography.headlineMd, color = colors.textPrimary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
         Text(
             body,
             style = typography.bodyMd,
@@ -174,7 +185,7 @@ fun ResonanceEmptyState(
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
         if (actionLabel != null && onAction != null) {
-            Spacer(Modifier.height(spacing.lg))
+            Spacer(Modifier.height(20.dp))
             ResonancePrimaryButton(label = actionLabel, onClick = onAction)
         }
     }

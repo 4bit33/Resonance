@@ -110,6 +110,16 @@ class RoomPlaylistRepository(
             }
         }
 
+    override suspend fun setCover(playlistId: Long, coverUri: String?): Result<Unit> =
+        withContext(dispatchers.io) {
+            try {
+                database.playlistDao().setCover(playlistId, coverUri, clock())
+                Result.Success(Unit)
+            } catch (t: Exception) {
+                Result.Failure(AppError.DatabaseError(t.message))
+            }
+        }
+
     override suspend fun rename(playlistId: Long, name: String): Result<Unit> =
         withContext(dispatchers.io) {
             try {
@@ -175,7 +185,8 @@ private fun PlaylistEntity.toDomain(itemCount: Int): Playlist =
         name = name,
         createdAtEpochSec = createdAtEpochSec,
         updatedAtEpochSec = updatedAtEpochSec,
-        itemCount = itemCount
+        itemCount = itemCount,
+        coverUri = coverUri
     )
 
 private fun PlaylistItemEntity.toDomain(): PlaylistItem =

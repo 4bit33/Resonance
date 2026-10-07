@@ -1,5 +1,55 @@
-﻿package com.resonance.player.feature.library
+package com.resonance.player.feature.library
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Tab
+import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.background
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.rounded.TrendingUp
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.style.TextOverflow
+import com.resonance.player.core.ui.components.GenreTile
+import com.resonance.player.core.ui.components.pressClickable
+import com.resonance.player.core.ui.theme.ResonanceMotion
+import com.resonance.player.domain.library.CollectionRef
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -63,11 +113,10 @@ import com.resonance.player.core.ui.theme.ResonanceTheme
 import kotlinx.coroutines.launch
 
 /**
- * Stitch Library: top bar with global search, category chips with counts,
- * sort toolbar + shuffle-all, Stitch song rows with playing state/badges/
- * overflow, alphabet scrubber with HUD. Missing-file rows are intentionally
- * absent (a library refresh prunes vanished files; playback-time absence
- * surfaces via the player error state).
+ * Library: everything that is not on Home. Three tiles (shuffle all,
+ * favorites, most played), then swipeable categories with a sliding
+ * indicator: songs, albums, artists, genres, folders. Albums, artists,
+ * genres and folders open their own page.
  */
 @Composable
 fun LibraryScreen(
@@ -75,91 +124,109 @@ fun LibraryScreen(
     initialTab: Int = 0,
     currentSongId: Long? = null,
     onSongClick: (Long) -> Unit,
-    onOpenQueue: () -> Unit,
-    onOpenSearch: () -> Unit
+    onOpenSearch: () -> Unit,
+    onOpenCollection: (CollectionRef) -> Unit,
+    onOpenFavorites: () -> Unit
 ) {
-    var tab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 4)) }
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
+    val colors = ResonanceTheme.colors
+    val pager = rememberPagerState(initialPage = initialTab.coerceIn(0, 4)) { 5 }
+    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize()) {
-        ResonanceTopBar(
-            title = stringResource(R.string.nav_library),
-            searchIcon = Icons.Filled.Search,
-            onSearch = onOpenSearch,
-            searchDescription = stringResource(R.string.nav_search)
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 8.dp, top = 12.dp)
+        ) {
+            Text(
+                stringResource(R.string.nav_library),
+                style = ResonanceTheme.typography.displayLgMobile,
+                color = colors.textPrimary,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onOpenSearch) {
+                Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.nav_search), tint = colors.textSecondary)
+            }
+        }
         ScanProgressBanner(scanState)
-        CategoryChips(viewModel, tab, onSelect = { tab = it })
-        when (tab) {
-            0 -> SongsTab(viewModel, currentSongId, onSongClick)
-            1 -> AlbumsTab(viewModel, onOpenQueue)
-            2 -> ArtistsTab(viewModel, onOpenQueue)
-            3 -> GenresTab(viewModel, onOpenQueue)
-            4 -> FoldersTab(viewModel, onOpenQueue)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp)
+        ) {
+            QuickTile(Icons.Rounded.Shuffle, stringResource(R.string.tile_shuffle), Modifier.weight(1f), viewModel::shuffleAll)
+            QuickTile(Icons.Rounded.Favorite, stringResource(R.string.home_favorites), Modifier.weight(1f), onOpenFavorites)
+            QuickTile(Icons.AutoMirrored.Rounded.TrendingUp, stringResource(R.string.tile_most_played), Modifier.weight(1f)) {
+                viewModel.setSort(SongSort.PLAY_COUNT)
+                scope.launch { pager.animateScrollToPage(0) }
+            }
+        }
+        CategoryTabs(pager) { page -> scope.launch { pager.animateScrollToPage(page) } }
+        HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), beyondViewportPageCount = 1) { page ->
+            Column(Modifier.fillMaxSize()) {
+                when (page) {
+                    0 -> SongsTab(viewModel, currentSongId, onSongClick)
+                    1 -> AlbumsTab(viewModel, onOpenCollection)
+                    2 -> ArtistsTab(viewModel, onOpenCollection)
+                    3 -> GenresTab(viewModel, onOpenCollection)
+                    else -> FoldersTab(viewModel, onOpenCollection)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun CategoryChips(
-    viewModel: LibraryViewModel,
-    selectedTab: Int,
-    onSelect: (Int) -> Unit
-) {
-    val spacing = ResonanceTheme.spacing
-    val songs by viewModel.uiState.collectAsStateWithLifecycle()
-    val songCount = (songs as? LibraryUiState.Content)?.songs?.size ?: 0
-    val albums by viewModel.albums.collectAsStateWithLifecycle()
-    val artists by viewModel.artists.collectAsStateWithLifecycle()
-    val genres by viewModel.genres.collectAsStateWithLifecycle()
-    val folders by viewModel.folders.collectAsStateWithLifecycle()
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = spacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+private fun QuickTile(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
+    val colors = ResonanceTheme.colors
+    Column(
+        modifier = modifier
+            .height(76.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(colors.surfaceContainer)
+            .pressClickable(onClickLabel = label, onClick = onClick)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        item { Spacer(Modifier.width(spacing.lg - spacing.sm)) }
-        item {
-            ResonanceChip(
-                label = stringResource(R.string.tab_songs),
-                count = songCount.toString(),
-                selected = selectedTab == 0,
-                onClick = { onSelect(0) }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(colors.accent.copy(alpha = 0.16f))
+        ) {
+            Icon(icon, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
+        }
+        Text(label, style = ResonanceTheme.typography.labelMd, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Material 3 scrollable tabs, kept in step with the swipeable pager. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryTabs(pager: PagerState, onSelect: (Int) -> Unit) {
+    val labels = listOf(
+        stringResource(R.string.tab_songs),
+        stringResource(R.string.tab_albums),
+        stringResource(R.string.tab_artists),
+        stringResource(R.string.tab_genres),
+        stringResource(R.string.tab_folders)
+    )
+    PrimaryScrollableTabRow(
+        selectedTabIndex = pager.currentPage,
+        edgePadding = 12.dp,
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        divider = {},
+        modifier = Modifier.padding(top = 8.dp)
+    ) {
+        labels.forEachIndexed { index, label ->
+            Tab(
+                selected = pager.currentPage == index,
+                onClick = { onSelect(index) },
+                text = { Text(label, maxLines = 1) },
+                unselectedContentColor = ResonanceTheme.colors.textSecondary
             )
         }
-        item {
-            ResonanceChip(
-                label = stringResource(R.string.tab_albums),
-                count = albums.size.toString(),
-                selected = selectedTab == 1,
-                onClick = { onSelect(1) }
-            )
-        }
-        item {
-            ResonanceChip(
-                label = stringResource(R.string.tab_artists),
-                count = artists.size.toString(),
-                selected = selectedTab == 2,
-                onClick = { onSelect(2) }
-            )
-        }
-        item {
-            ResonanceChip(
-                label = stringResource(R.string.tab_genres),
-                count = genres.size.toString(),
-                selected = selectedTab == 3,
-                onClick = { onSelect(3) }
-            )
-        }
-        item {
-            ResonanceChip(
-                label = stringResource(R.string.tab_folders),
-                count = folders.size.toString(),
-                selected = selectedTab == 4,
-                onClick = { onSelect(4) }
-            )
-        }
-        item { Spacer(Modifier.width(spacing.lg - spacing.sm)) }
     }
 }
 
@@ -173,56 +240,58 @@ private fun sortLabel(sort: SongSort): String = when (sort) {
     SongSort.PLAY_COUNT -> stringResource(R.string.sort_most_played)
 }
 
+/** "N songs" on the left; sort (a small menu) and shuffle on the right. */
 @Composable
-private fun SortToolbar(viewModel: LibraryViewModel) {
+private fun SongsHeader(count: Int, viewModel: LibraryViewModel) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     val sort by viewModel.sort.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = spacing.lg, vertical = spacing.xs)
+            .padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 4.dp)
     ) {
-        androidx.compose.material3.TextButton(onClick = { expanded = true }) {
-            Icon(
-                Icons.Filled.SwapVert,
-                contentDescription = null,
-                tint = colors.accent,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(Modifier.width(spacing.xs))
-            Text(
-                stringResource(R.string.sort_label) + ": " + sortLabel(sort),
-                style = typography.labelMd,
-                color = colors.textPrimary
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            SongSort.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = {
-                        Text(sortLabel(option), style = typography.bodyMd, color = colors.textPrimary)
-                    },
-                    onClick = {
-                        viewModel.setSort(option)
-                        expanded = false
-                    }
-                )
+        Text(
+            pluralStringResource(R.plurals.music_song_count, count, count),
+            style = typography.bodyMd,
+            color = colors.textSecondary,
+            modifier = Modifier.weight(1f)
+        )
+        Box {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .height(36.dp)
+                    .clip(CircleShape)
+                    .pressClickable { expanded = true }
+                    .padding(horizontal = 12.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(sortLabel(sort), style = typography.labelLg, color = colors.textPrimary)
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                SongSort.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                sortLabel(option),
+                                style = typography.bodyMd,
+                                color = if (option == sort) colors.accent else colors.textPrimary
+                            )
+                        },
+                        onClick = {
+                            viewModel.setSort(option)
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
-        Spacer(Modifier.weight(1f))
-        IconButton(
-            onClick = viewModel::shuffleAll,
-            modifier = Modifier.size(spacing.touchMin)
-        ) {
-            Icon(
-                Icons.Filled.Shuffle,
-                contentDescription = stringResource(R.string.cd_shuffle),
-                tint = colors.textSecondary
-            )
+        IconButton(onClick = viewModel::shuffleAll) {
+            Icon(Icons.Rounded.Shuffle, contentDescription = stringResource(R.string.cd_shuffle), tint = colors.textPrimary)
         }
     }
 }
@@ -254,14 +323,11 @@ private fun SongsTab(
         LibraryUiState.Empty -> EmptyLibraryView()
         is LibraryUiState.Error -> ErrorView(message = s.message)
         is LibraryUiState.Content -> {
-            SortToolbar(viewModel)
             var overflowSong by remember { mutableStateOf<Song?>(null) }
             val listState = rememberLazyListState()
-            val scope = rememberCoroutineScope()
-            val index = remember(s.songs) { alphabetIndex(s.songs.map { it.title }) }
-            var hudLetter by remember { mutableStateOf<String?>(null) }
             Box(Modifier.fillMaxSize()) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 24.dp), modifier = Modifier.fillMaxSize()) {
+                    item(key = "header") { SongsHeader(s.songs.size, viewModel) }
                     items(s.songs, key = { it.id }) { song ->
                         val isCurrent = song.id == currentSongId
                         ResonanceSongRow(
@@ -269,10 +335,7 @@ private fun SongsTab(
                             artistLine = song.artistName + " - " + song.albumName,
                             duration = formatDurationMs(song.durationMs),
                             artwork = {
-                                ArtworkImage(
-                                    artworkUri = song.artworkUri,
-                                    contentDescription = song.albumName
-                                )
+                                ArtworkImage(artworkUri = song.artworkUri, contentDescription = song.albumName)
                             },
                             onClick = {
                                 val at = s.songs.indexOfFirst { it.id == song.id }
@@ -280,29 +343,17 @@ private fun SongsTab(
                                 onSongClick(song.id)
                             },
                             modifier = Modifier.animateItem(),
-                            state = songRowState(
-                                isCurrent = isCurrent,
-                                isSelected = false,
-                                isMissing = false,
-                                isLoading = false
-                            ),
+                            state = songRowState(isCurrent = isCurrent, isSelected = false, isMissing = false, isLoading = false),
                             isPlayingAnimation = isCurrent,
-                            badge = { SongFormatBadge(song) },
-                            onOverflowClick = { overflowSong = song }
+                            onLongClick = { overflowSong = song },
+                            trailingInset = 12.dp
                         )
                     }
                 }
-                AlphabetScrubber(
-                    index = index,
-                    hudLetter = hudLetter,
-                    onScrub = { letter, position ->
-                        val target = index.firstOrNull { it.first == letter }?.second
-                        if (target != null) {
-                            hudLetter = letter
-                            scope.launch { listState.scrollToItem(target) }
-                        }
-                    },
-                    onScrubEnd = { hudLetter = null },
+                FastScroller(
+                    listState = listState,
+                    labels = remember(s.songs) { s.songs.map { it.title } },
+                    headerItems = 1,
                     modifier = Modifier.align(Alignment.CenterEnd)
                 )
             }
@@ -352,279 +403,226 @@ private fun SongsTab(
     }
 }
 
+/**
+ * Fast scroll for long lists: a slim thumb at the right edge that shows up
+ * while the list moves; dragging it jumps through the list and shows the
+ * first letter of where you are in a bubble.
+ */
 @Composable
-private fun AlphabetScrubber(
-    index: List<Pair<String, Int>>,
-    hudLetter: String?,
-    onScrub: (String, Int) -> Unit,
-    onScrubEnd: () -> Unit,
+private fun FastScroller(
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    labels: List<String>,
+    headerItems: Int,
     modifier: Modifier = Modifier
 ) {
+    if (labels.size < 30) return
     val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    if (index.isEmpty()) return
-    Box(modifier = modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .width(32.dp)
-                .pointerInput(index) {
-                    detectVerticalDragGestures(
-                        onDragStart = { offset ->
-                            pickLetter(index, offset.y, size.height)?.let { (letter, position) ->
-                                onScrub(letter, position)
-                            }
-                        },
-                        onVerticalDrag = { change, _ ->
-                            change.consume()
-                            pickLetter(index, change.position.y, size.height)?.let { (letter, position) ->
-                                onScrub(letter, position)
-                            }
-                        },
-                        onDragEnd = onScrubEnd,
-                        onDragCancel = onScrubEnd
-                    )
-                }
-                .padding(vertical = 32.dp)
-        ) {
-            val letters = index.map { it.first }
-            val step = maxOf(1, letters.size / 18)
-            letters.filterIndexed { i, _ -> i % step == 0 }.forEach { letter ->
-                Text(
-                    letter,
-                    style = typography.labelSm,
-                    color = if (letter == hudLetter) colors.accent else colors.textMuted,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+    val motion = ResonanceTheme.motion
+    val scope = rememberCoroutineScope()
+    var dragging by remember { mutableStateOf(false) }
+    var dragFraction by remember { mutableFloatStateOf(0f) }
+    var trackHeight by remember { mutableFloatStateOf(1f) }
+    val visible = dragging || listState.isScrollInProgress
+    val alpha by animateFloatAsState(if (visible) 1f else 0f, motion.duration(if (visible) 150 else 600), label = "scroller-alpha")
+    val fraction = if (dragging) {
+        dragFraction
+    } else {
+        val total = (listState.layoutInfo.totalItemsCount - headerItems).coerceAtLeast(1)
+        ((listState.firstVisibleItemIndex - headerItems).coerceAtLeast(0).toFloat() / total).coerceIn(0f, 1f)
+    }
+    val letter = labels.getOrNull((fraction * (labels.size - 1)).toInt())
+        ?.trim()?.firstOrNull()?.uppercaseChar()?.let { if (it.isLetter()) it.toString() else "#" }
+    Box(
+        modifier
+            .fillMaxHeight()
+            .width(40.dp)
+            .padding(vertical = 12.dp)
+            .onSizeChanged { trackHeight = it.height.toFloat().coerceAtLeast(1f) }
+            .graphicsLayer { this.alpha = alpha }
+            .pointerInput(labels) {
+                detectVerticalDragGestures(
+                    onDragStart = { offset ->
+                        dragging = true
+                        dragFraction = (offset.y / trackHeight).coerceIn(0f, 1f)
+                    },
+                    onDragEnd = { dragging = false },
+                    onDragCancel = { dragging = false },
+                    onVerticalDrag = { change, _ ->
+                        change.consume()
+                        dragFraction = (change.position.y / trackHeight).coerceIn(0f, 1f)
+                        val target = headerItems + (dragFraction * (labels.size - 1)).toInt()
+                        scope.launch { listState.scrollToItem(target) }
+                    }
                 )
             }
-        }
-        if (hudLetter != null) {
-            Surface(
-                shape = ResonanceTheme.radii.card,
-                color = colors.surfaceHighest,
-                modifier = Modifier.align(Alignment.Center)
+    ) {
+        val thumbHeight = 44.dp
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 6.dp)
+                .offset { IntOffset(0, ((trackHeight - thumbHeight.toPx()) * fraction).toInt()) }
+                .size(width = if (dragging) 6.dp else 4.dp, height = thumbHeight)
+                .clip(CircleShape)
+                .background(if (dragging) colors.accent else colors.textSecondary)
+        )
+        if (dragging && letter != null) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset { IntOffset(-56.dp.roundToPx(), ((trackHeight - 64.dp.toPx()) * fraction).toInt()) }
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(colors.accent)
             ) {
-                Text(
-                    hudLetter,
-                    style = typography.headlineMd,
-                    color = colors.accent,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(
-                        horizontal = ResonanceTheme.spacing.xl,
-                        vertical = ResonanceTheme.spacing.lg
-                    )
-                )
+                Text(letter, style = ResonanceTheme.typography.headlineLg, color = colors.onAccent)
             }
         }
     }
 }
 
-private fun pickLetter(
-    index: List<Pair<String, Int>>,
-    y: Float,
-    height: Int
-): Pair<String, Int>? {
-    if (index.isEmpty() || height <= 0) return null
-    val position = ((y / height.toFloat()) * index.size).toInt().coerceIn(0, index.size - 1)
-    return index[position]
-}
-
 @Composable
-private fun AlbumsTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
+private fun AlbumsTab(viewModel: LibraryViewModel, onOpen: (CollectionRef) -> Unit) {
     val albums by viewModel.albums.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     if (albums.isEmpty()) {
         EmptyLibraryView()
         return
     }
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 150.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
         items(albums, key = { it.id }) { album ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
+            Column(
+                Modifier
                     .animateItem()
-                    .fillMaxWidth()
-                    .height(ResonanceTheme.dimensions.songRowHeight)
-                    .padding(horizontal = spacing.lg)
-                    .clickable {
-                        viewModel.playAlbum(album.name, album.albumArtist)
-                        onOpenQueue()
-                    }
+                    .pressClickable(onClickLabel = album.name) { onOpen(CollectionRef.Album(album.name, album.albumArtist)) }
             ) {
-                ArtworkImage(
-                    artworkUri = album.artUri,
-                    contentDescription = album.name,
-                    modifier = Modifier.size(ResonanceTheme.dimensions.songArtwork)
-                )
-                Spacer(Modifier.width(spacing.md))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        album.name,
-                        style = typography.titleMd,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                    Text(
-                        album.artistName + " - " + album.songCount + " " +
-                            stringResource(R.string.settings_songs),
-                        style = typography.bodySm,
-                        color = colors.textSecondary,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(18.dp))
+                ) {
+                    ArtworkImage(artworkUri = album.artUri, contentDescription = album.name, modifier = Modifier.fillMaxSize())
                 }
+                Spacer(Modifier.height(8.dp))
+                Text(album.name, style = typography.labelLg, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    listOfNotNull(album.artistName, album.year?.toString()).joinToString(" · "),
+                    style = typography.bodySm,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            HorizontalDivider(color = colors.outlineSubtle)
         }
     }
 }
 
 @Composable
-private fun ArtistsTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
+private fun ArtistsTab(viewModel: LibraryViewModel, onOpen: (CollectionRef) -> Unit) {
     val artists by viewModel.artists.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     if (artists.isEmpty()) {
         EmptyLibraryView()
         return
     }
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), modifier = Modifier.fillMaxSize()) {
         items(artists, key = { it.id }) { artist ->
-            Column(
-                modifier = Modifier
-                    .animateItem()
-                    .fillMaxWidth()
-                    .clickable {
-                        viewModel.playArtist(artist.name)
-                        onOpenQueue()
-                    }
-                    .padding(horizontal = spacing.lg, vertical = spacing.md)
-            ) {
-                Text(
-                    artist.name,
-                    style = typography.titleMd,
-                    color = colors.textPrimary,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                Text(
-                    artist.songCount.toString() + " " + stringResource(R.string.settings_songs) +
-                        " - " + artist.albumCount.toString() + " " +
-                        stringResource(R.string.settings_albums),
-                    style = typography.bodySm,
-                    color = colors.textSecondary
-                )
-            }
-            HorizontalDivider(color = colors.outlineSubtle)
-        }
-    }
-}
-
-@Composable
-private fun GenresTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
-    val genres by viewModel.genres.collectAsStateWithLifecycle()
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
-    if (genres.isEmpty()) {
-        EmptyLibraryView()
-        return
-    }
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(genres, key = { it.name }) { genre ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .animateItem()
                     .fillMaxWidth()
-                    .clickable {
-                        viewModel.playGenre(genre.name)
-                        onOpenQueue()
-                    }
-                    .padding(horizontal = spacing.lg, vertical = spacing.md)
+                    .pressClickable(pressedScale = 0.98f, onClickLabel = artist.name) { onOpen(CollectionRef.Artist(artist.name)) }
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
-                Text(
-                    genre.name,
-                    style = typography.titleMd,
-                    color = colors.textPrimary,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                Text(
-                    genre.songCount.toString(),
-                    style = typography.monoMetric,
-                    color = colors.textSecondary
-                )
+                Box(Modifier.size(56.dp).clip(CircleShape)) {
+                    ArtworkImage(artworkUri = artist.artUri, contentDescription = null, modifier = Modifier.fillMaxSize())
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(artist.name, style = typography.titleMd, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        pluralStringResource(R.plurals.album_count, artist.albumCount, artist.albumCount) + " · " +
+                            pluralStringResource(R.plurals.music_song_count, artist.songCount, artist.songCount),
+                        style = typography.bodySm,
+                        color = colors.textSecondary
+                    )
+                }
             }
-            HorizontalDivider(color = colors.outlineSubtle)
         }
     }
 }
 
 @Composable
-private fun FoldersTab(viewModel: LibraryViewModel, onOpenQueue: () -> Unit) {
+private fun GenresTab(viewModel: LibraryViewModel, onOpen: (CollectionRef) -> Unit) {
+    val genres by viewModel.genres.collectAsStateWithLifecycle()
+    if (genres.isEmpty()) {
+        EmptyLibraryView()
+        return
+    }
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 150.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(genres, key = { it.name }) { genre ->
+            GenreTile(genre, 88.dp, Modifier.animateItem()) { onOpen(CollectionRef.Genre(genre.name)) }
+        }
+    }
+}
+
+@Composable
+private fun FoldersTab(viewModel: LibraryViewModel, onOpen: (CollectionRef) -> Unit) {
     val folders by viewModel.folders.collectAsStateWithLifecycle()
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
     if (folders.isEmpty()) {
         EmptyLibraryView()
         return
     }
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), modifier = Modifier.fillMaxSize()) {
         items(folders, key = { it.path }) { folder ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .animateItem()
                     .fillMaxWidth()
-                    .clickable {
-                        viewModel.playFolder(folder.path)
-                        onOpenQueue()
+                    .pressClickable(pressedScale = 0.98f, onClickLabel = folder.name) {
+                        onOpen(CollectionRef.Folder(folder.path, folder.name))
                     }
-                    .padding(horizontal = spacing.lg, vertical = spacing.md)
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.surfaceContainer)
+                ) {
+                    Icon(Icons.Rounded.Folder, contentDescription = null, tint = colors.accent)
+                }
+                Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        folder.name,
-                        style = typography.titleMd,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
+                    Text(folder.name, style = typography.titleMd, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (folder.path.isNotEmpty()) {
-                        Text(
-                            folder.path,
-                            style = typography.bodySm,
-                            color = colors.textSecondary,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
+                        Text(folder.path, style = typography.bodySm, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                Spacer(Modifier.width(spacing.sm))
-                Text(
-                    folder.songCount.toString(),
-                    style = typography.monoMetric,
-                    color = colors.textSecondary
-                )
+                Spacer(Modifier.width(8.dp))
+                Text(folder.songCount.toString(), style = typography.monoMetric, color = colors.textSecondary)
             }
-            HorizontalDivider(color = colors.outlineSubtle)
         }
     }
 }
-
-
-
-
-
-
-
-
-

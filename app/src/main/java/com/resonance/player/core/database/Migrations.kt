@@ -59,3 +59,41 @@ val MIGRATION_2_3: Migration = object : Migration(2, 3) {
         db.execSQL("DELETE FROM playback_history")
     }
 }
+
+/**
+ * Schema v3 -> v4: songs the user removed from a folder source are remembered
+ * so the scanner skips them (`excluded_songs`, FK to `sources` with CASCADE).
+ * Additive: nothing existing is touched. DDL copied verbatim from the
+ * Room-generated `createAllTables`.
+ */
+val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `excluded_songs` (`id` INTEGER NOT NULL, `sourceId` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`sourceId`) REFERENCES `sources`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_excluded_songs_sourceId` ON `excluded_songs` (`sourceId`)")
+    }
+}
+
+/** Schema v4 -> v5: playlists can carry a user-picked cover. Additive. */
+val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `playlists` ADD COLUMN `coverUri` TEXT")
+    }
+}
+
+/** Schema v5 -> v6: genres the user set by hand (re-applied after every scan). Additive. */
+val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `genre_overrides` (`songId` INTEGER NOT NULL, `genre` TEXT, PRIMARY KEY(`songId`))")
+    }
+}
+
+/** Schema v6 -> v7: tags fixed by hand or from an online lookup (laid over the file's tags after every scan). Additive. */
+val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `tag_overrides` (`songId` INTEGER NOT NULL, `title` TEXT, `artist` TEXT, " +
+                "`album` TEXT, `albumArtist` TEXT, `year` INTEGER, `trackNumber` INTEGER, `artworkKey` TEXT, " +
+                "`artworkUri` TEXT, PRIMARY KEY(`songId`))"
+        )
+    }
+}

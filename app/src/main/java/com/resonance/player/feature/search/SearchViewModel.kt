@@ -1,5 +1,6 @@
 ﻿package com.resonance.player.feature.search
 
+import com.resonance.player.domain.playback.PlaybackSource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.common.Result
@@ -73,7 +74,7 @@ class SearchViewModel(
     }
 
     fun playFrom(songs: List<Song>, index: Int) {
-        viewModelScope.launch { playSongs(songs, index) }
+        viewModelScope.launch { playSongs(songs, index, PlaybackSource(PlaybackSource.Kind.SEARCH)) }
     }
 
     fun playAlbum(albumName: String, albumArtist: String?) {

@@ -1,5 +1,6 @@
 package com.resonance.player.feature.playlists
 
+import com.resonance.player.feature.home.PlaylistCover
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -130,7 +131,7 @@ fun PlaylistsScreen(
             onPlay = {
                 viewModel.play(
                     playlist.id,
-                    onPlaying = { onOpenQueue() },
+                    playlist.name,
                     onEmpty = { onShowMessage(emptyPlaylistMessage) }
                 )
                 overflowPlaylist = null
@@ -190,20 +191,12 @@ private fun PlaylistRow(
             .padding(horizontal = spacing.lg)
             .clickable(onClick = onClick)
     ) {
-        androidx.compose.foundation.layout.Box(
-            contentAlignment = Alignment.Center,
+        PlaylistCover(
+            coverUri = playlist.coverUri,
             modifier = Modifier
                 .size(ResonanceTheme.dimensions.songArtwork)
                 .clip(ResonanceTheme.radii.control)
-                .background(colors.surfaceContainer)
-        ) {
-            Icon(
-                Icons.Filled.MusicNote,
-                contentDescription = null,
-                tint = colors.textMuted,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        )
         Spacer(Modifier.width(spacing.md))
         Column(Modifier.weight(1f)) {
             Text(

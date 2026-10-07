@@ -6,7 +6,9 @@ data class Playlist(
     val name: String,
     val createdAtEpochSec: Long,
     val updatedAtEpochSec: Long,
-    val itemCount: Int = 0
+    val itemCount: Int = 0,
+    /** User-picked cover (app-private file URI), or null. */
+    val coverUri: String? = null
 )
 
 data class PlaylistItem(

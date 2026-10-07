@@ -96,10 +96,15 @@ class SafLibraryScanner(
                 seen.putIfAbsent(c.id, c)
                 if (seen.size % PROGRESS_EVERY == 0) mutable.value = ScanState.Scanning(seen.size, 0, 0, 0)
             }
+            // Songs the user removed from a folder stay out of folder listings (a stored row of one
+            // is deleted below). A file the user adds explicitly again is not filtered.
+            val excluded = database.excludedSongDao().getIds().toHashSet()
             for (source in sources) {
                 if (source.uri !in grants) continue
                 val status = when (SourceKind.valueOf(source.kind)) {
-                    SourceKind.TREE -> dataSource.walkTree(source.id, source.uri, source.displayName, onCandidate)
+                    SourceKind.TREE -> dataSource.walkTree(source.id, source.uri, source.displayName) { c ->
+                        if (c.id !in excluded) onCandidate(c)
+                    }
                     SourceKind.FILE -> dataSource.walkFile(source.id, source.uri, onCandidate)
                 }
                 if (status == WalkStatus.COMPLETE) complete += source.id
@@ -160,6 +165,15 @@ class SafLibraryScanner(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Post-scan housekeeping failed", e)
+            }
+
+            // Genres the user set by hand win over the tags just read.
+            try {
+                database.genreOverrideDao().applyAll()
+                database.tagOverrideDao().applyAll()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Genre overrides failed", e)
             }
 
             val report = ScanReport(added, updated, removed, failed, seen.size)

@@ -74,10 +74,11 @@ fun ArtistRow.toDomain(): Artist = Artist(
     id = artistName.lowercase().hashCode().toLong(),
     name = artistName,
     songCount = songCount,
-    albumCount = albumCount
+    albumCount = albumCount,
+    artUri = sampleArtworkUri
 )
 
-fun GenreRow.toDomain(): Genre = Genre(name = genreName, songCount = songCount)
+fun GenreRow.toDomain(): Genre = Genre(name = genreName, songCount = songCount, artUri = sampleArtworkUri)
 
 fun FolderRow.toDomain(): MusicFolder {
     val path = relativePath ?: ""

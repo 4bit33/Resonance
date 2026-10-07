@@ -1,5 +1,6 @@
 package com.resonance.player.feature.library
 
+import com.resonance.player.domain.playback.PlaybackSource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.common.Result
@@ -12,10 +13,6 @@ import com.resonance.player.core.model.MusicFolder
 import com.resonance.player.core.model.Playlist
 import com.resonance.player.core.model.ShuffleMode
 import com.resonance.player.core.model.Song
-import com.resonance.player.domain.library.GetAlbumSongsUseCase
-import com.resonance.player.domain.library.GetArtistSongsUseCase
-import com.resonance.player.domain.library.GetFolderSongsUseCase
-import com.resonance.player.domain.library.GetGenreSongsUseCase
 import com.resonance.player.domain.library.ObserveAlbumsUseCase
 import com.resonance.player.domain.library.ObserveArtistsUseCase
 import com.resonance.player.domain.library.ObserveFoldersUseCase
@@ -51,8 +48,8 @@ sealed interface LibraryUiState {
 
 /**
  * Thin ViewModel: maps repository Flows to render states. Tapping a song
- * plays the visible list from that position; tapping an album plays the
- * album in disc/track order. No MediaStore/Room access here.
+ * plays the visible list from that position; albums, artists, genres and
+ * folders open their own page. No MediaStore/Room access here.
  */
 class LibraryViewModel(
     private val observeSongs: ObserveSongsUseCase,
@@ -62,10 +59,6 @@ class LibraryViewModel(
     observeArtists: ObserveArtistsUseCase,
     observeGenres: ObserveGenresUseCase,
     observeFolders: ObserveFoldersUseCase,
-    private val getAlbumSongs: GetAlbumSongsUseCase,
-    private val getArtistSongs: GetArtistSongsUseCase,
-    private val getGenreSongs: GetGenreSongsUseCase,
-    private val getFolderSongs: GetFolderSongsUseCase,
     private val setShuffleMode: SetShuffleModeUseCase,
     private val playNextUseCase: PlayNextUseCase,
     private val appendToQueueUseCase: AppendToQueueUseCase,
@@ -112,36 +105,7 @@ class LibraryViewModel(
     val playlistError: StateFlow<String?> = playlistErrorMutable.asStateFlow()
 
     fun playFrom(songs: List<Song>, index: Int) {
-        viewModelScope.launch { playSongs(songs, index) }
-    }
-
-    fun playAlbum(albumName: String, albumArtist: String?) {
-        viewModelScope.launch {
-            val songs = (getAlbumSongs(albumName, albumArtist) as? Result.Success)?.value
-            if (!songs.isNullOrEmpty()) playSongs(songs, 0)
-        }
-    }
-
-    fun playArtist(artistName: String) {
-        viewModelScope.launch {
-            val songs = (getArtistSongs(artistName) as? Result.Success)?.value
-            if (!songs.isNullOrEmpty()) playSongs(songs, 0)
-        }
-    }
-
-    fun playGenre(genreName: String) {
-        viewModelScope.launch {
-            val songs = (getGenreSongs(genreName) as? Result.Success)?.value
-            if (!songs.isNullOrEmpty()) playSongs(songs, 0)
-        }
-    }
-
-    /** [relativePath] mirrors [com.resonance.player.core.model.MusicFolder.path]: "" means the root folder. */
-    fun playFolder(relativePath: String) {
-        viewModelScope.launch {
-            val songs = (getFolderSongs(relativePath.ifBlank { null }) as? Result.Success)?.value
-            if (!songs.isNullOrEmpty()) playSongs(songs, 0)
-        }
+        viewModelScope.launch { playSongs(songs, index, PlaybackSource(PlaybackSource.Kind.LIBRARY)) }
     }
 
     /** Shuffle-all: play the visible list from the head, engine shuffles. */
@@ -149,7 +113,7 @@ class LibraryViewModel(
         val songs = (uiState.value as? LibraryUiState.Content)?.songs ?: return
         if (songs.isEmpty()) return
         viewModelScope.launch {
-            playSongs(songs, 0)
+            playSongs(songs, songs.indices.random(), PlaybackSource(PlaybackSource.Kind.SHUFFLE_ALL))
             setShuffleMode(ShuffleMode.ON)
         }
     }

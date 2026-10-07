@@ -1,10 +1,16 @@
 package com.resonance.player.app
 
+import com.resonance.player.data.fingerprint.AudioFingerprinter
+import com.resonance.player.domain.playback.PlaybackSourceStore
 import android.content.Context
 import androidx.room.Room
 import com.resonance.player.core.common.DefaultAppDispatchers
 import com.resonance.player.core.database.MIGRATION_1_2
 import com.resonance.player.core.database.MIGRATION_2_3
+import com.resonance.player.core.database.MIGRATION_3_4
+import com.resonance.player.core.database.MIGRATION_4_5
+import com.resonance.player.core.database.MIGRATION_5_6
+import com.resonance.player.core.database.MIGRATION_6_7
 import com.resonance.player.core.database.ResonanceDatabase
 import com.resonance.player.core.playback.PlaybackController
 import com.resonance.player.data.local.DataStoreSettingsRepository
@@ -42,6 +48,7 @@ import com.resonance.player.domain.library.ObserveScanStateUseCase
 import com.resonance.player.domain.library.ObserveSongsUseCase
 import com.resonance.player.domain.library.ObserveSourcesUseCase
 import com.resonance.player.domain.library.RecordPlayUseCase
+import com.resonance.player.domain.library.RemoveSongUseCase
 import com.resonance.player.domain.library.RemoveSourcesUseCase
 import com.resonance.player.domain.library.RescanLibraryUseCase
 import com.resonance.player.domain.playback.AppendToQueueUseCase
@@ -58,6 +65,17 @@ import com.resonance.player.domain.playlists.ObservePlaylistSongsUseCase
 import com.resonance.player.domain.playlists.ObservePlaylistsUseCase
 import com.resonance.player.domain.playlists.RemoveSongFromPlaylistUseCase
 import com.resonance.player.domain.playlists.RenamePlaylistUseCase
+import com.resonance.player.domain.playlists.SetPlaylistCoverUseCase
+import com.resonance.player.domain.library.ObserveListeningStatsUseCase
+import com.resonance.player.domain.library.SetGenreUseCase
+import com.resonance.player.domain.tags.MetadataLookup
+import com.resonance.player.domain.tags.TagRepository
+import com.resonance.player.data.tags.OnlineMetadataLookup
+import com.resonance.player.data.tags.RoomTagRepository
+import com.resonance.player.data.media.FilePlaylistCoverStore
+import com.resonance.player.data.importer.ImportDestination
+import com.resonance.player.data.importer.YtDlpEngine
+import com.resonance.player.importer.ImportManager
 import com.resonance.player.domain.playback.RemoveQueueItemUseCase
 import com.resonance.player.domain.playback.SkipToQueueItemUseCase
 import com.resonance.player.domain.playback.SeekToUseCase
@@ -102,7 +120,7 @@ class AppContainer(context: Context) {
 
     val database: ResonanceDatabase by lazy {
         Room.databaseBuilder(appContext, ResonanceDatabase::class.java, "resonance.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
             .build()
     }
@@ -202,6 +220,25 @@ class AppContainer(context: Context) {
     val observeAlbums = ObserveAlbumsUseCase(musicRepository)
     val observeArtists = ObserveArtistsUseCase(musicRepository)
     val observeGenres = ObserveGenresUseCase(musicRepository)
+    val observeListeningStats = ObserveListeningStatsUseCase(musicRepository)
+    val setGenre = SetGenreUseCase(musicRepository)
+
+    /** Identifies the app to MusicBrainz / Cover Art Archive, as their rules ask. */
+    private val lookupUserAgent = "Crate/${com.resonance.player.BuildConfig.VERSION_NAME} ( https://github.com/4bit33/Resonance )"
+    val metadataLookup: MetadataLookup by lazy { OnlineMetadataLookup(lookupUserAgent, com.resonance.player.BuildConfig.ACOUSTID_KEY) }
+    val audioFingerprinter: AudioFingerprinter by lazy { AudioFingerprinter(appContext, dispatchers.io) }
+    val tagRepository: TagRepository by lazy {
+        RoomTagRepository(
+            appContext,
+            database,
+            ArtworkStore(File(appContext.filesDir, "artwork_overrides")),
+            dispatchers,
+            lookupUserAgent
+        )
+    }
+
+    /** Ticks after the user edits tags, so pages that loaded songs once can reload. */
+    val libraryEdits = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val observeFolders = ObserveFoldersUseCase(musicRepository)
     val getAlbumSongs = GetAlbumSongsUseCase(musicRepository)
     val getFolderSongs = GetFolderSongsUseCase(musicRepository)
@@ -209,7 +246,28 @@ class AppContainer(context: Context) {
     val rescanLibrary = RescanLibraryUseCase(musicRepository)
     val observeSources = ObserveSourcesUseCase(sourceRepository)
     val addSources = AddSourcesUseCase(sourceRepository, musicRepository)
+
+    /** Downloads with yt-dlp into the user's music folder (ADR-013). Lazy: nothing unpacks until the first import. */
+    val importManager: ImportManager by lazy {
+        ImportManager(
+            appContext,
+            applicationScope,
+            YtDlpEngine(appContext),
+            ImportDestination(appContext),
+            settingsRepository,
+            addSources
+        )
+    }
+
+    /** Takes a lasting read+write grant on the picked folder and makes it the import destination. */
+    suspend fun setImportFolder(treeUri: String) {
+        val uri = android.net.Uri.parse(treeUri)
+        val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        runCatching { appContext.contentResolver.takePersistableUriPermission(uri, flags) }
+        settingsRepository.setImportTreeUri(treeUri)
+    }
     val removeSources = RemoveSourcesUseCase(sourceRepository, musicRepository)
+    val removeSong = RemoveSongUseCase(sourceRepository)
     val getLibraryStats = GetLibraryStatsUseCase(musicRepository)
     val observeLastScan = ObserveLastScanUseCase(musicRepository)
     val observeRecentlyPlayed = ObserveRecentlyPlayedUseCase(musicRepository)
@@ -223,11 +281,14 @@ class AppContainer(context: Context) {
     val observePlaylistSongs = ObservePlaylistSongsUseCase(playlistRepository)
     val createPlaylist = CreatePlaylistUseCase(playlistRepository)
     val renamePlaylist = RenamePlaylistUseCase(playlistRepository)
-    val deletePlaylist = DeletePlaylistUseCase(playlistRepository)
+    private val playlistCovers = FilePlaylistCoverStore(appContext, dispatchers)
+    val deletePlaylist = DeletePlaylistUseCase(playlistRepository, playlistCovers)
+    val setPlaylistCover = SetPlaylistCoverUseCase(playlistRepository, playlistCovers)
     val addSongToPlaylist = AddSongToPlaylistUseCase(playlistRepository)
     val removeSongFromPlaylist = RemoveSongFromPlaylistUseCase(playlistRepository)
     val movePlaylistItem = MovePlaylistItemUseCase(playlistRepository)
-    val playSongs = PlaySongsUseCase(playbackController)
+    val playbackSources = PlaybackSourceStore()
+    val playSongs = PlaySongsUseCase(playbackController, playbackSources)
     val playNext = PlayNextUseCase(playbackController)
     val togglePlayPause = TogglePlayPauseUseCase(playbackController)
     val seekTo = SeekToUseCase(playbackController)

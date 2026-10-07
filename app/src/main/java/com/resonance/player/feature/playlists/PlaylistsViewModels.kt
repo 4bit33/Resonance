@@ -1,5 +1,7 @@
-﻿package com.resonance.player.feature.playlists
+package com.resonance.player.feature.playlists
 
+import com.resonance.player.domain.playback.PlaybackSource
+import com.resonance.player.domain.playlists.SetPlaylistCoverUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resonance.player.core.common.Result
@@ -67,11 +69,11 @@ class PlaylistsViewModel(
         }
     }
 
-    fun play(playlistId: Long, onPlaying: () -> Unit = {}, onEmpty: () -> Unit = {}) {
+    fun play(playlistId: Long, name: String, onPlaying: () -> Unit = {}, onEmpty: () -> Unit = {}) {
         viewModelScope.launch {
             val songs = (songsOf(playlistId) as? Result.Success)?.value
             if (!songs.isNullOrEmpty()) {
-                playSongs(songs, 0)
+                playSongs(songs, 0, PlaybackSource(PlaybackSource.Kind.PLAYLIST, name))
                 onPlaying()
             } else {
                 onEmpty()
@@ -95,7 +97,8 @@ class PlaylistDetailViewModel(
     private val removeSongOp: RemoveSongFromPlaylistUseCase,
     private val moveItemOp: MovePlaylistItemUseCase,
     observeAllSongs: ObserveSongsUseCase,
-    private val addSongOp: AddSongToPlaylistUseCase
+    private val addSongOp: AddSongToPlaylistUseCase,
+    private val setCoverOp: SetPlaylistCoverUseCase
 ) : ViewModel() {
     private val songsMutable = MutableStateFlow<List<Song>>(emptyList())
     val songs: StateFlow<List<Song>> = songsMutable.asStateFlow()
@@ -124,19 +127,19 @@ class PlaylistDetailViewModel(
         }
     }
 
-    fun playAll(shuffled: Boolean = false) {
+    fun playAll(name: String?, shuffled: Boolean = false) {
         val list = songsMutable.value
         if (list.isEmpty()) return
         viewModelScope.launch {
-            playSongs(list, 0)
+            playSongs(list, if (shuffled) list.indices.random() else 0, PlaybackSource(PlaybackSource.Kind.PLAYLIST, name))
             if (shuffled) setShuffleMode(ShuffleMode.ON)
         }
     }
 
-    fun playFrom(index: Int) {
+    fun playFrom(index: Int, name: String?) {
         val list = songsMutable.value
         if (index !in list.indices) return
-        viewModelScope.launch { playSongs(list, index) }
+        viewModelScope.launch { playSongs(list, index, PlaybackSource(PlaybackSource.Kind.PLAYLIST, name)) }
     }
 
     fun remove(songId: Long) {
@@ -159,6 +162,17 @@ class PlaylistDetailViewModel(
         viewModelScope.launch {
             moveItemOp(playlistId, fromPosition, toPosition)
             refresh()
+        }
+    }
+
+    /** [sourceUri] = a picked image; null removes the cover. */
+    fun setCover(sourceUri: String?) {
+        viewModelScope.launch {
+            when (val result = setCoverOp(playlistId, sourceUri)) {
+                is Result.Success -> errorMutable.value = null
+                is Result.Failure -> errorMutable.value = result.error.userMessage()
+                is Result.Loading -> Unit
+            }
         }
     }
 

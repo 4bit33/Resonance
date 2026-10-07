@@ -34,12 +34,16 @@ data class AlbumRow(
 data class ArtistRow(
     val artistName: String,
     val songCount: Int,
-    val albumCount: Int
+    val albumCount: Int,
+    /** One of the artist's covers, for the round avatar. */
+    val sampleArtworkUri: String? = null
 )
 
 data class GenreRow(
     val genreName: String,
-    val songCount: Int
+    val songCount: Int,
+    /** One cover from the genre, so genre tiles can show real artwork. */
+    val sampleArtworkUri: String? = null
 )
 
 data class FolderRow(
@@ -137,13 +141,13 @@ interface SongDao {
 
     @Query(
         "SELECT artistName, COUNT(*) AS songCount, " +
-            "COUNT(DISTINCT albumName) AS albumCount FROM songs " +
+            "COUNT(DISTINCT albumName) AS albumCount, MAX(artworkUri) AS sampleArtworkUri FROM songs " +
             "GROUP BY artistName COLLATE NOCASE ORDER BY artistName COLLATE NOCASE ASC"
     )
     fun observeArtistGroups(): Flow<List<ArtistRow>>
 
     @Query(
-        "SELECT genreName, COUNT(*) AS songCount FROM songs " +
+        "SELECT genreName, COUNT(*) AS songCount, MAX(artworkUri) AS sampleArtworkUri FROM songs " +
             "WHERE genreName IS NOT NULL AND genreName != '' " +
             "GROUP BY genreName COLLATE NOCASE ORDER BY genreName COLLATE NOCASE ASC"
     )
@@ -168,14 +172,14 @@ interface SongDao {
 
     @Query(
         "SELECT artistName, COUNT(*) AS songCount, " +
-            "COUNT(DISTINCT albumName) AS albumCount FROM songs " +
+            "COUNT(DISTINCT albumName) AS albumCount, MAX(artworkUri) AS sampleArtworkUri FROM songs " +
             "WHERE artistName LIKE :q ESCAPE '\\' " +
             "GROUP BY artistName COLLATE NOCASE ORDER BY artistName COLLATE NOCASE ASC LIMIT :limit"
     )
     fun searchArtistGroups(q: String, limit: Int): Flow<List<ArtistRow>>
 
     @Query(
-        "SELECT genreName, COUNT(*) AS songCount FROM songs " +
+        "SELECT genreName, COUNT(*) AS songCount, MAX(artworkUri) AS sampleArtworkUri FROM songs " +
             "WHERE genreName LIKE :q ESCAPE '\\' " +
             "GROUP BY genreName COLLATE NOCASE ORDER BY genreName COLLATE NOCASE ASC LIMIT :limit"
     )

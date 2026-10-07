@@ -1,6 +1,33 @@
 package com.resonance.player.core.ui.components
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TextField
+import com.resonance.player.R
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,7 +59,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.resonance.player.core.ui.theme.ResonanceTheme
 
-/** 56dp Stitch top bar: title + global search + overflow slots. */
+/** Top app bar (Material 3): optional back, title, search / overflow / custom actions. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResonanceTopBar(
     title: String,
@@ -46,42 +74,31 @@ fun ResonanceTopBar(
     overflowDescription: String? = null,
     trailing: (@Composable () -> Unit)? = null
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    TopAppBar(
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        navigationIcon = {
+            if (onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.cd_back))
+                }
+            }
+        },
+        actions = {
+            if (searchIcon != null && onSearch != null) {
+                IconButton(onClick = onSearch) { Icon(searchIcon, contentDescription = searchDescription) }
+            }
+            if (overflowIcon != null && onOverflow != null) {
+                IconButton(onClick = onOverflow) { Icon(overflowIcon, contentDescription = overflowDescription) }
+            }
+            trailing?.invoke()
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+        windowInsets = WindowInsets(0, 0, 0, 0),
         modifier = modifier
-            .fillMaxWidth()
-            .height(ResonanceTheme.dimensions.topBarHeight)
-            .padding(horizontal = spacing.lg)
-    ) {
-        if (onBack != null) {
-            IconButton(onClick = onBack, modifier = Modifier.size(spacing.touchMin)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = colors.textPrimary)
-            }
-        }
-        Text(
-            title,
-            style = typography.headlineMd,
-            color = colors.textPrimary,
-            modifier = Modifier.weight(1f)
-        )
-        if (searchIcon != null && onSearch != null) {
-            IconButton(onClick = onSearch, modifier = Modifier.size(spacing.touchMin)) {
-                Icon(searchIcon, contentDescription = searchDescription, tint = colors.textSecondary)
-            }
-        }
-        if (overflowIcon != null && onOverflow != null) {
-            IconButton(onClick = onOverflow, modifier = Modifier.size(spacing.touchMin)) {
-                Icon(overflowIcon, contentDescription = overflowDescription, tint = colors.textSecondary)
-            }
-        }
-        trailing?.invoke()
-    }
+    )
 }
 
-/** Section header: title-md + optional copper action (View all / Sort). */
+/** Section title in Material 3 style (sentence case), with an optional text action. */
 @Composable
 fun ResonanceSectionHeader(
     title: String,
@@ -90,33 +107,31 @@ fun ResonanceSectionHeader(
     onAction: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = ResonanceTheme.spacing.lg)
+            .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 4.dp)
+            .heightIn(min = 40.dp)
     ) {
         Text(
             title,
-            style = typography.titleMd,
-            color = colors.textPrimary,
+            style = ResonanceTheme.typography.headlineMd,
+            color = ResonanceTheme.colors.textPrimary,
             modifier = Modifier.weight(1f)
         )
         if (actionLabel != null && onAction != null) {
-            Text(
-                actionLabel,
-                style = typography.labelMd,
-                color = colors.accent,
-                modifier = Modifier.clickable(onClick = onAction)
-            )
+            TextButton(onClick = onAction) { Text(actionLabel) }
         }
         trailing?.invoke()
     }
 }
 
-/** 48dp filled search field (container-high, 8dp radius, clear action). */
+/**
+ * Search field as a Material 3 search pill: optional [leading] (e.g. back),
+ * a clear button once there is text, and [autoFocus] to open the keyboard
+ * straight away.
+ */
 @Composable
 fun ResonanceSearchField(
     value: String,
@@ -124,54 +139,50 @@ fun ResonanceSearchField(
     modifier: Modifier = Modifier,
     label: String = "",
     searchIcon: ImageVector? = null,
-    clearIcon: ImageVector? = null,
+    clearIcon: ImageVector? = Icons.Rounded.Close,
     clearDescription: String? = null,
-    onSearch: (() -> Unit)? = null
+    onSearch: (() -> Unit)? = null,
+    leading: (@Composable () -> Unit)? = null,
+    autoFocus: Boolean = false
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    OutlinedTextField(
+    val focus = remember { FocusRequester() }
+    if (autoFocus) LaunchedEffect(Unit) { focus.requestFocus() }
+    TextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, style = typography.bodyMd) },
+        placeholder = { Text(label, maxLines = 1) },
         singleLine = true,
-        shape = ResonanceTheme.radii.control,
-        textStyle = typography.bodyLg.copy(color = colors.textPrimary),
-        colors = OutlinedTextFieldDefaults.colors(
-            unfocusedContainerColor = colors.surfaceHigh,
-            focusedContainerColor = colors.surfaceHigh,
-            unfocusedBorderColor = colors.outlineSubtle,
-            focusedBorderColor = colors.accent,
-            unfocusedLabelColor = colors.textMuted,
-            focusedLabelColor = colors.textSecondary,
-            cursorColor = colors.accent
-        ),
-        leadingIcon = if (searchIcon != null) {
-            { Icon(searchIcon, contentDescription = null, tint = colors.textSecondary) }
-        } else {
-            null
-        },
+        shape = CircleShape,
+        leadingIcon = leading ?: searchIcon?.let { icon -> { Icon(icon, contentDescription = null) } },
         trailingIcon = if (value.isNotEmpty() && clearIcon != null) {
             {
-                IconButton(
-                    onClick = { onValueChange("") },
-                    modifier = Modifier.size(ResonanceTheme.spacing.touchMin)
-                ) {
-                    Icon(clearIcon, contentDescription = clearDescription, tint = colors.textSecondary)
+                IconButton(onClick = { onValueChange("") }) {
+                    Icon(clearIcon, contentDescription = clearDescription ?: stringResource(R.string.cd_clear))
                 }
             }
         } else {
             null
         },
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = ResonanceTheme.colors.surfaceHigh,
+            unfocusedContainerColor = ResonanceTheme.colors.surfaceHigh,
+            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            cursorColor = ResonanceTheme.colors.accent
+        ),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { onSearch?.invoke() }),
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(56.dp)
+            .focusRequester(focus)
     )
 }
 
-/** Custom 68dp Stitch navigation dock with dot indicator. */
+/**
+ * Bottom navigation (Material 3 navigation bar): the selected destination
+ * gets the standard indicator pill, animated by the platform component.
+ */
 @Composable
 fun ResonanceNavDock(
     destinations: List<NavDockDestination>,
@@ -179,57 +190,18 @@ fun ResonanceNavDock(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colors = ResonanceTheme.colors
-    val typography = ResonanceTheme.typography
-    val spacing = ResonanceTheme.spacing
-    androidx.compose.material3.Surface(
-        color = colors.surfaceContainer,
+    NavigationBar(
+        containerColor = ResonanceTheme.colors.surfaceLow,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         modifier = modifier
-            .fillMaxWidth()
-            .height(ResonanceTheme.dimensions.navigationDockHeight)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceAround,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            destinations.forEach { destination ->
-                val selected = destination.route == selectedRoute
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .size(spacing.touchMin)
-                        .clickable(onClick = { onSelect(destination.route) })
-                ) {
-                    val iconTint by animateColorAsState(
-                        if (selected) colors.accent else colors.textSecondary,
-                        label = "nav-icon-tint"
-                    )
-                    Icon(
-                        destination.icon,
-                        contentDescription = destination.label,
-                        tint = iconTint,
-                        modifier = Modifier.size(ResonanceTheme.dimensions.navIcon)
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Crossfade(targetState = selected, label = "nav-indicator") { isSelected ->
-                        if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .size(4.dp)
-                                    .background(colors.accent, ResonanceTheme.radii.full)
-                            )
-                        } else {
-                            Text(
-                                destination.label,
-                                style = typography.labelSm,
-                                color = colors.textSecondary
-                            )
-                        }
-                    }
-                }
-            }
+        destinations.forEach { destination ->
+            NavigationBarItem(
+                selected = destination.route == selectedRoute,
+                onClick = { onSelect(destination.route) },
+                icon = { Icon(destination.icon, contentDescription = null) },
+                label = { Text(destination.label, maxLines = 1) }
+            )
         }
     }
 }

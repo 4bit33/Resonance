@@ -7,7 +7,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 
 /**
  * Cached-artwork image with a deterministic local fallback. Coil loads the
@@ -25,8 +28,13 @@ fun ArtworkImage(
     if (artworkUri.isNullOrBlank() || failed) {
         NoteFallback(modifier)
     } else {
+        val context = LocalContext.current
+        // A short crossfade so covers fade in instead of popping (cached covers still show at once).
+        val request = remember(artworkUri) {
+            ImageRequest.Builder(context).data(artworkUri).crossfade(180).build()
+        }
         AsyncImage(
-            model = artworkUri,
+            model = request,
             contentDescription = contentDescription,
             modifier = modifier,
             contentScale = ContentScale.Crop,

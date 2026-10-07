@@ -1,5 +1,16 @@
 package com.resonance.player.feature.settings
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.Dashboard
+import androidx.compose.material.icons.rounded.BlurOn
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.runtime.mutableFloatStateOf
+import com.resonance.player.domain.settings.LookPreferences
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -69,7 +80,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel) {
+fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenHomeEditor: () -> Unit) {
     val theme by viewModel.themeMode.collectAsStateWithLifecycle()
     val accentHue by viewModel.accentHue.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
@@ -77,12 +88,13 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val ignoreShort by viewModel.ignoreShortFiles.collectAsStateWithLifecycle()
+    val look by viewModel.look.collectAsStateWithLifecycle()
     var removeTarget by remember { mutableStateOf<List<MusicSource>?>(null) }
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
     Column(Modifier.fillMaxSize()) {
-        ResonanceTopBar(title = stringResource(R.string.nav_settings))
+        ResonanceTopBar(title = stringResource(R.string.nav_settings), onBack = onBack)
         Column(
             Modifier
                 .fillMaxSize()
@@ -99,7 +111,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             Spacer(Modifier.height(spacing.sectionSpacing))
             SettingsGroupLabel(stringResource(R.string.settings_group_library))
             Surface(
-                shape = ResonanceTheme.radii.card,
+                shape = SettingsCardShape,
                 color = colors.surfaceContainer,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -164,12 +176,13 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                             )
                         },
                         trailing = {
-                            ResonancePrimaryButton(
-                                label = stringResource(R.string.settings_rescan),
-                                onClick = viewModel::rescan,
-                                enabled = scanState !is ScanState.Scanning
-                            )
-                        }
+                            if (scanState is ScanState.Scanning) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
+                            } else {
+                                Icon(Icons.Rounded.Refresh, contentDescription = null, tint = colors.accent)
+                            }
+                        },
+                        onClick = { if (scanState !is ScanState.Scanning) viewModel.rescan() }
                     )
                     ResonanceSettingsRow(
                         title = stringResource(R.string.settings_ignore_short),
@@ -201,9 +214,28 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 AccentPicker(hue = accentHue, onSelect = viewModel::setAccentHue)
             }
             Spacer(Modifier.height(spacing.sectionSpacing))
+            Surface(
+                shape = SettingsCardShape,
+                color = colors.surfaceContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.lg)
+            ) {
+                ResonanceSettingsRow(
+                    title = stringResource(R.string.settings_home),
+                    subtitle = stringResource(R.string.settings_home_body),
+                    leading = { ResonanceSettingsIcon(icon = Icons.Rounded.Dashboard, contentDescription = null) },
+                    trailing = { },
+                    onClick = onOpenHomeEditor
+                )
+            }
+            Spacer(Modifier.height(spacing.sectionSpacing))
+            SettingsGroupLabel(stringResource(R.string.settings_group_player_look))
+            PlayerLookCard(look = look, onChange = viewModel::updateLook)
+            Spacer(Modifier.height(spacing.sectionSpacing))
             SettingsGroupLabel(stringResource(R.string.settings_group_about))
             Surface(
-                shape = ResonanceTheme.radii.card,
+                shape = SettingsCardShape,
                 color = colors.surfaceContainer,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -271,7 +303,7 @@ private fun MusicSourcesCard(sources: List<MusicSource>, onRemove: (List<MusicSo
     val actions = LocalMusicActions.current
     val colors = ResonanceTheme.colors
     Surface(
-        shape = ResonanceTheme.radii.card,
+        shape = SettingsCardShape,
         color = colors.surfaceContainer,
         modifier = Modifier
             .fillMaxWidth()
@@ -381,21 +413,105 @@ private fun AccentPicker(hue: Float, onSelect: (Float) -> Unit) {
     )
 }
 
+/** Animation speed presets; the stored value is a plain multiplier. */
+private val MOTION_PRESETS = listOf(0f, 0.75f, 1f, 1.5f)
+
+/** Everything about how the player looks and moves. Changes apply live. */
 @Composable
-private fun SettingsGroupLabel(text: String) {
+private fun PlayerLookCard(look: LookPreferences, onChange: ((LookPreferences) -> LookPreferences) -> Unit) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
+    Surface(
+        shape = SettingsCardShape,
+        color = colors.surfaceContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.lg)
+    ) {
+        Column {
+            ResonanceSettingsRow(
+                title = stringResource(R.string.look_artwork_colors),
+                subtitle = stringResource(R.string.look_artwork_colors_body),
+                leading = { ResonanceSettingsIcon(icon = Icons.Rounded.Palette, contentDescription = null) },
+                trailing = {
+                    ResonanceSwitch(
+                        checked = look.artworkColors,
+                        onCheckedChange = { on -> onChange { it.copy(artworkColors = on) } }
+                    )
+                }
+            )
+            ResonanceSettingsRow(
+                title = stringResource(R.string.look_glow),
+                subtitle = stringResource(R.string.look_glow_body),
+                leading = { ResonanceSettingsIcon(icon = Icons.Rounded.BlurOn, contentDescription = null) },
+                trailing = {
+                    Text(
+                        "${(look.glowStrength * 100).roundToInt()}%",
+                        style = typography.monoMetric,
+                        color = colors.textSecondary
+                    )
+                }
+            )
+            var glow by remember(look.glowStrength) { mutableFloatStateOf(look.glowStrength) }
+            Slider(
+                value = glow,
+                onValueChange = { glow = it },
+                onValueChangeFinished = { onChange { it.copy(glowStrength = glow) } },
+                colors = SliderDefaults.colors(
+                    thumbColor = colors.accent,
+                    activeTrackColor = colors.accent,
+                    inactiveTrackColor = colors.surfaceHighest
+                ),
+                modifier = Modifier.padding(horizontal = spacing.lg)
+            )
+            ResonanceSettingsRow(
+                title = stringResource(R.string.look_breathing),
+                subtitle = stringResource(R.string.look_breathing_body),
+                leading = { ResonanceSettingsIcon(icon = Icons.Rounded.Air, contentDescription = null) },
+                trailing = {
+                    ResonanceSwitch(
+                        checked = look.glowBreathing,
+                        enabled = look.glowStrength > 0f,
+                        onCheckedChange = { on -> onChange { it.copy(glowBreathing = on) } }
+                    )
+                }
+            )
+            Text(
+                stringResource(R.string.look_motion),
+                style = typography.titleMd,
+                color = colors.textPrimary,
+                modifier = Modifier.padding(start = spacing.lg, end = spacing.lg, top = spacing.md, bottom = spacing.sm)
+            )
+            val selected = MOTION_PRESETS.indices.minByOrNull { abs(MOTION_PRESETS[it] - look.motionSpeed) } ?: 2
+            ResonanceSegmentedControl(
+                options = listOf(
+                    stringResource(R.string.look_motion_off),
+                    stringResource(R.string.look_motion_calm),
+                    stringResource(R.string.look_motion_normal),
+                    stringResource(R.string.look_motion_fast)
+                ),
+                selectedIndex = selected,
+                onSelect = { index -> onChange { it.copy(motionSpeed = MOTION_PRESETS[index]) } },
+                modifier = Modifier.padding(start = spacing.lg, end = spacing.lg, bottom = spacing.lg)
+            )
+        }
+    }
+}
+
+/** Group title, Material 3 settings style: sentence case in the accent color. */
+@Composable
+private fun SettingsGroupLabel(text: String) {
     Text(
-        text = text.uppercase(),
-        style = typography.labelLg,
-        color = colors.accent,
-        modifier = Modifier.padding(
-            horizontal = spacing.lg,
-            vertical = spacing.sm
-        )
+        text = text,
+        style = ResonanceTheme.typography.labelLg,
+        color = ResonanceTheme.colors.accent,
+        modifier = Modifier.padding(start = 28.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
     )
 }
+
+/** Large, soft cards like the system settings on Android 16. */
+private val SettingsCardShape = RoundedCornerShape(24.dp)
 
 @Composable
 private fun themeName(mode: ThemeMode): String = when (mode) {

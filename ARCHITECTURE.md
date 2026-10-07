@@ -1,7 +1,8 @@
 # Crate — Architecture (Phase 3: library ingestion pipeline, music sources)
 
-Local-first, offline-first music player. No INTERNET permission by design
-(verified in the merged manifest), and no storage/audio permission either.
+Local-first music player: playback and the library are fully offline. The
+network is used only for what the user starts (import, tag lookups, own
+server; ADR-013). No storage/audio permission.
 Single `:app` Gradle module with strict package layers (solo-dev friendly;
 split into Gradle modules only when build times or reuse demand it).
 
@@ -28,7 +29,7 @@ UI (Compose) -> ViewModel -> UseCase -> Repository -> Data Source (Room / Storag
   releases a persisted read grant. The system pickers live once in the app
   shell (`LocalMusicActions`); screens only trigger them.
 - Queue: runtime-only `QueueBookkeeper`. Never touches saved data.
-- Database: single `ResonanceDatabase` (Room v3). Entities map via
+- Database: single `ResonanceDatabase` (Room v4). Entities map via
   `SongMapper`. Songs belong to a source (FK, ON DELETE CASCADE: removing a
   source drops its songs). Playlists/favorites/history hold NO foreign keys
   to songs, so removing songs never cascades user data.
@@ -100,14 +101,19 @@ User-added sources (folder = TREE via OpenDocumentTree, song = FILE via OpenMult
 - ADR-009 schema upgrades are explicit Migrations (v1->v2 additive, keeps all user data; v2->v3 is a deliberate clean start for songs, see ADR-010); destructive fallback applies to downgrades only.
 - ADR-010 the library is the music the user adds, not a device scan. Folders (OpenDocumentTree) and single songs (OpenMultipleDocuments) with persisted READ grants; scans run only after add/remove and on "Refresh library"; no READ_MEDIA_AUDIO / READ_EXTERNAL_STORAGE. `Song.id` stays a Long (nav arg, Media3 media id, DataStore queue, favorites/playlists untouched) but becomes a stable hash of authority + documentId, pinned by a golden-value test because it is a persisted format. Songs FK to `sources` with CASCADE; source inserts use IGNORE (REPLACE would delete the parent row and cascade every song). v2->v3 drops the old songs and empties playlist items, favorites and history (playlist names are kept); the DDL is copied from the Room-generated code. "Remove" in the UI always means remove from the library: files are never deleted.
   Known limits: Android caps persisted grants (512, 128 before API 30; a picked file costs one) and grants do not survive backup/restore (`allowBackup=true`), so access is derived from `persistedUriPermissions` and re-adding repairs it; Android 11+ refuses the storage root and the Download folder in the folder picker (add a subfolder, or its files via Add songs); `.nomedia` / `IS_MUSIC` are no longer honoured; the same file reached through two providers (picker's Audio tab vs a folder) can appear twice.
+- ADR-011 gestures are threshold swipes with no finger-tracking animation. Mini player: swipe up opens Now Playing, left/right skips next/previous in the queue. Now Playing: no back arrow (system back still works); pulling down anywhere closes it (a nested-scroll connection turns leftover downward drag into the close, so the screen still scrolls where it must); swiping the artwork left/right skips. A long press on a song row replaces the three-dot button and opens the song menu (the long-click label keeps an action for TalkBack). "Remove from library" never deletes the file: a song added on its own goes away with its source; a song inside an added folder is remembered in `excluded_songs` (schema v4, FK to `sources` with CASCADE) so folder listings skip it (a file the user adds explicitly again still comes in), and removing the folder clears that memory. There is no UI to manage hidden songs.
+
+- ADR-012 license and reach (2026-10-03): the project is GPL-3.0 (LICENSE), free with no paid features. This allows building on GPL-3.0 work such as youtubedl-android (yt-dlp + ffmpeg on Android), YTDLnis and Seal. Phone-first: every feature (import, tag fixing, audio fingerprinting) must work on the phone alone; a home server or the desktop app acting as a local server are optional helpers for heavy or background work, never required. Shared logic is written in Kotlin so the same code can run in all three places.
+- ADR-013 network (2026-10-03, supersedes "no INTERNET permission"): the app may use the network only for music the user asks for — downloading/importing (yt-dlp), metadata, cover art and audio-fingerprint lookups (MusicBrainz, Cover Art Archive, AcoustID and similar open services), and talking to the user's own server or desktop app. Never for analytics, ads, accounts, crash upload or anything in the background the user did not start. Playback and the library stay fully offline.
+- ADR-014 UI as skins (2026-10-03, planned): screens stay headless (ViewModels + state) and draw through a thin UI kit (tokens: color, type, shape, motion; ~15-20 primitives: play button, song row, card, tabs, nav bar, seek bar, switch, dialog, sheet, top bar). The default skin moves to real Material 3 Expressive components and motion (material3 1.4+, needs a Compose BOM / Kotlin upgrade); hand-made look-alikes go. Signature features (artwork colors, glow, mini-player-to-Now-Playing transform, drag reorder) stay shared by every skin. Seek bar stays straight (no wavy line) but uses M3-style motion. Decided 2026-10-03: build on stable material3 1.4.0 (Compose BOM 2026.06.01; the Expressive components are only in 1.5 alpha, which needs AGP 9.1 + compileSdk 37). Shape morphs are done with androidx.graphics.shapes (what MaterialShapes is built on); move to 1.5 when it is stable. A second skin (Nothing-inspired, open fonts only, e.g. Doto) proves the seam. Light themes (colors/fonts/shapes) can later be shared as files; full skins are code modules.
 
 ## What is real
 
 Real SAF discovery of user-added folders and songs, tag extraction,
 normalization, artwork cache, source-scoped incremental reconciliation,
-Room v3, Library tabs (Songs/Albums/Artists/Genres/Folders), extended
+Room v4, Library tabs (Songs/Albums/Artists/Genres/Folders), extended
 Search, tap-to-play + play-album into the Phase 2 engine, Now Playing
-artwork, Settings music sources / refresh / stats, 108 JVM tests.
+artwork, Settings music sources / refresh / stats, swipe gestures and the long-press song menu, 113 JVM tests.
 
 ## Host note (Windows, Cyrillic username)
 
@@ -155,8 +161,6 @@ screens). Translated to native Compose — never copied HTML/CSS.
 
 ## Next
 
-Gestures (swipe down to close Now Playing, swipe up / left / right on the
-mini player, long-press a song for its menu incl. "Remove from library"),
-screen-by-screen Stitch reskin on these components, playlist management
+Screen-by-screen Stitch reskin on these components, playlist management
 UI, Smart Mix engine feeding generated queues, release minification
 (strips unused icons), backup/export.

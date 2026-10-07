@@ -7,6 +7,7 @@ import com.resonance.player.core.database.ResonanceDatabase
 import com.resonance.player.core.database.entity.SongEntity
 import com.resonance.player.core.model.StorageOverview
 import com.resonance.player.core.database.entity.HistoryEntryEntity
+import com.resonance.player.domain.library.HistoryPlay
 import com.resonance.player.core.database.toDomain
 import com.resonance.player.core.media.AudioScanner
 import com.resonance.player.core.media.ScanReport
@@ -215,6 +216,18 @@ class RoomMusicRepository(
 
     override fun observeRecentlyPlayed(limit: Int): Flow<List<Song>> =
         withFavorites(database.songDao().observeRecentlyPlayedLimited(limit))
+
+    override suspend fun setGenre(songIds: List<Long>, genre: String?) {
+        if (songIds.isEmpty()) return
+        withContext(dispatchers.io) {
+            songIds.chunked(500).forEach { database.genreOverrideDao().override(it, genre) }
+        }
+    }
+
+    override fun observeHistorySince(sinceSec: Long): Flow<List<HistoryPlay>> =
+        database.historyDao().observePlaysSince(sinceSec).map { rows ->
+            rows.map { HistoryPlay(it.durationMs, it.genreName, it.artistName) }
+        }
 
     override fun observeMostPlayed(limit: Int): Flow<List<Song>> =
         withFavorites(database.songDao().observeMostPlayedLimited(limit))

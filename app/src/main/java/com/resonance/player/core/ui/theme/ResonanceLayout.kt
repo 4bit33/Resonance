@@ -6,7 +6,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** Stitch 4px-grid spacing scale (DESIGN.md). Screens use these + semantic paddings, never raw dp. */
+/** 4px-grid spacing scale. Screens use these + semantic paddings, never raw dp. */
 @Immutable
 data class ResonanceSpacing(
     val xxs: Dp = 2.dp,
@@ -30,7 +30,7 @@ data class ResonanceSpacing(
     val rowSpacing: Dp = 4.dp
 )
 
-/** Stitch functional radius hierarchy (DESIGN.md). Curvature follows scale + interaction category. */
+/** Radius hierarchy. Curvature follows scale + interaction category. */
 @Immutable
 data class ResonanceRadii(
     /** Controls, rows, artwork thumbnails, chips, inputs. */
@@ -45,7 +45,7 @@ data class ResonanceRadii(
     val cardDp: Dp = 16.dp
 )
 
-/** Fixed Stitch component metrics (dock, mini player, insets, rows, art). */
+/** Fixed component metrics (dock, mini player, insets, rows, art). */
 @Immutable
 data class ResonanceDimensions(
     val navigationDockHeight: Dp = 68.dp,

@@ -1,4 +1,4 @@
-﻿package com.resonance.player.domain.playlists
+package com.resonance.player.domain.playlists
 
 import com.resonance.player.core.common.AppError
 import com.resonance.player.core.common.Result
@@ -18,6 +18,7 @@ interface PlaylistRepository {
     suspend fun rename(playlistId: Long, name: String): Result<Unit>
     suspend fun moveItem(playlistId: Long, fromPosition: Int, toPosition: Int): Result<Unit>
     suspend fun getPlaylistSongs(playlistId: Long): Result<List<Song>>
+    suspend fun setCover(playlistId: Long, coverUri: String?): Result<Unit>
 }
 
 /** Shared playlist-name rules (create + rename stay consistent). */
@@ -49,9 +50,39 @@ class RenamePlaylistUseCase(private val repository: PlaylistRepository) {
     }
 }
 
-class DeletePlaylistUseCase(private val repository: PlaylistRepository) {
-    suspend operator fun invoke(playlistId: Long): Result<Unit> =
-        repository.delete(playlistId)
+class DeletePlaylistUseCase(
+    private val repository: PlaylistRepository,
+    private val covers: PlaylistCoverStore? = null
+) {
+    suspend operator fun invoke(playlistId: Long): Result<Unit> {
+        val result = repository.delete(playlistId)
+        if (result is Result.Success) covers?.delete(playlistId)
+        return result
+    }
+}
+
+/** Keeps user-picked playlist covers as small app-private image files. */
+interface PlaylistCoverStore {
+    /** Copies (and downsizes) the picked image; returns the stored file's URI, or null if it could not be read. */
+    suspend fun save(playlistId: Long, sourceUri: String): String?
+    suspend fun delete(playlistId: Long)
+}
+
+/** Sets a picked image as the playlist cover, or clears it ([sourceUri] null). */
+class SetPlaylistCoverUseCase(
+    private val repository: PlaylistRepository,
+    private val covers: PlaylistCoverStore
+) {
+    suspend operator fun invoke(playlistId: Long, sourceUri: String?): Result<Unit> {
+        if (sourceUri == null) {
+            val result = repository.setCover(playlistId, null)
+            if (result is Result.Success) covers.delete(playlistId)
+            return result
+        }
+        val stored = covers.save(playlistId, sourceUri)
+            ?: return Result.Failure(AppError.Unknown("The picture could not be read"))
+        return repository.setCover(playlistId, stored)
+    }
 }
 
 class AddSongToPlaylistUseCase(private val repository: PlaylistRepository) {

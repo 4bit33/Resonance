@@ -68,3 +68,12 @@ class GetLibraryStatsUseCase(private val repository: MusicRepository) {
 class ObserveLastScanUseCase(private val repository: MusicRepository) {
     operator fun invoke(): Flow<Long?> = repository.observeLastScanEpochSec()
 }
+
+/**
+ * Sets the genre of songs by hand. The name is trimmed; blank clears it.
+ * Files are not rewritten; the change survives library refreshes.
+ */
+class SetGenreUseCase(private val repository: MusicRepository) {
+    suspend operator fun invoke(songIds: List<Long>, genre: String?) =
+        repository.setGenre(songIds.distinct(), genre?.trim()?.takeIf { it.isNotEmpty() })
+}
