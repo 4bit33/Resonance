@@ -1,7 +1,6 @@
 package com.resonance.player.core.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -61,7 +60,7 @@ fun EmptyLibraryView(modifier: Modifier = Modifier) {
         delay(EMPTY_STATE_DELAY_MS)
         visible = true
     }
-    AnimatedVisibility(visible = visible, enter = fadeIn(tween(200)), modifier = modifier.fillMaxSize()) {
+    AnimatedVisibility(visible = visible, enter = fadeIn(ResonanceTheme.motion.duration(200)), modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
