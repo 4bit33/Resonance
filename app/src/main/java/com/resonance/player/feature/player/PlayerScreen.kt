@@ -4,6 +4,11 @@ import com.resonance.player.core.ui.components.playerAnchor
 import com.resonance.player.core.ui.components.PlayerAnchor
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import kotlin.math.PI
+import kotlin.math.sin
 import com.resonance.player.core.ui.components.PlayShapes
 import com.resonance.player.core.ui.components.MorphShape
 import androidx.compose.animation.core.LinearEasing
@@ -640,7 +645,11 @@ private fun Scrubber(
         derivedStateOf { (dragFraction?.let { (it * duration).toLong() } ?: currentMs()) / 1000L }
     }
     val active = dragFraction != null
-    // Material 3 slider look, kept straight: the track thickens and the handle narrows under the finger.
+    // Material 3 slider look: the track thickens and the handle narrows under the finger.
+    // While music plays the played part is a travelling wave (M3 Expressive wavy progress,
+    // drawn here because the library's wavy indicator has no handle); it flattens on pause and drag.
+    val waveAmount by animateFloatAsState(if (playing && !active && enabled) 1f else 0f, motion.settle(), label = "seek-wave")
+    val wavePath = remember { Path() }
     val trackHeight by animateDpAsState(if (active) 10.dp else 6.dp, motion.spatialFast(), label = "track-h")
     val handleWidth by animateDpAsState(if (active) 2.dp else 4.dp, motion.spatialFast(), label = "handle-w")
 
@@ -708,7 +717,26 @@ private fun Scrubber(
                 }
                 if (enabled) {
                     // Active track, a gap, the handle, a gap, the inactive track with a stop dot at its end.
-                    segment(0f, x - gap - handleW / 2f, accent, outer, inner)
+                    val activeEnd = x - gap - handleW / 2f
+                    val amplitude = 3.dp.toPx() * waveAmount
+                    if (amplitude < 0.5f || activeEnd < h * 2f) {
+                        segment(0f, activeEnd, accent, outer, inner)
+                    } else {
+                        val wavelength = 40.dp.toPx()
+                        // One wavelength per second, towards the handle.
+                        val period = motion.millis(1000).coerceAtLeast(1)
+                        val shift = if (motion.enabled) (SystemClock.uptimeMillis() % period) / period.toFloat() * wavelength else 0f
+                        val cy = size.height / 2f
+                        val k = 2f * PI.toFloat() / wavelength
+                        wavePath.rewind()
+                        var px = outer
+                        wavePath.moveTo(px, cy + amplitude * sin(k * (px - shift)))
+                        while (px < activeEnd - outer) {
+                            px = (px + 2f).coerceAtMost(activeEnd - outer)
+                            wavePath.lineTo(px, cy + amplitude * sin(k * (px - shift)))
+                        }
+                        drawPath(wavePath, accent, style = Stroke(h, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    }
                     segment(x + gap + handleW / 2f, size.width, trackColor, inner, outer)
                     val dot = 2.dp.toPx()
                     if (size.width - (x + gap + handleW / 2f) > dot * 4f) {
