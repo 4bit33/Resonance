@@ -7,6 +7,7 @@ import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.runtime.mutableFloatStateOf
 import com.resonance.player.domain.settings.LookPreferences
 import kotlin.math.abs
@@ -73,6 +74,10 @@ import com.resonance.player.core.ui.components.ResonanceTopBar
 import com.resonance.player.core.ui.theme.ACCENT_PRESETS
 import com.resonance.player.core.ui.theme.ResonanceTheme
 import com.resonance.player.core.ui.theme.accentPreviewColor
+import com.resonance.player.core.ui.theme.WALLPAPER_ACCENT_HUE
+import com.resonance.player.core.ui.theme.resolveAccentHue
+import com.resonance.player.core.ui.theme.wallpaperAccentAvailable
+import androidx.compose.ui.Alignment
 import com.resonance.player.domain.settings.ThemeMode
 import java.time.Instant
 import java.time.ZoneId
@@ -383,7 +388,30 @@ private fun AccentPicker(hue: Float, onSelect: (Float) -> Unit) {
         color = colors.textSecondary
     )
     Spacer(Modifier.height(spacing.sm))
+    val shownHue = resolveAccentHue(hue)
     Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+        if (wallpaperAccentAvailable) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(accentPreviewColor(resolveAccentHue(WALLPAPER_ACCENT_HUE)))
+                    .border(
+                        width = if (hue < 0f) 2.dp else 0.dp,
+                        color = colors.textPrimary,
+                        shape = CircleShape
+                    )
+                    .clickable { onSelect(WALLPAPER_ACCENT_HUE) }
+            ) {
+                Icon(
+                    Icons.Rounded.Wallpaper,
+                    contentDescription = stringResource(R.string.settings_accent_wallpaper),
+                    tint = colors.onAccent,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
         ACCENT_PRESETS.forEach { (_, presetHue) ->
             val selected = kotlin.math.abs(presetHue - hue) < 1f
             Box(
@@ -402,7 +430,7 @@ private fun AccentPicker(hue: Float, onSelect: (Float) -> Unit) {
     }
     Spacer(Modifier.height(spacing.sm))
     Slider(
-        value = hue,
+        value = shownHue,
         onValueChange = onSelect,
         valueRange = 0f..360f,
         colors = SliderDefaults.colors(

@@ -68,6 +68,7 @@
     <string name="settings_group_library">Бібліотека на пристрої</string>
     <string name="settings_group_appearance">Вигляд</string>
     <string name="settings_accent">Колір акценту</string>
+    <string name="settings_accent_wallpaper">З шпалер</string>
     <string name="settings_group_about">Про застосунок</string>
     <string name="settings_ignore_short">Пропускати короткі файли</string>
     <string name="settings_ignore_short_body">Не додавати аудіо коротше 30 секунд при наступному оновленні</string>
