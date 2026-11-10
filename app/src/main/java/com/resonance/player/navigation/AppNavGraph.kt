@@ -22,6 +22,7 @@ import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -308,7 +309,12 @@ fun ResonanceAppShell(container: AppContainer) {
             enterTransition = { screenEnter(motion, forward = true) },
             exitTransition = { fadeOut(motion.duration(70)) },
             popEnterTransition = { screenEnter(motion, forward = false) },
-            popExitTransition = { fadeOut(motion.duration(70)) }
+            // Back keeps the leaving screen on stage a little longer and moves it aside,
+            // so the predictive back gesture drags both screens under the finger.
+            popExitTransition = {
+                if (isTabSwitch()) fadeOut(motion.duration(70))
+                else fadeOut(motion.duration(120)) + slideOutHorizontally(motion.settle()) { it / 8 }
+            }
         ) {
             screen(AppDestination.Home.route) {
                 val vm: HomeViewModel = viewModel(
@@ -794,14 +800,16 @@ private fun NavGraphBuilder.screen(
     }
 }
 
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boolean =
+    AppDestination.tabForRoute(initialState.destination.route) != null &&
+        AppDestination.tabForRoute(targetState.destination.route) != null
+
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.screenEnter(
     motion: ResonanceMotion,
     forward: Boolean
 ): EnterTransition {
     val fade = fadeIn(motion.duration(150))
-    val tabSwitch = AppDestination.tabForRoute(initialState.destination.route) != null &&
-        AppDestination.tabForRoute(targetState.destination.route) != null
-    return if (tabSwitch) {
+    return if (isTabSwitch()) {
         fade + scaleIn(motion.spatialFast(), initialScale = 0.985f)
     } else {
         fade + slideInHorizontally(motion.settle()) { if (forward) it / 8 else -it / 8 }
