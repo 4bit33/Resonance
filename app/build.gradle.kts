@@ -83,7 +83,8 @@ android {
         }
         release {
             signingConfigs.findByName("crate")?.let { signingConfig = it }
-            isMinifyEnabled = false
+            // R8: smaller, faster code; the biggest lever against Compose jank.
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
