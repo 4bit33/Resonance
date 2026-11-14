@@ -44,7 +44,7 @@ fun LoadingView(modifier: Modifier = Modifier) {
 }
 
 /**
- * "No music yet" with the two ways to add some. Used by Home and every Library
+ * "No music yet" with the three ways to add some (folder, files, download). Used by Home and every Library
  * tab, so the CTA is one place.
  */
 @Composable
@@ -90,6 +90,13 @@ fun EmptyLibraryView(modifier: Modifier = Modifier) {
             TextButton(onClick = actions.addSongs) {
                 Text(
                     stringResource(R.string.music_add_songs),
+                    style = typography.labelLg,
+                    color = colors.accent
+                )
+            }
+            TextButton(onClick = actions.openImport) {
+                Text(
+                    stringResource(R.string.home_import_youtube),
                     style = typography.labelLg,
                     color = colors.accent
                 )

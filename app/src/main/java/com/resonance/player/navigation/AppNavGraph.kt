@@ -200,7 +200,8 @@ fun ResonanceAppShell(container: AppContainer) {
             addSongs = { addSongsPicker.launch(arrayOf("audio/*")) },
             removeSong = { song -> scope.launch { container.removeSong(song.id) } },
             editGenre = { songs, onSaved -> genreTarget = GenreTarget(songs, onSaved) },
-            editTags = { song -> tagsRequest = song.id }
+            editTags = { song -> tagsRequest = song.id },
+            openImport = { navController.navigate(AppDestination.Import.route) { launchSingleTop = true } }
         )
     }
 
@@ -603,6 +604,8 @@ fun ResonanceAppShell(container: AppContainer) {
         }
     }
 
+    // Above everything, Now Playing included: its menu edits tags and genres through these.
+    CompositionLocalProvider(LocalMusicActions provides musicActions) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -621,9 +624,7 @@ fun ResonanceAppShell(container: AppContainer) {
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
-                CompositionLocalProvider(LocalMusicActions provides musicActions) {
-                    AppGraph(modifier = Modifier.weight(1f))
-                }
+                AppGraph(modifier = Modifier.weight(1f))
                 AnimatedVisibility(
                     visible = showMiniPlayer,
                     enter = fadeIn(ResonanceTheme.motion.duration(200)) + slideInVertically(ResonanceTheme.motion.spatial()) { it },
@@ -747,6 +748,7 @@ fun ResonanceAppShell(container: AppContainer) {
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = snackbarBottomInset)
         )
+    }
     }
 }
 
