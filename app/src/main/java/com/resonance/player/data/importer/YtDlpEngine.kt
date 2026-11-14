@@ -1,6 +1,7 @@
 package com.resonance.player.data.importer
 
 import android.content.Context
+import com.resonance.player.domain.importer.ImportStage
 import com.resonance.player.domain.importer.ytDlpArguments
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
@@ -23,8 +24,9 @@ class YtDlpEngine(private val context: Context) {
     private var ready = false
     private var updateTried = false
 
-    private suspend fun ensureReady() = readyLock.withLock {
+    private suspend fun ensureReady(onStage: (ImportStage) -> Unit) = readyLock.withLock {
         if (ready) return@withLock
+        onStage(ImportStage.PREPARING)
         withContext(Dispatchers.IO) {
             YoutubeDL.getInstance().init(context)
             FFmpeg.getInstance().init(context)
@@ -32,9 +34,10 @@ class YtDlpEngine(private val context: Context) {
         ready = true
     }
 
-    private suspend fun updateOnce() {
+    private suspend fun updateOnce(onStage: (ImportStage) -> Unit) {
         if (updateTried) return
         updateTried = true
+        onStage(ImportStage.UPDATING)
         withContext(Dispatchers.IO) {
             runCatching { YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel._STABLE) }
         }
@@ -42,7 +45,8 @@ class YtDlpEngine(private val context: Context) {
 
     /**
      * Downloads [url] (a song, album or playlist) into [stagingDir]. [onProgress]
-     * gets the percent of the current file and each output line. Returns
+     * gets the percent of the current file and each output line; [onStage] the
+     * slow steps before yt-dlp prints anything (unpacking, self-update). Returns
      * yt-dlp's error text on failure, null on success.
      */
     suspend fun download(
@@ -50,10 +54,12 @@ class YtDlpEngine(private val context: Context) {
         stagingDir: File,
         archive: File,
         processId: String,
+        onStage: (ImportStage) -> Unit,
         onProgress: (percent: Float, line: String) -> Unit
     ): String? {
-        ensureReady()
-        updateOnce()
+        ensureReady(onStage)
+        updateOnce(onStage)
+        onStage(ImportStage.FINDING)
         return withContext(Dispatchers.IO) {
             stagingDir.mkdirs()
             val request = YoutubeDLRequest(url).addCommands(ytDlpArguments(url, stagingDir.absolutePath, archive.absolutePath))

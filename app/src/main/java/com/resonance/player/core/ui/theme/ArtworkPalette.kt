@@ -41,8 +41,8 @@ data class ArtworkPalette(
             // Greyscale covers have no meaningful hue: keep them neutral instead of tinting red.
             val sat = hsl[1]
             val grey = sat < 0.12f
-            val accent = ColorUtils.HSLToColor(floatArrayOf(hue, if (grey) 0f else sat.coerceIn(0.55f, 0.9f), 0.76f))
-            val glow = ColorUtils.HSLToColor(floatArrayOf(hue, if (grey) 0f else sat.coerceIn(0.6f, 1f), 0.55f))
+            val accent = ColorUtils.HSLToColor(floatArrayOf(hue, if (grey) 0f else sat.coerceIn(0.7f, 1f), 0.68f))
+            val glow = ColorUtils.HSLToColor(floatArrayOf(hue, if (grey) 0f else sat.coerceIn(0.7f, 1f), 0.55f))
             val background = ColorUtils.HSLToColor(floatArrayOf(hue, if (grey) 0f else 0.45f, 0.075f))
             val surface = ColorUtils.HSLToColor(floatArrayOf(hue, if (grey) 0f else 0.32f, 0.14f))
             return ArtworkPalette(Color(accent), Color(glow), Color(background), Color(surface))
@@ -57,27 +57,32 @@ private suspend fun extractPalette(context: Context, uri: String): ArtworkPalett
     withContext(Dispatchers.IO) {
         paletteCache.get(uri)?.let { return@withContext it }
         val bitmap = runCatching { decodeSmall(context, Uri.parse(uri)) }.getOrNull() ?: return@withContext null
-        val palette = Palette.from(bitmap).maximumColorCount(16).generate()
+        // clearFilters: Palette's default filter throws away orange and brown (hue 10-37) as
+        // "skin tones", which turned warm covers red or pink.
+        val palette = Palette.from(bitmap).maximumColorCount(24).clearFilters().generate()
         bitmap.recycle()
-        val swatch = palette.vibrantSwatch
-            ?: palette.lightVibrantSwatch
-            ?: palette.dominantSwatch
-            ?: palette.mutedSwatch
-            ?: return@withContext null
-        // A vibrant swatch that covers almost nothing of the cover misrepresents it.
-        val dominant = palette.dominantSwatch
-        val seed = if (dominant != null && swatch.population * 6 < dominant.population && saturation(dominant.rgb) > 0.2f) {
-            dominant.rgb
-        } else {
-            swatch.rgb
-        }
+        val seed = pickSeed(palette.swatches.map { it.rgb to it.population }) ?: return@withContext null
         ArtworkPalette.fromSeed(seed).also { paletteCache.put(uri, it) }
     }
 
-private fun saturation(argb: Int): Float {
-    val hsl = FloatArray(3)
-    ColorUtils.colorToHSL(argb, hsl)
-    return hsl[1]
+/**
+ * The color that characterizes a cover: the one that fills the most of it,
+ * weighted towards saturated colors, ignoring near-black and near-white. A
+ * vivid speck does not beat a large muted area, and a grey cover stays grey.
+ */
+internal fun pickSeed(swatches: List<Pair<Int, Int>>): Int? =
+    swatches.maxByOrNull { (rgb, population) -> colorfulness(rgb) * population }?.first
+
+private fun colorfulness(rgb: Int): Float {
+    val r = (rgb shr 16 and 0xFF) / 255f
+    val g = (rgb shr 8 and 0xFF) / 255f
+    val b = (rgb and 0xFF) / 255f
+    val max = maxOf(r, g, b)
+    val min = minOf(r, g, b)
+    val lightness = (max + min) / 2f
+    val saturation = if (max == min) 0f else (max - min) / (1f - kotlin.math.abs(2f * lightness - 1f))
+    val usable = if (lightness < 0.12f || lightness > 0.92f) 0.05f else 1f
+    return (0.15f + saturation) * (0.15f + saturation) * usable
 }
 
 private fun decodeSmall(context: Context, uri: Uri): Bitmap? {

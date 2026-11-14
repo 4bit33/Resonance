@@ -4,6 +4,8 @@ import com.resonance.player.domain.importer.extractImportUrl
 import com.resonance.player.domain.importer.isGeneratedMix
 import com.resonance.player.domain.importer.parseCurrentTitle
 import com.resonance.player.domain.importer.parsePlaylistItem
+import com.resonance.player.domain.importer.ImportStage
+import com.resonance.player.domain.importer.parseStage
 import com.resonance.player.domain.importer.optionValue
 import com.resonance.player.domain.importer.ytDlpArguments
 import org.junit.Assert.assertEquals
@@ -56,5 +58,13 @@ class ImportPlanTest {
         assertNull(parsePlaylistItem("[download]  45.3% of 3.21MiB"))
         assertEquals("Afterglow", parseCurrentTitle("[download] Destination: /s/Artist/Singles/Afterglow.m4a"))
         assertNull(parseCurrentTitle("[ExtractAudio] Not converting audio"))
+    }
+
+    @Test
+    fun readsTheStageFromOutputLines() {
+        assertEquals(ImportStage.FINDING, parseStage("[youtube] Extracting URL: https://youtu.be/x"))
+        assertEquals(ImportStage.DOWNLOADING, parseStage("[download]  45.3% of 3.21MiB"))
+        assertEquals(ImportStage.CONVERTING, parseStage("[ExtractAudio] Destination: /s/a.m4a"))
+        assertNull(parseStage("WARNING: something"))
     }
 }

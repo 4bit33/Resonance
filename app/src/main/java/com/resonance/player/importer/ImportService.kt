@@ -15,6 +15,7 @@ import com.resonance.player.MainActivity
 import com.resonance.player.R
 import com.resonance.player.app.ResonanceApp
 import com.resonance.player.domain.importer.ImportJob
+import com.resonance.player.domain.importer.ImportStage
 import com.resonance.player.domain.importer.ImportStatus
 import com.resonance.player.domain.importer.isActive
 import kotlinx.coroutines.CoroutineScope
@@ -77,6 +78,10 @@ class ImportService : Service() {
         val title = running?.title ?: getString(R.string.import_title)
         val text = buildString {
             if (running?.item != null && running.total != null) append(getString(R.string.import_item_of, running.item, running.total))
+            if (running != null) {
+                if (isNotEmpty()) append(" · ")
+                append(getString(running.stage.labelRes()))
+            }
             if (queued > 0) {
                 if (isNotEmpty()) append(" · ")
                 append(getString(R.string.import_queued_count, queued))
@@ -91,7 +96,7 @@ class ImportService : Service() {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text.ifEmpty { null })
-            .setProgress(100, running?.percent?.toInt() ?: 0, running == null)
+            .setProgress(100, running?.percent?.toInt() ?: 0, running?.stage != ImportStage.DOWNLOADING)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)
@@ -102,4 +107,14 @@ class ImportService : Service() {
         const val CHANNEL_ID = "import"
         const val NOTIFICATION_ID = 7301
     }
+}
+
+/** The line that tells the user what a running import is doing right now. */
+fun ImportStage.labelRes(): Int = when (this) {
+    ImportStage.PREPARING -> R.string.import_stage_preparing
+    ImportStage.UPDATING -> R.string.import_stage_updating
+    ImportStage.FINDING -> R.string.import_stage_finding
+    ImportStage.DOWNLOADING -> R.string.import_stage_downloading
+    ImportStage.CONVERTING -> R.string.import_stage_converting
+    ImportStage.SAVING -> R.string.import_stage_saving
 }

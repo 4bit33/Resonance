@@ -67,6 +67,7 @@
     <string name="settings_group_library">Local library</string>
     <string name="settings_group_appearance">Appearance</string>
     <string name="settings_accent">Accent color</string>
+    <string name="settings_accent_wallpaper">From wallpaper</string>
     <string name="settings_group_about">About</string>
     <string name="settings_ignore_short">Ignore short files</string>
     <string name="settings_ignore_short_body">Skip audio under 30 seconds on the next refresh</string>
@@ -207,7 +208,12 @@
     <string name="import_folder_change">Change</string>
     <string name="import_folder_needed">Choose where imported music goes, for example a new folder Music/Crate.</string>
     <string name="import_queued">Waiting</string>
-    <string name="import_starting">Getting ready…</string>
+    <string name="import_stage_preparing">Unpacking the downloader (first time only)…</string>
+    <string name="import_stage_updating">Updating yt-dlp…</string>
+    <string name="import_stage_finding">Looking up the link…</string>
+    <string name="import_stage_downloading">Downloading</string>
+    <string name="import_stage_converting">Converting, adding tags and cover…</string>
+    <string name="import_stage_saving">Saving to your folder…</string>
     <string name="import_done_none">Already in your library</string>
     <string name="import_failed">Failed: %1$s</string>
     <string name="import_failed_folder">Choose a folder first</string>
@@ -249,6 +255,11 @@
     <string name="tags_field_album">Album</string>
     <string name="tags_field_album_artist">Album artist</string>
     <string name="tags_field_year">Year</string>
+    <string name="song_info_disc">Disc</string>
+    <string name="song_info_duration">Duration</string>
+    <string name="song_info_format">Format</string>
+    <string name="song_info_size">Size</string>
+    <string name="song_info_location">Location</string>
     <string name="tags_field_track">Track</string>
     <string name="tags_note">Your file is not changed: fixes are kept in the app and survive library refreshes.</string>
     <string name="tags_reset">Back to the file\'s tags</string>

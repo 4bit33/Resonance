@@ -207,7 +207,7 @@ fun PlaylistDetailScreen(
                                 }
                             )
                             .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
-                            .animateContentSize()
+                            .animateContentSize(ResonanceTheme.motion.spatial())
                     ) {
                         Box(Modifier.size(48.dp).clip(RoundedCornerShape(10.dp))) {
                             ArtworkImage(artworkUri = song.artworkUri, contentDescription = null, modifier = Modifier.fillMaxSize())
@@ -217,7 +217,7 @@ fun PlaylistDetailScreen(
                             Text(song.title, style = typography.titleMd, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(song.artistName, style = typography.bodySm, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        AnimatedVisibility(visible = !editing, enter = fadeIn(), exit = fadeOut()) {
+                        AnimatedVisibility(visible = !editing, enter = fadeIn(ResonanceTheme.motion.effects()), exit = fadeOut(ResonanceTheme.motion.effects())) {
                             Text(
                                 formatDurationMs(song.durationMs),
                                 style = typography.monoMetric,
@@ -225,7 +225,7 @@ fun PlaylistDetailScreen(
                                 modifier = Modifier.padding(horizontal = 12.dp)
                             )
                         }
-                        AnimatedVisibility(visible = editing, enter = fadeIn() + expandHorizontally(), exit = fadeOut() + shrinkHorizontally()) {
+                        AnimatedVisibility(visible = editing, enter = fadeIn(ResonanceTheme.motion.effects()) + expandHorizontally(ResonanceTheme.motion.spatial()), exit = fadeOut(ResonanceTheme.motion.effects()) + shrinkHorizontally(ResonanceTheme.motion.spatial())) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(onClick = { viewModel.remove(song.id) }) {
                                     Icon(Icons.Rounded.RemoveCircleOutline, contentDescription = stringResource(R.string.queue_remove), tint = colors.error)
