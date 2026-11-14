@@ -210,7 +210,12 @@
     <string name="import_folder_change">Змінити</string>
     <string name="import_folder_needed">Виберіть, куди зберігати музику, наприклад нову папку Music/Crate.</string>
     <string name="import_queued">У черзі</string>
-    <string name="import_starting">Готуємось…</string>
+    <string name="import_stage_preparing">Розпаковуємо завантажувач (лише першого разу)…</string>
+    <string name="import_stage_updating">Оновлюємо yt-dlp…</string>
+    <string name="import_stage_finding">Шукаємо за посиланням…</string>
+    <string name="import_stage_downloading">Завантажуємо</string>
+    <string name="import_stage_converting">Конвертуємо, додаємо теги й обкладинку…</string>
+    <string name="import_stage_saving">Зберігаємо у вашу папку…</string>
     <string name="import_done_none">Уже є в бібліотеці</string>
     <string name="import_failed">Не вдалося: %1$s</string>
     <string name="import_failed_folder">Спершу виберіть папку</string>
@@ -254,6 +259,11 @@
     <string name="tags_field_album">Альбом</string>
     <string name="tags_field_album_artist">Виконавець альбому</string>
     <string name="tags_field_year">Рік</string>
+    <string name="song_info_disc">Диск</string>
+    <string name="song_info_duration">Тривалість</string>
+    <string name="song_info_format">Формат</string>
+    <string name="song_info_size">Розмір</string>
+    <string name="song_info_location">Розташування</string>
     <string name="tags_field_track">Трек</string>
     <string name="tags_note">Файл не змінюється: виправлення зберігаються в застосунку й переживають оновлення бібліотеки.</string>
     <string name="tags_reset">Повернути теги з файлу</string>
