@@ -73,5 +73,20 @@ fun parseCurrentTitle(line: String): String? {
     return path.substringAfterLast('/').substringBeforeLast('.').takeIf { it.isNotBlank() }
 }
 
+/**
+ * The stage a yt-dlp output line belongs to, or null when it says nothing:
+ * "[download] ..." is the transfer, the post-processors are the conversion,
+ * any other "[extractor] ..." line is yt-dlp still reading the page.
+ */
+fun parseStage(line: String): ImportStage? {
+    val tag = line.trim().takeIf { it.startsWith("[") }?.substringAfter('[')?.substringBefore(']', "") ?: return null
+    return when (tag) {
+        "" -> null
+        "download" -> ImportStage.DOWNLOADING
+        "ExtractAudio", "Metadata", "EmbedThumbnail", "ThumbnailsConvertor", "Merger", "FixupM4a", "MoveFiles" -> ImportStage.CONVERTING
+        else -> ImportStage.FINDING
+    }
+}
+
 /** Audio file extensions the import keeps (everything else in the staging dir is a leftover). */
 val importedAudioExtensions = setOf("m4a", "mp3", "opus", "ogg", "flac", "webm", "aac", "wav")

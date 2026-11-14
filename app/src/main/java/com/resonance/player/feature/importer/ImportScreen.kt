@@ -36,6 +36,8 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -67,9 +69,11 @@ import com.resonance.player.core.ui.components.ResonanceTopBar
 import com.resonance.player.core.ui.components.pressClickable
 import com.resonance.player.core.ui.theme.ResonanceTheme
 import com.resonance.player.domain.importer.ImportJob
+import com.resonance.player.domain.importer.ImportStage
 import com.resonance.player.domain.importer.ImportStatus
 import com.resonance.player.domain.importer.extractImportUrl
 import com.resonance.player.importer.ImportManager
+import com.resonance.player.importer.labelRes
 import kotlinx.coroutines.launch
 
 private fun folderName(context: Context, treeUri: String?): String? =
@@ -207,6 +211,7 @@ private fun FolderCard(name: String?, onPick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun JobCard(job: ImportJob, onCancel: () -> Unit, onRetry: () -> Unit, modifier: Modifier = Modifier) {
     val colors = ResonanceTheme.colors
@@ -216,15 +221,11 @@ private fun JobCard(job: ImportJob, onCancel: () -> Unit, onRetry: () -> Unit, m
     val title = job.title ?: Uri.parse(job.url).let { (it.host ?: "") + (it.path ?: "") }
     val (line, lineColor) = when (status) {
         ImportStatus.Queued -> stringResource(R.string.import_queued) to colors.textSecondary
-        is ImportStatus.Running -> (
-            if (status.item != null && status.total != null) {
-                stringResource(R.string.import_item_of, status.item, status.total) + " · ${status.percent.toInt()}%"
-            } else if (status.title == null) {
-                stringResource(R.string.import_starting)
-            } else {
-                "${status.percent.toInt()}%"
-            }
-            ) to colors.textSecondary
+        is ImportStatus.Running -> listOfNotNull(
+            if (status.item != null && status.total != null) stringResource(R.string.import_item_of, status.item, status.total) else null,
+            stringResource(status.stage.labelRes()) +
+                if (status.stage == ImportStage.DOWNLOADING) " ${status.percent.toInt()}%" else ""
+        ).joinToString(" · ") to colors.textSecondary
         is ImportStatus.Done -> (
             if (status.songs == 0) {
                 stringResource(R.string.import_done_none)
@@ -265,15 +266,13 @@ private fun JobCard(job: ImportJob, onCancel: () -> Unit, onRetry: () -> Unit, m
         if (running != null) {
             val progress by animateFloatAsState(running.percent / 100f, ResonanceTheme.motion.effects(), label = "import-progress")
             Spacer(Modifier.height(10.dp))
-            Box(
-                Modifier
-                    .padding(end = 12.dp)
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(colors.textPrimary.copy(alpha = 0.1f))
-            ) {
-                Box(Modifier.fillMaxWidth(progress).height(4.dp).background(colors.accent))
+            // Only the transfer has a percent; every other stage shows that work is going on.
+            val barModifier = Modifier.padding(end = 12.dp).fillMaxWidth()
+            val track = colors.textPrimary.copy(alpha = 0.1f)
+            if (running.stage == ImportStage.DOWNLOADING) {
+                LinearWavyProgressIndicator(progress = { progress }, modifier = barModifier, color = colors.accent, trackColor = track)
+            } else {
+                LinearWavyProgressIndicator(modifier = barModifier, color = colors.accent, trackColor = track)
             }
         }
     }

@@ -17,7 +17,9 @@ class MusicActions(
     val removeSong: (Song) -> Unit,
     val editGenre: (songs: List<Song>, onSaved: (String?) -> Unit) -> Unit = { _, _ -> },
     /** Opens the tag editor for one song. */
-    val editTags: (Song) -> Unit = {}
+    val editTags: (Song) -> Unit = {},
+    /** Opens the import screen (download from YouTube and other sites). */
+    val openImport: () -> Unit = {}
 )
 
 val LocalMusicActions = staticCompositionLocalOf {

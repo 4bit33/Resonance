@@ -7,9 +7,11 @@ import com.resonance.player.core.model.SourceKind
 import com.resonance.player.data.importer.ImportDestination
 import com.resonance.player.data.importer.YtDlpEngine
 import com.resonance.player.domain.importer.ImportJob
+import com.resonance.player.domain.importer.ImportStage
 import com.resonance.player.domain.importer.ImportStatus
 import com.resonance.player.domain.importer.parseCurrentTitle
 import com.resonance.player.domain.importer.parsePlaylistItem
+import com.resonance.player.domain.importer.parseStage
 import com.resonance.player.domain.library.AddSourcesUseCase
 import com.resonance.player.domain.settings.UserPreferencesRepository
 import kotlinx.coroutines.CoroutineScope
@@ -94,20 +96,29 @@ class ImportManager(
         var running = ImportStatus.Running(0f, null, null, null)
         setStatus(id, running)
         val staging = File(context.cacheDir, "import/$id")
-        val error = engine.download(job.url, staging, archive, processId(id)) { percent, line ->
-            val item = parsePlaylistItem(line)
-            val title = parseCurrentTitle(line)
-            val next = running.copy(
-                percent = percent.coerceIn(0f, 100f),
-                item = item?.first ?: running.item,
-                total = item?.second ?: running.total,
-                title = title ?: running.title
-            )
+        fun update(next: ImportStatus.Running) {
             if (next != running) {
                 running = next
                 setStatus(id, next)
             }
         }
+        val error = engine.download(
+            job.url, staging, archive, processId(id),
+            onStage = { stage -> update(running.copy(stage = stage)) }
+        ) { percent, line ->
+            val item = parsePlaylistItem(line)
+            val title = parseCurrentTitle(line)
+            update(
+                running.copy(
+                    percent = percent.coerceIn(0f, 100f),
+                    item = item?.first ?: running.item,
+                    total = item?.second ?: running.total,
+                    title = title ?: running.title,
+                    stage = parseStage(line) ?: running.stage
+                )
+            )
+        }
+        update(running.copy(stage = ImportStage.SAVING))
         val moved = runCatching { destination.moveAll(staging, tree) }.getOrDefault(0)
         if (moved > 0) runCatching { addSources(SourceKind.TREE, listOf(tree)) }
         setStatus(

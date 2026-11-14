@@ -19,6 +19,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -70,6 +74,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import com.resonance.player.R
+import com.resonance.player.core.ui.theme.ResonanceMotion
 import com.resonance.player.core.ui.theme.ResonanceTheme
 import com.resonance.player.core.ui.theme.rememberArtworkPalette
 import com.resonance.player.app.AppContainer
@@ -195,7 +200,8 @@ fun ResonanceAppShell(container: AppContainer) {
             addSongs = { addSongsPicker.launch(arrayOf("audio/*")) },
             removeSong = { song -> scope.launch { container.removeSong(song.id) } },
             editGenre = { songs, onSaved -> genreTarget = GenreTarget(songs, onSaved) },
-            editTags = { song -> tagsRequest = song.id }
+            editTags = { song -> tagsRequest = song.id },
+            openImport = { navController.navigate(AppDestination.Import.route) { launchSingleTop = true } }
         )
     }
 
@@ -298,11 +304,18 @@ fun ResonanceAppShell(container: AppContainer) {
             navController = navController,
             startDestination = AppDestination.Home.route,
             modifier = modifier,
-            // Quick fade-through: the old screen is gone in 70 ms, the new one settles in.
-            enterTransition = { fadeIn(motion.duration(150)) + scaleIn(motion.spatialFast(), initialScale = 0.985f) },
+            // The old screen is gone in 70 ms. Tab switches fade through; a drill-down
+            // slides in from the right and back from the left (M3 shared axis), so the
+            // direction says where you went.
+            enterTransition = { screenEnter(motion, forward = true) },
             exitTransition = { fadeOut(motion.duration(70)) },
-            popEnterTransition = { fadeIn(motion.duration(150)) + scaleIn(motion.spatialFast(), initialScale = 0.985f) },
-            popExitTransition = { fadeOut(motion.duration(70)) }
+            popEnterTransition = { screenEnter(motion, forward = false) },
+            // Back keeps the leaving screen on stage a little longer and moves it aside,
+            // so the predictive back gesture drags both screens under the finger.
+            popExitTransition = {
+                if (isTabSwitch()) fadeOut(motion.duration(70))
+                else fadeOut(motion.duration(120)) + slideOutHorizontally(motion.settle()) { it / 8 }
+            }
         ) {
             screen(AppDestination.Home.route) {
                 val vm: HomeViewModel = viewModel(
@@ -591,6 +604,8 @@ fun ResonanceAppShell(container: AppContainer) {
         }
     }
 
+    // Above everything, Now Playing included: its menu edits tags and genres through these.
+    CompositionLocalProvider(LocalMusicActions provides musicActions) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -609,9 +624,7 @@ fun ResonanceAppShell(container: AppContainer) {
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
-                CompositionLocalProvider(LocalMusicActions provides musicActions) {
-                    AppGraph(modifier = Modifier.weight(1f))
-                }
+                AppGraph(modifier = Modifier.weight(1f))
                 AnimatedVisibility(
                     visible = showMiniPlayer,
                     enter = fadeIn(ResonanceTheme.motion.duration(200)) + slideInVertically(ResonanceTheme.motion.spatial()) { it },
@@ -736,6 +749,7 @@ fun ResonanceAppShell(container: AppContainer) {
                 .padding(bottom = snackbarBottomInset)
         )
     }
+    }
 }
 
 @Composable
@@ -785,6 +799,22 @@ private fun NavGraphBuilder.screen(
     composable(route = route, arguments = arguments) { entry ->
         val scope = this
         Box(Modifier.fillMaxSize().statusBarsPadding()) { scope.content(entry) }
+    }
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boolean =
+    AppDestination.tabForRoute(initialState.destination.route) != null &&
+        AppDestination.tabForRoute(targetState.destination.route) != null
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.screenEnter(
+    motion: ResonanceMotion,
+    forward: Boolean
+): EnterTransition {
+    val fade = fadeIn(motion.duration(150))
+    return if (isTabSwitch()) {
+        fade + scaleIn(motion.spatialFast(), initialScale = 0.985f)
+    } else {
+        fade + slideInHorizontally(motion.settle()) { if (forward) it / 8 else -it / 8 }
     }
 }
 

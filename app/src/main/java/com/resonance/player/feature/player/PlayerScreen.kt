@@ -4,6 +4,11 @@ import com.resonance.player.core.ui.components.playerAnchor
 import com.resonance.player.core.ui.components.PlayerAnchor
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import kotlin.math.PI
+import kotlin.math.sin
 import com.resonance.player.core.ui.components.PlayShapes
 import com.resonance.player.core.ui.components.MorphShape
 import androidx.compose.animation.core.LinearEasing
@@ -49,6 +54,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -69,6 +75,8 @@ import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.Sell
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
@@ -81,6 +89,7 @@ import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.Icon
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -325,21 +334,21 @@ fun PlayerScreen(
     if (techSheetOpen && song != null) {
         val actions = LocalMusicActions.current
         ResonanceBottomSheet(onDismiss = { techSheetOpen = false }) {
-            Row {
-                TextButton(onClick = {
+            Text(song.title, style = ResonanceTheme.typography.titleMd, color = colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(song.artistName, style = ResonanceTheme.typography.bodyMd, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                SheetAction(Icons.Rounded.EditNote, stringResource(R.string.tags_action), Modifier.weight(1f)) {
                     techSheetOpen = false
                     actions.editTags(song)
-                }) {
-                    Text(stringResource(R.string.tags_action), color = palette.accent)
                 }
-                TextButton(onClick = {
+                SheetAction(Icons.Rounded.Sell, stringResource(R.string.genre_edit_action), Modifier.weight(1f)) {
                     techSheetOpen = false
                     actions.editGenre(listOf(song)) {}
-                }) {
-                    Text(stringResource(R.string.genre_edit_action), color = palette.accent)
                 }
             }
-            TechSheetContent(title = song.title, rows = techRows(song))
+            Spacer(Modifier.height(16.dp))
+            TechSheetContent(rows = techRows(song))
         }
     }
 }
@@ -640,7 +649,11 @@ private fun Scrubber(
         derivedStateOf { (dragFraction?.let { (it * duration).toLong() } ?: currentMs()) / 1000L }
     }
     val active = dragFraction != null
-    // Material 3 slider look, kept straight: the track thickens and the handle narrows under the finger.
+    // Material 3 slider look: the track thickens and the handle narrows under the finger.
+    // While music plays the played part is a travelling wave (M3 Expressive wavy progress,
+    // drawn here because the library's wavy indicator has no handle); it flattens on pause and drag.
+    val waveAmount by animateFloatAsState(if (playing && !active && enabled) 1f else 0f, motion.settle(), label = "seek-wave")
+    val wavePath = remember { Path() }
     val trackHeight by animateDpAsState(if (active) 10.dp else 6.dp, motion.spatialFast(), label = "track-h")
     val handleWidth by animateDpAsState(if (active) 2.dp else 4.dp, motion.spatialFast(), label = "handle-w")
 
@@ -708,7 +721,26 @@ private fun Scrubber(
                 }
                 if (enabled) {
                     // Active track, a gap, the handle, a gap, the inactive track with a stop dot at its end.
-                    segment(0f, x - gap - handleW / 2f, accent, outer, inner)
+                    val activeEnd = x - gap - handleW / 2f
+                    val amplitude = 3.dp.toPx() * waveAmount
+                    if (amplitude < 0.5f || activeEnd < h * 2f) {
+                        segment(0f, activeEnd, accent, outer, inner)
+                    } else {
+                        val wavelength = 40.dp.toPx()
+                        // One wavelength per second, towards the handle.
+                        val period = motion.millis(1000).coerceAtLeast(1)
+                        val shift = if (motion.enabled) (SystemClock.uptimeMillis() % period) / period.toFloat() * wavelength else 0f
+                        val cy = size.height / 2f
+                        val k = 2f * PI.toFloat() / wavelength
+                        wavePath.rewind()
+                        var px = outer
+                        wavePath.moveTo(px, cy + amplitude * sin(k * (px - shift)))
+                        while (px < activeEnd - outer) {
+                            px = (px + 2f).coerceAtMost(activeEnd - outer)
+                            wavePath.lineTo(px, cy + amplitude * sin(k * (px - shift)))
+                        }
+                        drawPath(wavePath, accent, style = Stroke(h, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    }
                     segment(x + gap + handleW / 2f, size.width, trackColor, inner, outer)
                     val dot = 2.dp.toPx()
                     if (size.width - (x + gap + handleW / 2f) > dot * 4f) {
@@ -935,43 +967,42 @@ private fun albumLine(album: String, year: Int?): String =
 private data class TechRow(val label: String, val value: String)
 
 /**
- * Technical sheet rows from REAL file data only. Channels and bit depth
- * are unavailable on-device (no MediaStore column, no retriever key), so
+ * What the file really is: rows from real file data only. Channels and bit
+ * depth are unavailable on-device (no MediaStore column, no retriever key), so
  * they are omitted rather than fabricated.
  */
+@Composable
 private fun techRows(song: Song): List<TechRow> {
     val rows = ArrayList<TechRow>()
-    rows.add(TechRow("Title", song.title))
-    rows.add(TechRow("Artist", song.artistName))
-    rows.add(TechRow("Album", albumLine(song.albumName, song.year)))
-    song.albumArtist?.let { rows.add(TechRow("Album artist", it)) }
-    song.genreName?.let { rows.add(TechRow("Genre", it)) }
-    containerName(song.mimeType)?.let { rows.add(TechRow("Container", it)) }
-    song.mimeType?.let { rows.add(TechRow("MIME type", it)) }
-    if (song.bitrate != null && song.bitrate > 0) {
-        rows.add(TechRow("Bitrate", "${song.bitrate / 1000} kbps"))
-    }
-    if (song.sampleRate != null && song.sampleRate > 0) {
-        val khz = song.sampleRate / 1000.0
-        val formatted = if (khz % 1.0 == 0.0) {
-            khz.toLong().toString()
-        } else {
-            khz.toString()
-        }
-        rows.add(TechRow("Sample rate", "$formatted kHz"))
-    }
+    rows.add(TechRow(stringResource(R.string.tags_field_album), albumLine(song.albumName, song.year)))
+    song.albumArtist?.let { rows.add(TechRow(stringResource(R.string.tags_field_album_artist), it)) }
+    song.genreName?.let { rows.add(TechRow(stringResource(R.string.collection_genre), it)) }
     song.trackNumber?.let { track ->
-        val total = song.totalTracks?.let { " / $it" } ?: ""
-        rows.add(TechRow("Track", "$track$total"))
+        rows.add(TechRow(stringResource(R.string.tags_field_track), "$track" + (song.totalTracks?.let { " / $it" } ?: "")))
     }
     song.discNumber?.let { disc ->
-        val total = song.totalDiscs?.let { " / $it" } ?: ""
-        rows.add(TechRow("Disc", "$disc$total"))
+        rows.add(TechRow(stringResource(R.string.song_info_disc), "$disc" + (song.totalDiscs?.let { " / $it" } ?: "")))
     }
-    rows.add(TechRow("Duration", formatDurationMs(song.durationMs)))
-    rows.add(TechRow("Size", formatBytes(song.fileSizeBytes)))
-    rows.add(TechRow("Location", song.path))
+    rows.add(TechRow(stringResource(R.string.song_info_duration), formatDurationMs(song.durationMs)))
+    val format = listOfNotNull(
+        containerName(song.mimeType) ?: song.mimeType,
+        song.bitrate?.takeIf { it > 0 }?.let { "${it / 1000} kbps" },
+        song.sampleRate?.takeIf { it > 0 }?.let { "${(it / 100) / 10.0}".removeSuffix(".0") + " kHz" }
+    ).joinToString(" · ")
+    if (format.isNotEmpty()) rows.add(TechRow(stringResource(R.string.song_info_format), format))
+    rows.add(TechRow(stringResource(R.string.song_info_size), formatBytes(song.fileSizeBytes)))
+    rows.add(TechRow(stringResource(R.string.song_info_location), song.path))
     return rows
+}
+
+/** One of the two things to do with the song, side by side at the top of its sheet. */
+@Composable
+private fun SheetAction(icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    FilledTonalButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), modifier = modifier) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
 
 private fun containerName(mimeType: String?): String? {
@@ -987,13 +1018,11 @@ private fun containerName(mimeType: String?): String? {
 }
 
 @Composable
-private fun TechSheetContent(title: String, rows: List<TechRow>) {
+private fun TechSheetContent(rows: List<TechRow>) {
     val colors = ResonanceTheme.colors
     val typography = ResonanceTheme.typography
     val spacing = ResonanceTheme.spacing
     Column {
-        Text(title, style = typography.titleMd, color = colors.textPrimary)
-        Spacer(Modifier.height(spacing.md))
         rows.forEach { row ->
             Row(
                 modifier = Modifier
@@ -1001,7 +1030,6 @@ private fun TechSheetContent(title: String, rows: List<TechRow>) {
                     .padding(vertical = spacing.xs)
             ) {
                 ResonanceMetric(text = row.label, color = colors.textSecondary)
-                Spacer(Modifier.weight(1f))
                 Spacer(Modifier.width(spacing.lg))
                 Text(
                     row.value,

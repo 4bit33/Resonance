@@ -1,7 +1,6 @@
 package com.resonance.player.core.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,7 +44,7 @@ fun LoadingView(modifier: Modifier = Modifier) {
 }
 
 /**
- * "No music yet" with the two ways to add some. Used by Home and every Library
+ * "No music yet" with the three ways to add some (folder, files, download). Used by Home and every Library
  * tab, so the CTA is one place.
  */
 @Composable
@@ -61,7 +60,7 @@ fun EmptyLibraryView(modifier: Modifier = Modifier) {
         delay(EMPTY_STATE_DELAY_MS)
         visible = true
     }
-    AnimatedVisibility(visible = visible, enter = fadeIn(tween(200)), modifier = modifier.fillMaxSize()) {
+    AnimatedVisibility(visible = visible, enter = fadeIn(ResonanceTheme.motion.duration(200)), modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -91,6 +90,13 @@ fun EmptyLibraryView(modifier: Modifier = Modifier) {
             TextButton(onClick = actions.addSongs) {
                 Text(
                     stringResource(R.string.music_add_songs),
+                    style = typography.labelLg,
+                    color = colors.accent
+                )
+            }
+            TextButton(onClick = actions.openImport) {
+                Text(
+                    stringResource(R.string.home_import_youtube),
                     style = typography.labelLg,
                     color = colors.accent
                 )
